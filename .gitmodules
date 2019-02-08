@@ -1,0 +1,3 @@
+[submodule "evowluator/pyutils"]
+	path = evowluator/pyutils
+	url = https://github.com/IvanoBilenchi/pyutils.git
