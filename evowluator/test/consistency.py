@@ -33,7 +33,7 @@ class ConsistencyCorrectnessTest(Test):
 
             try:
                 results = reasoner.consistency(entry.ontology(reasoner.preferred_syntax).path,
-                                               timeout=TestConfig.CONSISTENCY_TIMEOUT)
+                                               timeout=TestConfig.TIMEOUT)
             except TimeoutExpired:
                 result = 'timeout'
                 color = echo.Color.RED
@@ -72,7 +72,7 @@ class ConsistencyTimeTest(StandardPerformanceTest):
     def run_reasoner(self, reasoner, ontology):
 
         results = reasoner.consistency(ontology.path,
-                                       timeout=TestConfig.CONSISTENCY_TIMEOUT,
+                                       timeout=TestConfig.TIMEOUT,
                                        mode=TestMode.TIME)
 
         stats = results.stats
@@ -99,7 +99,7 @@ class ConsistencyMemoryTest(StandardPerformanceTest):
 
     def run_reasoner(self, reasoner, ontology):
         results = reasoner.consistency(ontology.path,
-                                       timeout=TestConfig.CONSISTENCY_TIMEOUT,
+                                       timeout=TestConfig.TIMEOUT,
                                        mode=TestMode.MEMORY)
         max_memory = results.stats.max_memory
         self._logger.log(fileutils.human_readable_bytes(max_memory))
@@ -123,7 +123,7 @@ class ConsistencyEnergyTest(StandardPerformanceTest):
 
     def run_reasoner(self, reasoner, ontology):
         stats = reasoner.consistency(ontology.path,
-                                     timeout=TestConfig.CONSISTENCY_TIMEOUT,
+                                     timeout=TestConfig.TIMEOUT,
                                      mode=TestMode.ENERGY).stats
 
         self._logger.log('{:.2f}'.format(stats.energy_score))

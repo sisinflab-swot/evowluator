@@ -37,8 +37,5 @@ class ConfigKey:
 
 class Test:
     """Test config namespace."""
-    CLASSIFICATION_TIMEOUT = 1200.0
-    CONSISTENCY_TIMEOUT = 1200.0
-    MATCHMAKING_TIMEOUT = 1200.0
-
+    TIMEOUT = 1200.0
     DEFAULT_ITERATIONS = 5

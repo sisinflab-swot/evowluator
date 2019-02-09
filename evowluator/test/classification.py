@@ -45,7 +45,7 @@ class ClassificationCorrectnessTest(Test):
 
         reference.classify(entry.ontology(reference.preferred_syntax).path,
                            output_file=reference_out,
-                           timeout=TestConfig.CLASSIFICATION_TIMEOUT)
+                           timeout=TestConfig.TIMEOUT)
         self._logger.log('done', color=echo.Color.GREEN)
 
         for reasoner in reasoners:
@@ -54,7 +54,7 @@ class ClassificationCorrectnessTest(Test):
             try:
                 reasoner.classify(entry.ontology(reasoner.preferred_syntax).path,
                                   output_file=reasoner_out,
-                                  timeout=TestConfig.CLASSIFICATION_TIMEOUT)
+                                  timeout=TestConfig.TIMEOUT)
             except TimeoutExpired:
                 result = 'timeout'
                 color = echo.Color.RED
@@ -94,7 +94,7 @@ class ClassificationTimeTest(StandardPerformanceTest):
     def run_reasoner(self, reasoner, ontology):
 
         stats = reasoner.classify(ontology.path,
-                                  timeout=TestConfig.CLASSIFICATION_TIMEOUT,
+                                  timeout=TestConfig.TIMEOUT,
                                   mode=TestMode.TIME)
 
         self._logger.log('{:.0f} ms'.format(stats.total_ms))
@@ -125,7 +125,7 @@ class ClassificationMemoryTest(StandardPerformanceTest):
     def run_reasoner(self, reasoner, ontology):
 
         stats = reasoner.classify(ontology.path,
-                                  timeout=TestConfig.CLASSIFICATION_TIMEOUT,
+                                  timeout=TestConfig.TIMEOUT,
                                   mode=TestMode.MEMORY)
 
         self._logger.log(fileutils.human_readable_bytes(stats.max_memory))
@@ -151,7 +151,7 @@ class ClassificationEnergyTest(StandardPerformanceTest):
     def run_reasoner(self, reasoner, ontology):
 
         stats = reasoner.classify(ontology.path,
-                                  timeout=TestConfig.CLASSIFICATION_TIMEOUT,
+                                  timeout=TestConfig.TIMEOUT,
                                   mode=TestMode.ENERGY)
 
         self._logger.log('{:.2f}'.format(stats.energy_score))

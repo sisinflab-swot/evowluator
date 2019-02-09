@@ -102,7 +102,7 @@ class MatchmakingTimeTest(MatchmakingPerformanceTest):
 
     def run_reasoner(self, reasoner, resource, request):
         stats = reasoner.matchmaking(resource, request,
-                                     timeout=TestConfig.MATCHMAKING_TIMEOUT,
+                                     timeout=TestConfig.TIMEOUT,
                                      mode=TestMode.TIME)
 
         self._logger.log(('Resource parsing {:.0f} ms | '
@@ -130,7 +130,7 @@ class MatchmakingMemoryTest(MatchmakingPerformanceTest):
 
     def run_reasoner(self, reasoner, resource, request):
         stats = reasoner.matchmaking(resource, request,
-                                     timeout=TestConfig.MATCHMAKING_TIMEOUT,
+                                     timeout=TestConfig.TIMEOUT,
                                      mode=TestMode.MEMORY)
 
         self._logger.log(fileutils.human_readable_bytes(stats.max_memory))
@@ -150,7 +150,7 @@ class MatchmakingEnergyTest(MatchmakingPerformanceTest):
 
     def run_reasoner(self, reasoner, resource, request):
         stats = reasoner.matchmaking(resource, request,
-                                     timeout=TestConfig.MATCHMAKING_TIMEOUT,
+                                     timeout=TestConfig.TIMEOUT,
                                      mode=TestMode.ENERGY)
 
         self._logger.log('{:.2f}'.format(stats.energy_score))
