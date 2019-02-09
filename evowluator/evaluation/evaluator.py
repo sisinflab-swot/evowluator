@@ -1,5 +1,5 @@
 import os
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from math import ceil
 from os import path
@@ -15,8 +15,7 @@ from evowluator.test.enum import TestName
 from . import plotutils
 
 
-class Evaluator:
-    __metaclass__ = ABCMeta
+class Evaluator(ABC):
 
     # Abstract
 

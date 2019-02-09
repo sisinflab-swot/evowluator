@@ -1,5 +1,5 @@
 import os
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from evowluator.config import OWLTool, Paths
@@ -45,9 +45,8 @@ class ClassificationOutputFormat:
     ONTOLOGY = 'ontology'
 
 
-class Reasoner:
+class Reasoner(ABC):
     """Abstract reasoner interface."""
-    __metaclass__ = ABCMeta
 
     # Override
 

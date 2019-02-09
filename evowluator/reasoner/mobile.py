@@ -1,5 +1,5 @@
 import errno
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from evowluator.pyutils import exc
@@ -14,9 +14,8 @@ from .base import (
 )
 
 
-class MobileReasonerIOS(Reasoner):
+class MobileReasonerIOS(Reasoner, ABC):
     """iOS mobile reasoner wrapper."""
-    __metaclass__ = ABCMeta
 
     # Overrides
 

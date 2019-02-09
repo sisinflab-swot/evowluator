@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from subprocess import TimeoutExpired
 from typing import List, Optional
 
@@ -11,10 +11,8 @@ from .base import Test
 from .enum import TestMode, TestName
 
 
-# noinspection PyTypeChecker
-class MatchmakingPerformanceTest(Test):
+class MatchmakingPerformanceTest(Test, ABC):
     """Matchmaking performance test."""
-    __metaclass__ = ABCMeta
 
     @property
     @abstractmethod

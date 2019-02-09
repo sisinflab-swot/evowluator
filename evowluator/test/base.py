@@ -1,7 +1,7 @@
 import re
 import tempfile
 import time
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from os import path
 from subprocess import TimeoutExpired
 from typing import List, Optional
@@ -20,9 +20,8 @@ from evowluator.reasoner.base import Reasoner
 from .enum import TestName
 
 
-class Test:
+class Test(ABC):
     """Abstract test class."""
-    __metaclass__ = ABCMeta
 
     # Override
 
@@ -172,10 +171,8 @@ class Test:
         json.save(cfg, path.join(self.work_dir, config.Paths.CONFIG_FILE_NAME))
 
 
-# noinspection PyTypeChecker
-class StandardPerformanceTest(Test):
+class StandardPerformanceTest(Test, ABC):
     """Abstract test class for measuring the performance of standard reasoning tasks."""
-    __metaclass__ = ABCMeta
 
     @property
     @abstractmethod

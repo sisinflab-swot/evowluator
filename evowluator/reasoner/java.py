@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from evowluator.pyutils.proc import Benchmark, EnergyProfiler, Jar, Task
@@ -6,9 +6,8 @@ from evowluator.test.enum import TestMode
 from .base import Reasoner
 
 
-class JavaReasoner(Reasoner):
+class JavaReasoner(Reasoner, ABC):
     """Abstract Java reasoner interface."""
-    __metaclass__ = ABCMeta
 
     # Override
 

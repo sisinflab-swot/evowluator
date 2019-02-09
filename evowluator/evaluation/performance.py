@@ -1,5 +1,5 @@
 import os
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from os import path
 from typing import List, NamedTuple
 
@@ -14,8 +14,7 @@ from . import plotutils
 from .evaluator import Evaluator
 
 
-class SingleValueEvaluator(Evaluator):
-    __metaclass__ = ABCMeta
+class SingleValueEvaluator(Evaluator, ABC):
 
     # Abstract
 
