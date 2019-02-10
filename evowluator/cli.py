@@ -7,19 +7,17 @@ from .evaluation.evaluator import Evaluator
 from .test.base import NotImplementedTest
 from .test.classification import (
     ClassificationCorrectnessTest,
-    ClassificationEnergyTest,
-    ClassificationMemoryTest,
-    ClassificationTimeTest
+    ClassificationPerformanceTest,
+    ClassificationEnergyTest
 )
 from .test.consistency import (
     ConsistencyCorrectnessTest,
-    ConsistencyEnergyTest,
-    ConsistencyMemoryTest,
-    ConsistencyTimeTest
+    ConsistencyPerformanceTest,
+    ConsistencyEnergyTest
 )
-from .test.enum import TestMode
+from .test.test_mode import TestMode
 from .test.info import InfoTest
-from .test.matchmaking import (MatchmakingEnergyTest, MatchmakingMemoryTest, MatchmakingTimeTest)
+from .test.matchmaking import MatchmakingEnergyTest, MatchmakingPerformanceTest
 
 
 # CLI parser
@@ -149,15 +147,10 @@ def matchmaking_sub(args) -> int:
     {
         TestMode.CORRECTNESS: NotImplementedTest(),
 
-        TestMode.TIME: MatchmakingTimeTest(dataset=args.dataset,
-                                           reasoners=args.reasoners,
-                                           syntax=args.syntax,
-                                           iterations=args.num_iterations),
-
-        TestMode.MEMORY: MatchmakingMemoryTest(dataset=args.dataset,
-                                               reasoners=args.reasoners,
-                                               syntax=args.syntax,
-                                               iterations=args.num_iterations),
+        TestMode.PERFORMANCE: MatchmakingPerformanceTest(dataset=args.dataset,
+                                                         reasoners=args.reasoners,
+                                                         syntax=args.syntax,
+                                                         iterations=args.num_iterations),
 
         TestMode.ENERGY: MatchmakingEnergyTest(dataset=args.dataset,
                                                reasoners=args.reasoners,
@@ -172,15 +165,10 @@ def classification_sub(args) -> int:
         TestMode.CORRECTNESS: ClassificationCorrectnessTest(dataset=args.dataset,
                                                             reasoners=args.reasoners),
 
-        TestMode.TIME: ClassificationTimeTest(dataset=args.dataset,
-                                              reasoners=args.reasoners,
-                                              syntax=args.syntax,
-                                              iterations=args.num_iterations),
-
-        TestMode.MEMORY: ClassificationMemoryTest(dataset=args.dataset,
-                                                  reasoners=args.reasoners,
-                                                  syntax=args.syntax,
-                                                  iterations=args.num_iterations),
+        TestMode.PERFORMANCE: ClassificationPerformanceTest(dataset=args.dataset,
+                                                            reasoners=args.reasoners,
+                                                            syntax=args.syntax,
+                                                            iterations=args.num_iterations),
 
         TestMode.ENERGY: ClassificationEnergyTest(dataset=args.dataset,
                                                   reasoners=args.reasoners,
@@ -195,15 +183,10 @@ def consistency_sub(args) -> int:
         TestMode.CORRECTNESS: ConsistencyCorrectnessTest(dataset=args.dataset,
                                                          reasoners=args.reasoners),
 
-        TestMode.TIME: ConsistencyTimeTest(dataset=args.dataset,
-                                           reasoners=args.reasoners,
-                                           syntax=args.syntax,
-                                           iterations=args.num_iterations),
-
-        TestMode.MEMORY: ConsistencyMemoryTest(dataset=args.dataset,
-                                               reasoners=args.reasoners,
-                                               syntax=args.syntax,
-                                               iterations=args.num_iterations),
+        TestMode.PERFORMANCE: ConsistencyPerformanceTest(dataset=args.dataset,
+                                                         reasoners=args.reasoners,
+                                                         syntax=args.syntax,
+                                                         iterations=args.num_iterations),
 
         TestMode.ENERGY: ConsistencyEnergyTest(dataset=args.dataset,
                                                reasoners=args.reasoners,

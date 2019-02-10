@@ -11,7 +11,8 @@ import pandas as pd
 from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
 from evowluator.pyutils import fileutils
-from evowluator.test.enum import TestName
+from evowluator.reasoner.base import ReasoningTask
+from evowluator.test.test_mode import TestMode
 from . import plotutils
 
 
@@ -27,18 +28,16 @@ class Evaluator(ABC):
 
     @classmethod
     def from_dir(cls, test_dir: str) -> 'Evaluator':
-        from .performance import EnergyEvaluator, MemoryEvaluator, TimeEvaluator
+        from .performance import EnergyEvaluator, PerformanceEvaluator
 
         cfg = json.load(os.path.join(test_dir, Paths.CONFIG_FILE_NAME))
         test_name = cfg[ConfigKey.NAME]
 
-        cols = ['Resource', 'Request'] if test_name in TestName.Matchmaking.ALL else ['Ontology']
+        cols = ['Resource', 'Request'] if ReasoningTask.MATCHMAKING in test_name else ['Ontology']
 
-        if test_name in TestName.TIME:
-            return TimeEvaluator(test_dir, cfg, index_columns=cols)
-        elif test_name in TestName.MEMORY:
-            return MemoryEvaluator(test_dir, cfg, index_columns=cols)
-        elif test_name in TestName.ENERGY:
+        if TestMode.PERFORMANCE in test_name:
+            return PerformanceEvaluator(test_dir, cfg, index_columns=cols)
+        elif TestMode.ENERGY in test_name:
             return EnergyEvaluator(test_dir, cfg, index_columns=cols)
         else:
             raise NotImplementedError('Evaluator not implemented for test "{}"'.format(test_name))
@@ -106,6 +105,9 @@ class Evaluator(ABC):
         plotters = self.plotters
         n_plotters = len(plotters)
 
+        if n_plotters == 0:
+            return
+
         nrows = 2 if n_plotters > 1 else 1
         ncols = ceil(n_plotters / nrows)
 
@@ -115,4 +117,5 @@ class Evaluator(ABC):
         for i, plotter in enumerate(plotters):
             plotter(axes[i])
 
+        fig.tight_layout()
         plt.show()

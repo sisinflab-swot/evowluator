@@ -43,18 +43,18 @@ class SingleValueEvaluator(Evaluator, ABC):
 
     # Private
 
-    @property
-    def _metric_and_unit(self) -> str:
-        return '{} ({})'.format(self._metric, self._unit) if self._unit else self._metric
+    def _metric_and_unit(self, capitalized: bool = False) -> str:
+        res = '{} ({})'.format(self._metric, self._unit) if self._unit else self._metric
+        return res[0].upper() + res[1:] if capitalized else res
 
     def _write_global_stats(self, file_path: str) -> None:
         results = np.asarray([self.results_for_reasoner(r).values for r in self.reasoners()])
 
         self._global_stats = pd.DataFrame({
             'Reasoner': list(self.reasoners()),
-            'Min ' + self._metric_and_unit: results.min(axis=1).flatten(),
-            'Avg ' + self._metric_and_unit: results.mean(axis=1).flatten(),
-            'Max ' + self._metric_and_unit: results.max(axis=1).flatten()
+            'Min ' + self._metric_and_unit(): results.min(axis=1).flatten(),
+            'Avg ' + self._metric_and_unit(): results.mean(axis=1).flatten(),
+            'Max ' + self._metric_and_unit(): results.max(axis=1).flatten()
         }).set_index('Reasoner')
 
         self._global_stats.to_csv(file_path, float_format='%.2f')
@@ -63,38 +63,22 @@ class SingleValueEvaluator(Evaluator, ABC):
         stats = self._global_stats
         reasoners = stats.index.values
 
-        n_reasoners = len(reasoners)
-        n_stats = len(stats.columns)
-
-        width = 1.0 / (n_reasoners + 1)
-        bar_width = 0.8 * width
-
-        for i, reasoner in enumerate(reasoners):
-            ax.bar([j + width * i for j in range(n_stats)],
-                   stats.loc[reasoner].values,
-                   bar_width, alpha=0.9, label=reasoner)
-
-        plotutils.display_labels(ax)
-
-        ax.set_title('Minimum, average and maximum {}'.format(self._metric))
-        ax.set_ylabel(self._metric_and_unit.capitalize())
-
-        ax.set_xticks([p + width * ((n_reasoners - 1) / 2) for p in range(n_stats)])
-        ax.set_xticklabels(['Min', 'Avg', 'Max'])
-
-        plotutils.set_scale(ax, 'log', axis='y')
-
-        plotutils.display_grid(ax, axis='y')
-        ax.legend(loc='upper left')
+        data = [stats.loc[r].values for r in reasoners]
+        plotutils.draw_min_avg_max_histograms(ax, dict(zip(reasoners, data)),
+                                              self._metric, self._unit)
 
     def _scatter_plotter(self, ax: plt.Axes) -> None:
         reasoners = list(self.reasoners())
         dataset = Dataset(os.path.join(Paths.DATA_DIR, self.dataset_name))
 
         scale, unit = fileutils.human_readable_scale_and_unit(dataset.get_max_ontology_size())
-        point_size = plotutils.configure_scatter_plot(ax, dataset.size)
+        ax.set_title('{} by ontology size'.format(self._metric.capitalize()))
+        ax.set_xlabel('Ontology size ({})'.format(unit))
+        ax.set_ylabel(self._metric_and_unit(capitalized=True))
 
-        for i, reasoner in enumerate(reasoners):
+        data = []
+
+        for reasoner in reasoners:
             ontologies = dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
                                                 sort_by_size=True)
             results = self.results_for_reasoner(reasoner)
@@ -107,32 +91,9 @@ class SingleValueEvaluator(Evaluator, ABC):
             x = [o.size / scale for o in ontologies]
             y = [results.loc[o.name].values[0] for o in ontologies]
 
-            ax.scatter(x, y, s=point_size, alpha=0.5, label=reasoner)
+            data.append((x, y))
 
-            weights = list(range(len(x), 0, -1))
-            ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x))
-
-        ax.set_title('{} by ontology size'.format(self._metric.capitalize()))
-        ax.set_xlabel('Ontology size ({})'.format(unit))
-        ax.set_ylabel(self._metric_and_unit.capitalize())
-
-        plotutils.display_grid(ax)
-        ax.legend()
-
-
-class MemoryEvaluator(SingleValueEvaluator):
-
-    @property
-    def _metric(self):
-        return 'memory peak'
-
-    @property
-    def _unit(self):
-        return 'MiB'
-
-    def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
-        super().__init__(test_dir, cfg, index_columns)
-        self._results /= (1024 * 1024)
+        plotutils.draw_scatter_plot(ax, dict(zip(reasoners, data)))
 
 
 class EnergyEvaluator(SingleValueEvaluator):
@@ -146,91 +107,107 @@ class EnergyEvaluator(SingleValueEvaluator):
         return ''
 
 
-class TimeEvaluator(Evaluator):
+class PerformanceEvaluator(Evaluator):
 
     class GlobalStats(NamedTuple):
         data: pd.DataFrame
-        unit: str
+        time_unit: str
 
     # Overrides
 
     @property
     def plotters(self):
-        return super().plotters + [self.__histogram_plotter, self.__scatter_plotter]
+        return super().plotters + [self.__time_histogram_plotter, self.__time_scatter_plotter,
+                                   self.__memory_histogram_plotter, self.__memory_scatter_plotter]
 
     def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(test_dir, cfg, index_columns)
-        self._global_stats: TimeEvaluator.GlobalStats = None
+        self._results[self.__memory_cols()] /= (1024 * 1024)
+        self._global_stats: PerformanceEvaluator.GlobalStats = None
 
     def _write_results(self):
-        self.__write_total_results(path.join(self.evaluation_dir, 'total_results.csv'))
+        self.__write_total_times(path.join(self.evaluation_dir, 'total_times.csv'))
+        self.__write_memory(path.join(self.evaluation_dir, 'memory.csv'))
         self.__write_global_stats(path.join(self.evaluation_dir, 'global_stats.csv'))
 
     # Private
 
-    def __write_total_results(self, file_path: str) -> None:
-        totals = self.results_grouped_by_reasoner().sum()
+    def __memory_cols(self) -> List:
+        return [c for c in self._results.columns if 'memory' in c.lower()]
+
+    def __parsing_cols(self) -> List:
+        return [c for c in self._results.columns if 'parsing' in c.lower()]
+
+    def __reasoning_cols(self) -> List:
+        other_cols = self.__memory_cols() + self.__parsing_cols()
+        return [c for c in self._results.columns if c not in other_cols]
+
+    def __write_total_times(self, file_path: str) -> None:
+        cols = self.__memory_cols()
+        cols = [c for c in self._results.columns if c not in cols]
+        totals = self.results_grouped_by_reasoner(cols).sum()
+        totals.to_csv(file_path, float_format='%.2f')
+
+    def __write_memory(self, file_path: str) -> None:
+        totals = self.results_grouped_by_reasoner(self.__memory_cols()).sum()
         totals.to_csv(file_path, float_format='%.2f')
 
     def __write_global_stats(self, file_path: str) -> None:
         reasoners = list(self.reasoners())
 
-        parsing_cols = [c for c in self._results.columns if 'parsing' in c.lower()]
-        reasoning_cols = [c for c in self._results.columns if c not in parsing_cols]
+        parsing_cols = self.__parsing_cols()
+        reasoning_cols = self.__reasoning_cols()
+        memory_cols = self.__memory_cols()
 
         parsing = self.results_grouped_by_reasoner(parsing_cols).sum().sum()
         reasoning = self.results_grouped_by_reasoner(reasoning_cols).sum().sum()
+        memory = self.results_grouped_by_reasoner(memory_cols).sum()
 
         parsing = np.asarray([parsing[r] for r in reasoners])
         reasoning = np.asarray([reasoning[r] for r in reasoners])
 
         if np.append(parsing, reasoning).min() < 1000.0:
-            unit = 'ms'
+            time_unit = 'ms'
         else:
             parsing /= 1000.0
             reasoning /= 1000.0
-            unit = 's'
+            time_unit = 's'
 
         data = pd.DataFrame({
             'Reasoner': reasoners,
-            'Total parsing time ({})'.format(unit): parsing,
-            'Total reasoning time ({})'.format(unit): reasoning,
-            'Total time ({})'.format(unit): parsing + reasoning
+            'Total parsing time ({})'.format(time_unit): parsing,
+            'Total reasoning time ({})'.format(time_unit): reasoning,
+            'Total time ({})'.format(time_unit): parsing + reasoning,
+            'Min memory peak (MiB)': memory.min(),
+            'Avg memory peak (MiB)': memory.mean(),
+            'Max memory peak (MiB)': memory.max()
         }).set_index('Reasoner')
 
         data.to_csv(file_path, float_format='%.2f')
-        self._global_stats = self.GlobalStats(data, unit)
+        self._global_stats = self.GlobalStats(data, time_unit)
 
-    def __histogram_plotter(self, ax: plt.Axes) -> None:
-
-        data = self._global_stats.data
-
+    def __time_histogram_plotter(self, ax: plt.Axes) -> None:
+        data = self._global_stats.data.iloc[:, :2]
         reasoners = data.index.values
-        parsing, reasoning = data.iloc[:, 0].values, data.iloc[:, 1].values
 
-        pos = np.arange(len(reasoners))
-        width = 0.35
-
-        ax.bar(pos, parsing, width, alpha=0.9, label='Parsing')
-        ax.bar(pos, reasoning, width, alpha=0.9, bottom=parsing, label='Reasoning')
-
-        plotutils.display_labels(ax, center=True, fmt='{:.2f}')
+        values = [list(data.loc[r].values) for r in reasoners]
+        data = dict(zip(reasoners, values))
 
         ax.set_title('Total parsing and reasoning time')
-        ax.set_ylabel('Time ({})'.format(self._global_stats.unit))
+        ax.set_ylabel('Time ({})'.format(self._global_stats.time_unit))
 
-        ax.set_xticks(pos)
-        ax.set_xticklabels(reasoners)
+        plotutils.draw_stacked_histograms(ax, data, ['Parsing', 'Reasoning'])
 
-        plotutils.display_grid(ax, axis='y')
-        ax.legend(loc='upper left')
-
-    def __scatter_plotter(self, ax: plt.Axes) -> None:
+    def __time_scatter_plotter(self, ax: plt.Axes) -> None:
         reasoners = list(self.reasoners())
         dataset = Dataset(os.path.join(Paths.DATA_DIR, self.dataset_name))
 
         scale, unit = fileutils.human_readable_scale_and_unit(dataset.get_max_ontology_size())
-        point_size = plotutils.configure_scatter_plot(ax, dataset.size)
+        ax.set_title('Parsing and reasoning time by ontology size')
+        ax.set_xlabel('Ontology size ({})'.format(unit))
+        ax.set_ylabel('Time (ms)')
+
+        data = []
 
         for reasoner in reasoners:
             ontologies = dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
@@ -240,19 +217,49 @@ class TimeEvaluator(Evaluator):
             if isinstance(results.index, pd.MultiIndex):
                 results = results.groupby(level=0).mean()
 
+            results = results[[c for c in results.columns if 'memory' not in c.lower()]]
             ontologies = [o for o in ontologies if o.name in results.index]
 
             x = [o.size / scale for o in ontologies]
             y = [results.loc[o.name].sum() for o in ontologies]
 
-            ax.scatter(x, y, s=point_size, alpha=0.5, label=reasoner)
+            data.append((x, y))
 
-            weights = list(range(len(x), 0, -1))
-            ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x))
+        plotutils.draw_scatter_plot(ax, dict(zip(reasoners, data)))
 
-        ax.set_title('Parsing and reasoning time by ontology size')
+    def __memory_histogram_plotter(self, ax: plt.Axes) -> None:
+        cols = [c for c in self._global_stats.data.columns if 'memory peak' in c]
+        stats = self._global_stats.data[cols]
+        reasoners = stats.index.values
+
+        data = [stats.loc[r].values for r in reasoners]
+        plotutils.draw_min_avg_max_histograms(ax, dict(zip(reasoners, data)), 'memory peak', 'MiB')
+
+    def __memory_scatter_plotter(self, ax: plt.Axes) -> None:
+        reasoners = list(self.reasoners())
+        dataset = Dataset(os.path.join(Paths.DATA_DIR, self.dataset_name))
+
+        scale, unit = fileutils.human_readable_scale_and_unit(dataset.get_max_ontology_size())
+        ax.set_title('Memory peak by ontology size')
         ax.set_xlabel('Ontology size ({})'.format(unit))
-        ax.set_ylabel('Time (ms)')
+        ax.set_ylabel('Memory peak (MiB)')
 
-        plotutils.display_grid(ax)
-        ax.legend()
+        data = []
+
+        for reasoner in reasoners:
+            ontologies = dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
+                                                sort_by_size=True)
+            results = self.results_for_reasoner(reasoner)
+
+            if isinstance(results.index, pd.MultiIndex):
+                results = results.groupby(level=0).mean()
+
+            results = results[[c for c in results.columns if 'memory' in c.lower()]]
+            ontologies = [o for o in ontologies if o.name in results.index]
+
+            x = [o.size / scale for o in ontologies]
+            y = [results.loc[o.name].sum() for o in ontologies]
+
+            data.append((x, y))
+
+        plotutils.draw_scatter_plot(ax, dict(zip(reasoners, data)))

@@ -6,30 +6,33 @@ from evowluator import config
 from evowluator.config import Test as TestConfig
 from evowluator.data.ontology import Ontology
 from evowluator.pyutils import echo, fileutils
-from evowluator.reasoner.base import Reasoner, ReasoningTask
-from .base import Test
-from .enum import TestMode, TestName
+from evowluator.reasoner.base import ReasoningTask
+from evowluator.reasoner.results import MatchmakingResults
+from .base import ReasoningTest
+from .test_mode import TestMode
 
 
-class MatchmakingPerformanceTest(Test, ABC):
-    """Matchmaking performance test."""
+class MatchmakingMeasurementTest(ReasoningTest, ABC):
+    """Abstract test class for measuring stats of matchmaking tasks."""
+
+    # Override
 
     @property
     @abstractmethod
     def result_fields(self) -> List[str]:
+        """Names for the columns of the CSV results."""
         pass
-
-    @property
-    def default_reasoners(self):
-        return self._loader.reasoners_supporting_task(ReasoningTask.NON_STANDARD)
 
     @abstractmethod
-    def run_reasoner(self, reasoner: Reasoner, resource: str, request: str) -> List[str]:
-        """Called every run, for each reasoner and each ontology.
-
-        :return : Values for the CSV result fields.
-        """
+    def extract_results(self, stats: MatchmakingResults) -> List:
+        """Extract and log relevant results."""
         pass
+
+    # Overrides
+
+    @property
+    def task(self) -> str:
+        return ReasoningTask.MATCHMAKING
 
     def __init__(self,
                  dataset: Optional[str] = None,
@@ -63,7 +66,8 @@ class MatchmakingPerformanceTest(Test, ABC):
             self._logger.indent_level += 1
 
             for request in entry.requests(syntax):
-                self._logger.log('Request: {}'.format(request.name))
+                self._logger.log('Request: ', color=echo.Color.YELLOW, endl=False)
+                self._logger.log(request.name)
                 self._logger.indent_level += 1
 
                 csv_row = [entry.name, request.name]
@@ -71,7 +75,10 @@ class MatchmakingPerformanceTest(Test, ABC):
                 for reasoner in self._reasoners:
                     self._logger.log('- {}: '.format(reasoner.name), endl=False)
                     try:
-                        csv_row.extend(self.run_reasoner(reasoner, resource.path, request.path))
+                        stats = reasoner.matchmaking(resource.path, request.path,
+                                                     timeout=TestConfig.TIMEOUT,
+                                                     mode=self.mode)
+                        csv_row.extend(self.extract_results(stats))
                     except TimeoutExpired:
                         csv_row.extend(['timeout'] * len(self.result_fields))
                         self._logger.log('timeout')
@@ -83,76 +90,52 @@ class MatchmakingPerformanceTest(Test, ABC):
                         self._logger.log('error')
 
                 self._logger.indent_level -= 1
+                self._logger.log('')
                 self._csv_writer.write_row(csv_row)
 
             self._logger.indent_level -= 1
             self._logger.log('')
 
 
-class MatchmakingTimeTest(MatchmakingPerformanceTest):
-    """Matchmaking time test."""
+class MatchmakingPerformanceTest(MatchmakingMeasurementTest):
+
+    # Overrides
 
     @property
-    def name(self):
-        return TestName.Matchmaking.TIME
+    def mode(self) -> str:
+        return TestMode.PERFORMANCE
 
     @property
-    def result_fields(self):
-        return ['resource parsing', 'request parsing', 'reasoner init', 'reasoning']
+    def result_fields(self) -> List[str]:
+        return ['resource parsing', 'request parsing', 'reasoner init', 'reasoning', 'memory']
 
-    def run_reasoner(self, reasoner, resource, request):
-        stats = reasoner.matchmaking(resource, request,
-                                     timeout=TestConfig.TIMEOUT,
-                                     mode=TestMode.TIME)
+    def extract_results(self, stats: MatchmakingResults) -> List:
+        self._logger.log('{:.0f} ms'.format(stats.total_ms))
 
-        self._logger.log(('Resource parsing {:.0f} ms | '
-                          'Request parsing {:.0f} ms | '
-                          'Reasoner init {:.0f} ms | '
-                          'Reasoning {:.0f} ms').format(stats.resource_parsing_ms,
-                                                        stats.request_parsing_ms,
-                                                        stats.init_ms,
-                                                        stats.reasoning_ms))
+        self._logger.indent_level += 1
+        self._logger.log('Resource parsing {:.0f} ms'.format(stats.resource_parsing_ms))
+        self._logger.log('Request parsing {:.0f} ms'.format(stats.request_parsing_ms))
+        self._logger.log('Reasoner init {:.0f} ms'.format(stats.init_ms))
+        self._logger.log('Reasoning {:.0f} ms'.format(stats.reasoning_ms))
+        self._logger.log('Memory {}'.format(fileutils.human_readable_bytes(stats.max_memory)))
+        self._logger.indent_level -= 1
 
         return [stats.resource_parsing_ms, stats.request_parsing_ms,
-                stats.init_ms, stats.reasoning_ms]
+                stats.init_ms, stats.reasoning_ms, stats.max_memory]
 
 
-class MatchmakingMemoryTest(MatchmakingPerformanceTest):
-    """Matchmaking memory test."""
+class MatchmakingEnergyTest(MatchmakingMeasurementTest):
 
-    @property
-    def name(self):
-        return TestName.Matchmaking.MEMORY
+    # Overrides
 
     @property
-    def result_fields(self):
-        return ['memory']
-
-    def run_reasoner(self, reasoner, resource, request):
-        stats = reasoner.matchmaking(resource, request,
-                                     timeout=TestConfig.TIMEOUT,
-                                     mode=TestMode.MEMORY)
-
-        self._logger.log(fileutils.human_readable_bytes(stats.max_memory))
-        return [stats.max_memory]
-
-
-class MatchmakingEnergyTest(MatchmakingPerformanceTest):
-    """Matchmaking energy test."""
+    def mode(self) -> str:
+        return TestMode.ENERGY
 
     @property
-    def name(self):
-        return TestName.Matchmaking.ENERGY
-
-    @property
-    def result_fields(self):
+    def result_fields(self) -> List[str]:
         return ['energy']
 
-    def run_reasoner(self, reasoner, resource, request):
-        stats = reasoner.matchmaking(resource, request,
-                                     timeout=TestConfig.TIMEOUT,
-                                     mode=TestMode.ENERGY)
-
+    def extract_results(self, stats: MatchmakingResults) -> List:
         self._logger.log('{:.2f}'.format(stats.energy_score))
-
         return [stats.energy_score]

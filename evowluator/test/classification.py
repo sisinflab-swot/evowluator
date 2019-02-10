@@ -3,22 +3,25 @@ import os
 from subprocess import TimeoutExpired
 
 from evowluator.config import Test as TestConfig
-from evowluator.pyutils import echo, fileutils
-from evowluator.reasoner.base import ReasoningTask
-from .base import StandardPerformanceTest, Test
-from .enum import TestMode, TestName
+from evowluator.data.ontology import Ontology
+from evowluator.pyutils import echo
+from evowluator.reasoner.base import Reasoner, ReasoningTask
+from evowluator.reasoner.results import ReasoningStats
+from .base import ReasoningTest
+from .test_mode import TestMode
+from .performance import OntologyReasoningEnergyTest, OntologyReasoningPerformanceTest
 
 
-class ClassificationCorrectnessTest(Test):
+class ClassificationCorrectnessTest(ReasoningTest):
     """Classification correctness test."""
 
     @property
-    def name(self):
-        return TestName.Classification.CORRECTNESS
+    def task(self) -> str:
+        return ReasoningTask.CLASSIFICATION
 
     @property
-    def default_reasoners(self):
-        return self._loader.reasoners_supporting_task(ReasoningTask.CLASSIFICATION)
+    def mode(self) -> str:
+        return TestMode.CORRECTNESS
 
     def setup(self):
         csv_header = ['Ontology']
@@ -76,84 +79,27 @@ class ClassificationCorrectnessTest(Test):
         self._csv_writer.write_row(csv_row)
 
 
-class ClassificationTimeTest(StandardPerformanceTest):
-    """Classification turnaround time test."""
+class ClassificationPerformanceTest(OntologyReasoningPerformanceTest):
+    """Classification performance test."""
 
     @property
-    def name(self):
-        return TestName.Classification.TIME
+    def task(self) -> str:
+        return ReasoningTask.CLASSIFICATION
 
-    @property
-    def default_reasoners(self):
-        return self._loader.reasoners_supporting_task(ReasoningTask.CLASSIFICATION)
-
-    @property
-    def result_fields(self):
-        return ['parsing', 'classification']
-
-    def run_reasoner(self, reasoner, ontology):
-
-        stats = reasoner.classify(ontology.path,
-                                  timeout=TestConfig.TIMEOUT,
-                                  mode=TestMode.TIME)
-
-        self._logger.log('{:.0f} ms'.format(stats.total_ms))
-
-        self._logger.indent_level += 1
-        self._logger.log('Parsing {:.0f} ms'.format(stats.parsing_ms))
-        self._logger.log('Classification {:.0f} ms'.format(stats.reasoning_ms))
-        self._logger.indent_level -= 1
-
-        return [stats.parsing_ms, stats.reasoning_ms]
+    def run_reasoner(self, reasoner: Reasoner, ontology: Ontology) -> ReasoningStats:
+        return reasoner.classify(ontology.path,
+                                 timeout=TestConfig.TIMEOUT,
+                                 mode=TestMode.PERFORMANCE)
 
 
-class ClassificationMemoryTest(StandardPerformanceTest):
-    """Classification memory test."""
-
-    @property
-    def name(self):
-        return TestName.Classification.MEMORY
-
-    @property
-    def default_reasoners(self):
-        return self._loader.reasoners_supporting_task(ReasoningTask.CLASSIFICATION)
-
-    @property
-    def result_fields(self):
-        return ['memory']
-
-    def run_reasoner(self, reasoner, ontology):
-
-        stats = reasoner.classify(ontology.path,
-                                  timeout=TestConfig.TIMEOUT,
-                                  mode=TestMode.MEMORY)
-
-        self._logger.log(fileutils.human_readable_bytes(stats.max_memory))
-
-        return [stats.max_memory]
-
-
-class ClassificationEnergyTest(StandardPerformanceTest):
+class ClassificationEnergyTest(OntologyReasoningEnergyTest):
     """Classification energy test."""
 
     @property
-    def name(self):
-        return TestName.Classification.ENERGY
+    def task(self) -> str:
+        return ReasoningTask.CLASSIFICATION
 
-    @property
-    def default_reasoners(self):
-        return self._loader.reasoners_supporting_task(ReasoningTask.CLASSIFICATION)
-
-    @property
-    def result_fields(self):
-        return ['energy']
-
-    def run_reasoner(self, reasoner, ontology):
-
-        stats = reasoner.classify(ontology.path,
-                                  timeout=TestConfig.TIMEOUT,
-                                  mode=TestMode.ENERGY)
-
-        self._logger.log('{:.2f}'.format(stats.energy_score))
-
-        return [stats.energy_score]
+    def run_reasoner(self, reasoner: Reasoner, ontology: Ontology) -> ReasoningStats:
+        return reasoner.classify(ontology.path,
+                                 timeout=TestConfig.TIMEOUT,
+                                 mode=TestMode.ENERGY)

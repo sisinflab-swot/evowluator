@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from evowluator.pyutils import exc
 from evowluator.pyutils.proc import Task, find_executable
-from evowluator.test.enum import TestMode
+from evowluator.test.test_mode import TestMode
 from .base import (
     ClassificationOutputFormat,
     MetaArgs,
@@ -61,7 +61,7 @@ class MobileReasonerIOS(Reasoner, ABC):
                 'test-without-building',
                 'RESOURCE={}'.format(MetaArgs.INPUT)]
 
-        if task == ReasoningTask.NON_STANDARD:
+        if task == ReasoningTask.MATCHMAKING:
             args.append('REQUEST={}'.format(MetaArgs.REQUEST))
 
         return args

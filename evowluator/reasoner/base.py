@@ -6,7 +6,7 @@ from evowluator.config import OWLTool, Paths
 from evowluator.data.ontology import Ontology
 from evowluator.pyutils import exc, fileutils
 from evowluator.pyutils.proc import Benchmark, EnergyProfiler, Jar, OutputAction, Task
-from evowluator.test.enum import TestMode
+from evowluator.test.test_mode import TestMode
 from .results import ConsistencyResults, MatchmakingResults, ReasoningStats, ResultsParser
 
 
@@ -14,10 +14,10 @@ class ReasoningTask:
     """Reasoning tasks namespace."""
     CLASSIFICATION = 'classification'
     CONSISTENCY = 'consistency'
-    NON_STANDARD = 'non-standard'
+    MATCHMAKING = 'matchmaking'
 
     STANDARD = [CLASSIFICATION, CONSISTENCY]
-    ALL = [CLASSIFICATION, CONSISTENCY, NON_STANDARD]
+    ALL = [CLASSIFICATION, CONSISTENCY, MATCHMAKING]
 
 
 class MetaArgs:
@@ -171,7 +171,7 @@ class Reasoner(ABC):
         exc.raise_if_not_found(resource_file, file_type=exc.FileType.FILE)
         exc.raise_if_not_found(request_file, file_type=exc.FileType.FILE)
 
-        args = MetaArgs.replace(args=self.args(task=ReasoningTask.NON_STANDARD, mode=mode),
+        args = MetaArgs.replace(args=self.args(task=ReasoningTask.MATCHMAKING, mode=mode),
                                 input_arg=resource_file,
                                 request_arg=request_file)
 
@@ -184,7 +184,7 @@ class Reasoner(ABC):
         """Runs the reasoner."""
         task = Task(self.absolute_path, args=args)
 
-        if mode == TestMode.MEMORY:
+        if mode == TestMode.PERFORMANCE:
             task = Benchmark(task)
         elif mode == TestMode.ENERGY:
             task = EnergyProfiler(task, sampling_interval=500)

@@ -3,7 +3,6 @@ import tempfile
 import time
 from abc import ABC, abstractmethod
 from os import path
-from subprocess import TimeoutExpired
 from typing import List, Optional
 
 from evowluator import config
@@ -11,13 +10,11 @@ from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
 from evowluator.data.csv import CSVWriter
 from evowluator.data.dataset import Dataset
-from evowluator.data.ontology import Ontology
 from evowluator.pyutils import echo, exc, fileutils
 from evowluator.pyutils.decorators import cached_property
 from evowluator.pyutils.logger import Logger
-from evowluator.reasoner.loader import Loader
 from evowluator.reasoner.base import Reasoner
-from .enum import TestName
+from evowluator.reasoner.loader import Loader
 
 
 class Test(ABC):
@@ -171,83 +168,29 @@ class Test(ABC):
         json.save(cfg, path.join(self.work_dir, config.Paths.CONFIG_FILE_NAME))
 
 
-class StandardPerformanceTest(Test, ABC):
-    """Abstract test class for measuring the performance of standard reasoning tasks."""
+class ReasoningTest(Test):
+    """Abstract reasoning test class."""
 
     @property
     @abstractmethod
-    def result_fields(self) -> List[str]:
-        """Names for the columns of the CSV results."""
+    def task(self) -> str:
+        """Reasoning task."""
         pass
 
+    @property
     @abstractmethod
-    def run_reasoner(self, reasoner: Reasoner, ontology: Ontology) -> List[str]:
-        """Called every run, for each reasoner and each ontology.
+    def mode(self) -> str:
+        """Test mode."""
 
-        :return : Values for the CSV result fields.
-        """
-        pass
+    # Overrides
 
-    def __init__(self,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None,
-                 iterations: int = 1):
-        """
-        :param dataset : If specified, run the test on the specified dataset.
-        :param reasoners : If specified, limit the test to the specified reasoners.
-        :param syntax : If true, the test is run on the specified OWL syntax whenever possible.
-        :param iterations : Number of iterations per ontology.
-        """
-        super().__init__(dataset, reasoners, syntax)
-        self.iterations = iterations
+    @property
+    def name(self) -> str:
+        return '{} {}'.format(self.task, self.mode)
 
-    def setup(self):
-        csv_header = ['Ontology']
-
-        for reasoner in self._reasoners:
-            for field in self.result_fields:
-                csv_header.append('{}: {}'.format(reasoner.name, field))
-
-        self._csv_writer.write_row(csv_header)
-
-    def run(self, entry):
-
-        fail: List[str] = []
-
-        for iteration in range(self.iterations):
-            self._logger.log('Run {}:'.format(iteration + 1), color=echo.Color.YELLOW)
-            self._logger.indent_level += 1
-
-            csv_row = [entry.name]
-
-            for reasoner in self._reasoners:
-                self._logger.log('- {}: '.format(reasoner.name), endl=False)
-                ontology = entry.ontology(reasoner.syntax_for_requested(self._syntax))
-
-                # Skip already failed or timed out.
-                if reasoner.name in fail:
-                    csv_row.extend(['skip'] * len(self.result_fields))
-                    self._logger.log('skip')
-                    continue
-
-                try:
-                    csv_row.extend(self.run_reasoner(reasoner, ontology))
-                except TimeoutExpired:
-                    csv_row.extend(['timeout'] * len(self.result_fields))
-                    self._logger.log('timeout')
-                    fail.append(reasoner.name)
-                except Exception as e:
-                    if config.DEBUG:
-                        raise e
-
-                    csv_row.extend(['error'] * len(self.result_fields))
-                    self._logger.log('error')
-                    fail.append(reasoner.name)
-
-            self._logger.indent_level -= 1
-            self._logger.log('')
-            self._csv_writer.write_row(csv_row)
+    @property
+    def default_reasoners(self) -> List[Reasoner]:
+        return self._loader.reasoners_supporting_task(self.task)
 
 
 class NotImplementedTest(Test):
@@ -255,7 +198,7 @@ class NotImplementedTest(Test):
 
     @property
     def name(self):
-        return TestName.Misc.NOT_IMPLEMENTED
+        return 'not implemented'
 
     @property
     def default_reasoners(self):

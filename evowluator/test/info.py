@@ -1,7 +1,6 @@
 from evowluator.data.ontology import Ontology
 
 from .base import Test
-from .enum import TestName
 
 
 class InfoTest(Test):
@@ -9,7 +8,7 @@ class InfoTest(Test):
 
     @property
     def name(self):
-        return TestName.Misc.INFO
+        return 'info'
 
     @property
     def default_reasoners(self):
