@@ -136,6 +136,10 @@ def build_parser() -> argparse.ArgumentParser:
                                    add_help=False)
     parser.set_defaults(func=evaluate_sub)
     parser.add_argument('path', help='Path of the results dir to evaluate.')
+    parser.add_argument('-p', '--plots',
+                        nargs='+',
+                        type=positive_int,
+                        help='Subplots to show.')
 
     return main_parser
 
@@ -205,7 +209,9 @@ def info_sub(args) -> int:
 def evaluate_sub(args) -> int:
     evaluator = Evaluator.from_dir(args.path)
     evaluator.write_results()
-    evaluator.plot_results()
+
+    plots = [p - 1 for p in args.plots] if args.plots else None
+    evaluator.plot_results(plots)
     return 0
 
 

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from math import ceil
 from os import path
-from typing import Callable, Iterable, List
+from typing import Callable, Iterable, List, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -101,8 +101,12 @@ class Evaluator(ABC):
 
         self._write_results()
 
-    def plot_results(self) -> None:
+    def plot_results(self, plots: Optional[List[int]] = None) -> None:
         plotters = self.plotters
+
+        if plots:
+            plotters = [plotters[i] for i in plots]
+
         n_plotters = len(plotters)
 
         if n_plotters == 0:
