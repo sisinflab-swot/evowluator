@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from evowluator import config
 from evowluator.config import Test as TestConfig
-from evowluator.data.ontology import Ontology
+from evowluator.data.dataset import Dataset
 from evowluator.pyutils import echo, fileutils
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import MatchmakingResults
@@ -51,21 +51,17 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
 
         self._csv_writer.write_row(csv_header)
 
-    def run(self, entry):
+    def run(self, entry: Dataset.Entry) -> None:
 
-        syntax = Ontology.Syntax.RDFXML
-
-        if entry.request_count(syntax) == 0:
-            self._logger.log('No available requests.')
+        if entry.request_count() == 0:
+            self._logger.log('No available requests.\n', color=echo.Color.YELLOW)
             return
-
-        resource = entry.ontology(syntax)
 
         for iteration in range(self._iterations):
             self._logger.log('Run {}:'.format(iteration + 1), color=echo.Color.YELLOW)
             self._logger.indent_level += 1
 
-            for request in entry.requests(syntax):
+            for request in entry.requests():
                 self._logger.log('Request: ', color=echo.Color.YELLOW, endl=False)
                 self._logger.log(request.name)
                 self._logger.indent_level += 1
@@ -74,8 +70,13 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
 
                 for reasoner in self._usable_reasoners():
                     self._logger.log('- {}: '.format(reasoner.name), endl=False)
+
+                    syntax = self._syntax_for_reasoner(reasoner)
+                    resource_onto = entry.ontology(syntax)
+                    request_onto = request.ontology(syntax)
+
                     try:
-                        stats = reasoner.matchmaking(resource.path, request.path,
+                        stats = reasoner.matchmaking(resource_onto.path, request_onto.path,
                                                      timeout=TestConfig.TIMEOUT,
                                                      mode=self.mode)
                         csv_row.extend(self.extract_results(stats))

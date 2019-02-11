@@ -28,15 +28,21 @@ class Dataset:
 
             return (self.ontology(s) for s in syntaxes)
 
-        def requests(self, syntax: str) -> Iterable[Ontology]:
+        def requests(self) -> Iterable['Dataset.Entry']:
             req_dir = os.path.join(self.dataset_dir, 'requests', os.path.splitext(self.name)[0])
-            req_files = [f for f in os.listdir(req_dir) if f.endswith('.owl')]
-            req_files.sort()
-            requests = (os.path.join(req_dir, f) for f in req_files)
-            return (Ontology(p, syntax) for p in requests)
 
-        def request_count(self, syntax: str) -> int:
-            return sum(1 for _ in self.requests(syntax))
+            try:
+                any_syntax = _available_syntaxes(req_dir)[0]
+                req_names = [f for f in os.listdir(os.path.join(req_dir, any_syntax))
+                             if f.endswith('.owl')]
+                req_names.sort()
+            except (IndexError, FileNotFoundError):
+                req_names = []
+
+            return (Dataset.Entry(req_dir, n) for n in req_names)
+
+        def request_count(self) -> int:
+            return sum(1 for _ in self.requests())
 
     @classmethod
     def with_name(cls, name: str) -> 'Dataset':
