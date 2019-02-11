@@ -20,6 +20,12 @@ from .test.info import InfoTest
 from .test.matchmaking import MatchmakingEnergyTest, MatchmakingPerformanceTest
 
 
+# Constants
+
+
+EXE_NAME = 'evowluate'
+
+
 # CLI parser
 
 
@@ -31,7 +37,8 @@ def process_args() -> int:
         config.DEBUG = True
 
     if not hasattr(args, 'func'):
-        msg = 'Invalid argument(s). Please run "test -h" or "test <subcommand> -h" for help.'
+        msg = ('Invalid argument(s). Please run "{0} -h" '
+               'or "{0} <subcommand> -h" for help.'.format(EXE_NAME))
         raise ValueError(msg)
 
     return args.func(args)
@@ -80,12 +87,12 @@ def build_parser() -> argparse.ArgumentParser:
                        help='Resume the test after the specified ontology.')
 
     # Main parser
-    main_parser = argparse.ArgumentParser(prog='test',
+    main_parser = argparse.ArgumentParser(prog=EXE_NAME,
                                           description='Evaluation framework for OWL reasoners.',
                                           parents=[help_parser],
                                           add_help=False)
 
-    subparsers = main_parser.add_subparsers(title='Available test')
+    subparsers = main_parser.add_subparsers(title='Available tests')
 
     # Classification subcommand
     desc = 'Runs the classification test.'
@@ -128,14 +135,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.set_defaults(func=info_sub)
 
     # Evaluate subcommand
-    desc = 'Generates evaluation statistics from CSV results.'
-    parser = subparsers.add_parser('evaluate',
+    desc = 'Generates high level statistics and plots.'
+    parser = subparsers.add_parser('visualize',
                                    description=desc,
                                    help=desc,
                                    parents=[help_parser],
                                    add_help=False)
     parser.set_defaults(func=evaluate_sub)
-    parser.add_argument('path', help='Path of the results dir to evaluate.')
+    parser.add_argument('path', help='Path of the dir containing the results to visualize.')
     parser.add_argument('-p', '--plots',
                         nargs='+',
                         type=positive_int,
