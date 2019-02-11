@@ -2,7 +2,6 @@ import os
 from typing import Iterable, List, Optional
 
 from evowluator.config import Paths
-from evowluator.pyutils import exc
 from .ontology import Ontology
 
 
@@ -24,7 +23,10 @@ class Dataset:
             return Ontology(os.path.join(self.dataset_dir, syntax, self.name), syntax)
 
         def ontologies(self, syntaxes: Optional[Iterable[str]] = None) -> Iterable[Ontology]:
-            return (self.ontology(s) for s in (syntaxes if syntaxes else Ontology.Syntax.ALL))
+            if not syntaxes:
+                syntaxes = _available_syntaxes(self.dataset_dir)
+
+            return (self.ontology(s) for s in syntaxes)
 
         def requests(self, syntax: str) -> Iterable[Ontology]:
             req_dir = os.path.join(self.dataset_dir, 'requests', os.path.splitext(self.name)[0])
@@ -71,10 +73,18 @@ class Dataset:
     def size(self) -> int:
         return sum(1 for _ in self.get_entries())
 
+    @property
+    def syntaxes(self) -> List[str]:
+        return _available_syntaxes(self.path)
+
     def __init__(self, path: str) -> None:
-        for syntax in Ontology.Syntax.ALL:
-            exc.raise_if_not_found(os.path.join(path, syntax), file_type=exc.FileType.DIR)
         self.path = path
+
+        if not os.path.isdir(path):
+            raise FileNotFoundError('No such dataset: ' + self.name)
+
+        if not self.syntaxes:
+            raise ValueError('Invalid dataset: ' + self.name)
 
     def get_dir(self, syntax: str) -> str:
         return os.path.join(self.path, syntax)
@@ -93,8 +103,8 @@ class Dataset:
         return sorted(ontologies, key=lambda o: o.size) if sort_by_size else ontologies
 
     def get_entries(self, resume_after: Optional[str] = None) -> Iterable[Entry]:
-        rdf_dir = self.get_dir(Ontology.Syntax.RDFXML)
-        onto_names = [f for f in os.listdir(rdf_dir) if f.endswith('.owl')]
+        onto_dir = self.get_dir(self.syntaxes[0])
+        onto_names = [f for f in os.listdir(onto_dir) if f.endswith('.owl')]
         onto_names.sort()
 
         for onto_name in onto_names:
@@ -106,3 +116,11 @@ class Dataset:
                 continue
 
             yield Dataset.Entry(self.path, onto_name)
+
+
+# Private
+
+def _available_syntaxes(dataset_dir: str) -> List[str]:
+    return [name for name in os.listdir(dataset_dir)
+            if name in Ontology.Syntax.ALL and
+            os.path.isdir(os.path.join(dataset_dir, name))]

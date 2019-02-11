@@ -76,8 +76,13 @@ class Test(ABC):
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
                  syntax: Optional[str] = None):
-        self._loader = Loader()
         self._dataset = Dataset.with_name(dataset) if dataset else Dataset.first()
+
+        if syntax and syntax not in self._dataset.syntaxes:
+            msg = '"{}" syntax not available in "{}" dataset.'.format(syntax, self._dataset.name)
+            raise ValueError(msg)
+
+        self._loader = Loader()
         self._syntax = syntax
         self._logger: Logger = None
         self._csv_writer: CSVWriter = None
@@ -104,13 +109,33 @@ class Test(ABC):
             self._logger.clear()
             self.__log_config()
             self.setup()
-            self.__start_test(resume_ontology)
+            self._start_test(resume_ontology)
 
         fileutils.chmod(self.work_dir, 0o666, recursive=True, dir_mode=0o777)
 
-    # Private
+    # Protected
 
-    def __start_test(self, resume_ontology: Optional[str] = None) -> None:
+    def _syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[str]:
+        available = self._dataset.syntaxes
+        return [s for s in reasoner.supported_syntaxes if s in available]
+
+    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Optional[str]:
+        supported = reasoner.supported_syntaxes
+
+        if self._syntax in supported:
+            return self._syntax
+
+        available = self._syntaxes_for_reasoner(reasoner)
+
+        if reasoner.preferred_syntax in available:
+            return reasoner.preferred_syntax
+
+        return available[0] if available else None
+
+    def _usable_reasoners(self) -> List[Reasoner]:
+        return [r for r in self._reasoners if self._syntaxes_for_reasoner(r)]
+
+    def _start_test(self, resume_ontology: Optional[str] = None) -> None:
         for entry in self._dataset.get_entries(resume_after=resume_ontology):
             sizes = ('{}: {}'.format(o.syntax, o.readable_size) for o in entry.ontologies())
             size_str = ' | '.join(sizes)
@@ -131,6 +156,8 @@ class Test(ABC):
 
         self._logger.log('')
 
+    # Private
+
     def __log_config(self) -> None:
         self._logger.log('Selected reasoners and serializations:', color=echo.Color.GREEN)
         self._logger.indent_level += 1
@@ -146,12 +173,15 @@ class Test(ABC):
         self._logger.log(msg, color=echo.Color.GREEN)
 
     def __log_syntaxes(self, reasoner: Reasoner) -> None:
-        syntax = reasoner.syntax_for_requested(self._syntax)
-
-        syntaxes = reasoner.supported_syntaxes
+        syntaxes = self._syntaxes_for_reasoner(reasoner)
         syntaxes.sort()
 
-        syntaxes = ['[{}]'.format(s) if s == syntax else s for s in reasoner.supported_syntaxes]
+        if not syntaxes:
+            self._logger.log('{}: no syntaxes'.format(reasoner.name))
+            return
+
+        syntax = self._syntax_for_reasoner(reasoner)
+        syntaxes = ['[{}]'.format(s) if s == syntax else s for s in syntaxes]
         self._logger.log('{}: {}'.format(reasoner.name, ' '.join(syntaxes)))
 
     def __save_config(self) -> None:
@@ -161,8 +191,8 @@ class Test(ABC):
             ConfigKey.DATASET: self._dataset.name,
             ConfigKey.REASONERS: [{
                 ConfigKey.NAME: r.name,
-                ConfigKey.SYNTAX: r.syntax_for_requested(self._syntax)
-            } for r in self._reasoners]
+                ConfigKey.SYNTAX: self._syntax_for_reasoner(r)
+            } for r in self._usable_reasoners()]
         }
 
         json.save(cfg, path.join(self.work_dir, config.Paths.CONFIG_FILE_NAME))
@@ -193,20 +223,8 @@ class ReasoningTest(Test):
         return self._loader.reasoners_supporting_task(self.task)
 
 
-class NotImplementedTest(Test):
+class NotImplementedTest:
     """Not implemented test."""
 
-    @property
-    def name(self):
-        return 'not implemented'
-
-    @property
-    def default_reasoners(self):
-        return []
-
-    def setup(self):
+    def start(self, resume_ontology: Optional[str] = None):
         raise NotImplementedError('Not implemented.')
-
-    def run(self, entry):
-        del entry  # Unused
-        pass

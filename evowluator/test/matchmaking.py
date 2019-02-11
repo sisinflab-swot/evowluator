@@ -45,7 +45,7 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
     def setup(self):
         csv_header = ['Resource', 'Request']
 
-        for reasoner in self._reasoners:
+        for reasoner in self._usable_reasoners():
             for field in self.result_fields:
                 csv_header.append('{}: {}'.format(reasoner.name, field))
 
@@ -72,7 +72,7 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
 
                 csv_row = [entry.name, request.name]
 
-                for reasoner in self._reasoners:
+                for reasoner in self._usable_reasoners():
                     self._logger.log('- {}: '.format(reasoner.name), endl=False)
                     try:
                         stats = reasoner.matchmaking(resource.path, request.path,

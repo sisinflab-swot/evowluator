@@ -209,7 +209,8 @@ def consistency_sub(args) -> int:
 
 def info_sub(args) -> int:
     InfoTest(dataset=args.dataset,
-             reasoners=args.reasoners).start(args.resume_after)
+             reasoners=args.reasoners,
+             syntax=args.syntax).start(args.resume_after)
     return 0
 
 

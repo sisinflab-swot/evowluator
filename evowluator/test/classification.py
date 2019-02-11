@@ -25,8 +25,9 @@ class ClassificationCorrectnessTest(ReasoningTest):
 
     def setup(self):
         csv_header = ['Ontology']
+        reasoners = self._usable_reasoners()
 
-        for reasoner in self._reasoners[1:]:
+        for reasoner in reasoners[1:]:
             csv_header.append(reasoner.name)
 
         self._csv_writer.write_row(csv_header)
@@ -34,8 +35,9 @@ class ClassificationCorrectnessTest(ReasoningTest):
     def run(self, entry):
         self.clear_temp()
 
-        reference = self._reasoners[0]
-        reasoners = self._reasoners[1:]
+        reasoners = self._usable_reasoners()
+        reference = reasoners[0]
+        reasoners = reasoners[1:]
 
         reasoner_out = os.path.join(self.temp_dir, 'reasoner.txt')
         reference_out = os.path.join(self.temp_dir, 'reference.txt')

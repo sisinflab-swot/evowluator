@@ -8,10 +8,12 @@ class Ontology:
 
     class Syntax:
         """OWL ontology syntax namespace."""
-        RDFXML = 'rdfxml'
         FUNCTIONAL = 'functional'
+        MANCHESTER = 'manchester'
+        OWLXML = 'owlxml'
+        RDFXML = 'rdfxml'
 
-        ALL = [FUNCTIONAL, RDFXML]
+        ALL = [FUNCTIONAL, MANCHESTER, OWLXML, RDFXML]
 
     @property
     def name(self) -> str:

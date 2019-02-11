@@ -111,10 +111,6 @@ class Reasoner(ABC):
     def __init__(self) -> None:
         exc.raise_if_not_found(self.absolute_path, file_type=exc.FileType.FILE)
 
-    def syntax_for_requested(self, syntax: str) -> str:
-        """Returns 'syntax' if it is supported, otherwise returns the preferred syntax."""
-        return syntax if syntax in self.supported_syntaxes else self.preferred_syntax
-
     def classify(self,
                  input_file: str,
                  output_file: Optional[str] = None,

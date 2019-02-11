@@ -21,7 +21,7 @@ class ConsistencyCorrectnessTest(ReasoningTest):
 
     def setup(self):
         csv_header = ['Ontology']
-        csv_header.extend([r.name for r in self._reasoners])
+        csv_header.extend([r.name for r in self._usable_reasoners()])
         self._csv_writer.write_row(csv_header)
 
     def run(self, entry):
@@ -29,7 +29,7 @@ class ConsistencyCorrectnessTest(ReasoningTest):
         csv_row = [entry.name]
 
         # Check consistency
-        for reasoner in self._reasoners:
+        for reasoner in self._usable_reasoners():
             self._logger.log('{}: '.format(reasoner.name), endl=False)
 
             try:

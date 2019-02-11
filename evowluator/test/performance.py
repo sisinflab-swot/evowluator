@@ -51,7 +51,7 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
     def setup(self):
         csv_header = ['Ontology']
 
-        for reasoner in self._reasoners:
+        for reasoner in self._usable_reasoners():
             for field in self.result_fields:
                 csv_header.append('{}: {}'.format(reasoner.name, field))
 
@@ -67,9 +67,9 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
 
             csv_row = [entry.name]
 
-            for reasoner in self._reasoners:
+            for reasoner in self._usable_reasoners():
                 self._logger.log('- {}: '.format(reasoner.name), endl=False)
-                ontology = entry.ontology(reasoner.syntax_for_requested(self._syntax))
+                ontology = entry.ontology(self._syntax_for_reasoner(reasoner))
 
                 # Skip already failed or timed out.
                 if reasoner.name in fail:
