@@ -1,24 +1,22 @@
 import argparse
+import os
 
 from . import config
 from .config import Test as TestConfig
+from .data import dataset_converter
+from .data.dataset import Dataset
 from .data.ontology import Ontology
 from .evaluation.evaluator import Evaluator
 from .test.base import NotImplementedTest
 from .test.classification import (
-    ClassificationCorrectnessTest,
-    ClassificationPerformanceTest,
-    ClassificationEnergyTest
+    ClassificationCorrectnessTest, ClassificationEnergyTest, ClassificationPerformanceTest
 )
 from .test.consistency import (
-    ConsistencyCorrectnessTest,
-    ConsistencyPerformanceTest,
-    ConsistencyEnergyTest
+    ConsistencyCorrectnessTest, ConsistencyEnergyTest, ConsistencyPerformanceTest
 )
-from .test.test_mode import TestMode
 from .test.info import InfoTest
 from .test.matchmaking import MatchmakingEnergyTest, MatchmakingPerformanceTest
-
+from .test.test_mode import TestMode
 
 # Constants
 
@@ -141,12 +139,32 @@ def build_parser() -> argparse.ArgumentParser:
                                    help=desc,
                                    parents=[help_parser],
                                    add_help=False)
-    parser.set_defaults(func=evaluate_sub)
+
     parser.add_argument('path', help='Path of the dir containing the results to visualize.')
     parser.add_argument('-p', '--plots',
                         nargs='+',
                         type=positive_int,
                         help='Subplots to show.')
+
+    parser.set_defaults(func=evaluate_sub)
+
+    # Convert subcommand
+    desc = 'Converts the dataset into the specified syntax.'
+    parser = subparsers.add_parser('convert',
+                                   description=desc,
+                                   help=desc,
+                                   parents=[help_parser],
+                                   add_help=False)
+
+    parser.add_argument('-d', '--dataset',
+                        required=True,
+                        help='Dataset to convert.')
+    parser.add_argument('-s', '--syntax',
+                        choices=Ontology.Syntax.ALL,
+                        required=True,
+                        help='Desired syntax.')
+
+    parser.set_defaults(func=convert_sub)
 
     return main_parser
 
@@ -220,6 +238,12 @@ def evaluate_sub(args) -> int:
 
     plots = [p - 1 for p in args.plots] if args.plots else None
     evaluator.plot_results(plots)
+    return 0
+
+
+def convert_sub(args) -> int:
+    dataset_path = os.path.join(config.Paths.DATA_DIR, args.dataset)
+    dataset_converter.convert(Dataset(dataset_path), args.syntax)
     return 0
 
 
