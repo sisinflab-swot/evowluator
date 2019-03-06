@@ -72,7 +72,9 @@ def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, Tuple[float, float
 
     set_scale(ax, 'log', axis='y')
     display_grid(ax, axis='y')
-    ax.legend()
+
+    legend = ax.legend()
+    legend.set_draggable(True)
 
 
 def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: List[str]) -> None:
@@ -97,7 +99,9 @@ def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: 
     ax.set_xticklabels(reasoners)
 
     display_grid(ax, axis='y')
-    ax.legend()
+
+    legend = ax.legend()
+    legend.set_draggable(True)
 
 
 def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[float]]]) -> None:
@@ -114,7 +118,9 @@ def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[floa
         ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x))
 
     display_grid(ax)
-    ax.legend()
+
+    legend = ax.legend()
+    legend.set_draggable(True)
 
 
 def default_formatter() -> ticker.Formatter:
@@ -132,23 +138,29 @@ def configure_scatter_plot(ax: plt.Axes, dataset_size: int) -> float:
 
 
 def display_labels(ax: plt.Axes, center: bool = False, fmt: str = '{:.0f}') -> None:
+    fig = ax.get_figure()
+    transform = fig.dpi_scale_trans.inverted()
+
     x_mult = 0.5
 
     for rect in ax.patches:
-        h = rect.get_height()
-        w = rect.get_width()
+        height_px = rect.get_bbox().transformed(transform).height * fig.dpi
 
-        if center and h > 40.0:
+        w = rect.get_width()
+        h = rect.get_height()
+
+        if center and height_px > 20.0:
             y_mult = 0.5
-            y_add = -15.0
+            va = 'center'
         else:
-            y_mult = 1.05
-            y_add = 0.0
+            y_mult = 1.0
+            va = 'bottom'
 
         x = rect.get_x() + w * x_mult
-        y = rect.get_y() + h * y_mult + y_add
+        y = rect.get_y() + h * y_mult
 
-        ax.text(x, y, fmt.format(h), ha='center', va='bottom')
+        annotation = ax.annotate(fmt.format(h), (x, y), ha='center', va=va)
+        annotation.draggable()
 
 
 def display_grid(ax: plt.Axes, axis: str = 'both') -> None:
