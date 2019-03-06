@@ -75,7 +75,7 @@ class Test(ABC):
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None):
+                 syntax: Optional[str] = None) -> None:
         self._dataset = Dataset.with_name(dataset) if dataset else Dataset.first()
 
         if syntax and syntax not in self._dataset.syntaxes:
@@ -203,12 +203,6 @@ class ReasoningTest(Test):
 
     @property
     @abstractmethod
-    def task(self) -> str:
-        """Reasoning task."""
-        pass
-
-    @property
-    @abstractmethod
     def mode(self) -> str:
         """Test mode."""
 
@@ -221,6 +215,14 @@ class ReasoningTest(Test):
     @property
     def default_reasoners(self) -> List[Reasoner]:
         return self._loader.reasoners_supporting_task(self.task)
+
+    def __init__(self,
+                 task: str,
+                 dataset: Optional[str] = None,
+                 reasoners: Optional[List[str]] = None,
+                 syntax: Optional[str] = None) -> None:
+        self.task = task
+        super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
 
 
 class NotImplementedTest:

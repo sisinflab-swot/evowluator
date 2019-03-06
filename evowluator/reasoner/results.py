@@ -1,4 +1,6 @@
+import filecmp
 import re
+from abc import ABC, abstractmethod
 from typing import List, NamedTuple, Union
 
 from evowluator.pyutils import exc
@@ -58,12 +60,41 @@ class EnergyStats(NamedTuple):
         return (sum(full_samples) + last_sample) * interval / 1000.0
 
 
-class ReasoningStats(NamedTuple):
-    """Contains stats about a reasoning task."""
-    parsing_ms: float
-    reasoning_ms: float
-    max_memory: int
-    energy_stats: EnergyStats
+class ReasoningResults(ABC):
+
+    # Override
+
+    @property
+    @abstractmethod
+    def output(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def output_is_file(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def parsing_ms(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def reasoning_ms(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def max_memory(self) -> int:
+        pass
+
+    @property
+    @abstractmethod
+    def energy_stats(self) -> EnergyStats:
+        pass
+
+    # Public
 
     @property
     def total_ms(self) -> float:
@@ -73,30 +104,105 @@ class ReasoningStats(NamedTuple):
     def energy_score(self) -> float:
         return self.energy_stats.score(self.total_ms)
 
+    def output_matches(self, results: 'ReasoningResults') -> bool:
+        if self.output_is_file != results.output_is_file:
+            return False
 
-class ConsistencyResults(NamedTuple):
-    """Contains results for the consistency task."""
-    consistent: bool
-    stats: ReasoningStats
+        if self.output_is_file:
+            return filecmp.cmp(self.output, results.output, shallow=False)
+        else:
+            return self.output.strip() == results.output.strip()
 
 
-class MatchmakingResults(NamedTuple):
+class StandardReasoningResults(ReasoningResults):
+    """Contains reasoning results and stats."""
+
+    @property
+    def output(self) -> str:
+        return self._output
+
+    @property
+    def output_is_file(self) -> bool:
+        return self._output_is_file
+
+    @property
+    def parsing_ms(self) -> float:
+        return self._parsing_ms
+
+    @property
+    def reasoning_ms(self) -> float:
+        return self._reasoning_ms
+
+    @property
+    def max_memory(self) -> int:
+        return self._max_memory
+
+    @property
+    def energy_stats(self) -> EnergyStats:
+        return self._energy_stats
+
+    def __init__(self, output: str, output_is_file: bool, parsing_ms: float, reasoning_ms: float,
+                 max_memory: int, energy_stats: EnergyStats) -> None:
+        self._output = output
+        self._output_is_file = output_is_file
+        self._parsing_ms = parsing_ms
+        self._reasoning_ms = reasoning_ms
+        self._max_memory = max_memory
+        self._energy_stats = energy_stats
+
+    def with_output(self, output: str, is_file: bool) -> 'StandardReasoningResults':
+        return StandardReasoningResults(output=output, output_is_file=is_file,
+                                        parsing_ms=self.parsing_ms, reasoning_ms=self.reasoning_ms,
+                                        max_memory=self.max_memory, energy_stats=self.energy_stats)
+
+
+class MatchmakingResults(ReasoningResults):
     """Contains results for the matchmaking task."""
-    resource_parsing_ms: float
-    request_parsing_ms: float
-    init_ms: float
-    reasoning_ms: float
-    max_memory: int
-    energy_stats: EnergyStats
 
     @property
-    def total_ms(self) -> float:
-        return (self.resource_parsing_ms + self.request_parsing_ms +
-                self.init_ms + self.reasoning_ms)
+    def output(self) -> str:
+        return self._output
 
     @property
-    def energy_score(self) -> float:
-        return self.energy_stats.score(self.total_ms)
+    def output_is_file(self) -> bool:
+        return self._output_is_file
+
+    @property
+    def parsing_ms(self) -> float:
+        return self.resource_parsing_ms + self.request_parsing_ms
+
+    @property
+    def reasoning_ms(self) -> float:
+        return self.init_ms + self.matchmaking_ms
+
+    @property
+    def max_memory(self) -> int:
+        return self._max_memory
+
+    @property
+    def energy_stats(self) -> EnergyStats:
+        return self._energy_stats
+
+    def __init__(self, output: str, output_is_file: bool, resource_parsing_ms: float,
+                 request_parsing_ms: float, init_ms: float, matchmaking_ms: float,
+                 max_memory: int, energy_stats: EnergyStats) -> None:
+        self.resource_parsing_ms = resource_parsing_ms
+        self.request_parsing_ms = request_parsing_ms
+        self.init_ms = init_ms
+        self.matchmaking_ms = matchmaking_ms
+        self._output = output
+        self._output_is_file = output_is_file
+        self._max_memory = max_memory
+        self._energy_stats = energy_stats
+
+    def with_output(self, output: str, is_file: bool) -> 'MatchmakingResults':
+        return MatchmakingResults(output=output, output_is_file=is_file,
+                                  resource_parsing_ms=self.resource_parsing_ms,
+                                  request_parsing_ms=self.request_parsing_ms,
+                                  init_ms=self.init_ms,
+                                  matchmaking_ms=self.matchmaking_ms,
+                                  max_memory=self.max_memory,
+                                  energy_stats=self.energy_stats)
 
 
 class ResultsParser:
@@ -104,19 +210,19 @@ class ResultsParser:
 
     # Public methods
 
-    def parse_classification_results(self, task: TestTask) -> ReasoningStats:
+    def parse_classification_results(self, task: TestTask) -> StandardReasoningResults:
         """Parses the results of the classification task."""
         return self._parse_reasoning_stats(task)
 
-    def parse_consistency_results(self, task: TestTask) -> ConsistencyResults:
+    def parse_consistency_results(self, task: TestTask) -> StandardReasoningResults:
         """Parses the results of the consistency task."""
-        stats = self._parse_reasoning_stats(task)
+        results = self._parse_reasoning_stats(task)
 
         result = re.search(r'The ontology is (.*)\.', task.stdout)
         exc.raise_if_falsy(result=result)
-        consistent = (result.group(1) == 'consistent')
+        output = 'consistent' if result.group(1) == 'consistent' else 'not consistent'
 
-        return ConsistencyResults(consistent, stats)
+        return results.with_output(output, is_file=False)
 
     def parse_matchmaking_results(self, task: TestTask) -> MatchmakingResults:
         """Parses the result of the matchmaking task by parsing stdout."""
@@ -137,18 +243,19 @@ class ResultsParser:
 
         res = re.search(r'Reasoning: (.*) ms', stdout)
         exc.raise_if_falsy(res=res)
-        reasoning_ms = float(res.group(1))
+        matchmaking_ms = float(res.group(1))
 
-        return MatchmakingResults(resource_parsing_ms=res_parsing_ms,
+        return MatchmakingResults(output='', output_is_file=False,
+                                  resource_parsing_ms=res_parsing_ms,
                                   request_parsing_ms=req_parsing_ms,
                                   init_ms=init_ms,
-                                  reasoning_ms=reasoning_ms,
+                                  matchmaking_ms=matchmaking_ms,
                                   max_memory=self._parse_memory(task),
                                   energy_stats=self._parse_energy(task))
 
     # Protected methods
 
-    def _parse_reasoning_stats(self, task: TestTask) -> ReasoningStats:
+    def _parse_reasoning_stats(self, task: TestTask) -> StandardReasoningResults:
         """Parses stats for a reasoning task."""
         stdout = task.stdout
         exc.raise_if_falsy(stdout=stdout)
@@ -161,10 +268,11 @@ class ResultsParser:
         exc.raise_if_falsy(res=res)
         reasoning_ms = float(res.group(1))
 
-        return ReasoningStats(parsing_ms=parsing_ms,
-                              reasoning_ms=reasoning_ms,
-                              max_memory=self._parse_memory(task),
-                              energy_stats=self._parse_energy(task))
+        return StandardReasoningResults(output='', output_is_file=False,
+                                        parsing_ms=parsing_ms,
+                                        reasoning_ms=reasoning_ms,
+                                        max_memory=self._parse_memory(task),
+                                        energy_stats=self._parse_energy(task))
 
     def _parse_memory(self, task: TestTask) -> int:
         """Parses the peak memory for a reasoning task."""

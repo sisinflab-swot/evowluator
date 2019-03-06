@@ -30,16 +30,12 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
 
     # Overrides
 
-    @property
-    def task(self) -> str:
-        return ReasoningTask.MATCHMAKING
-
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
                  syntax: Optional[str] = None,
                  iterations: int = 1):
-        super().__init__(dataset, reasoners, syntax)
+        super().__init__(ReasoningTask.MATCHMAKING, dataset, reasoners, syntax)
         self._iterations = iterations
 
     def setup(self):

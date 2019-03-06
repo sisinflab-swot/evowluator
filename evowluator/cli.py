@@ -7,15 +7,15 @@ from .data import dataset_converter
 from .data.dataset import Dataset
 from .data.ontology import Ontology
 from .evaluation.evaluator import Evaluator
+from .reasoner.base import ReasoningTask
 from .test.base import NotImplementedTest
-from .test.classification import (
-    ClassificationCorrectnessTest, ClassificationEnergyTest, ClassificationPerformanceTest
-)
-from .test.consistency import (
-    ConsistencyCorrectnessTest, ConsistencyEnergyTest, ConsistencyPerformanceTest
-)
 from .test.info import InfoTest
 from .test.matchmaking import MatchmakingEnergyTest, MatchmakingPerformanceTest
+from .test.ontology import (
+    OntologyReasoningCorrectnessTest,
+    OntologyReasoningEnergyTest,
+    OntologyReasoningPerformanceTest
+)
 from .test.test_mode import TestMode
 
 # Constants
@@ -191,36 +191,44 @@ def matchmaking_sub(args) -> int:
 
 def classification_sub(args) -> int:
     {
-        TestMode.CORRECTNESS: ClassificationCorrectnessTest(dataset=args.dataset,
-                                                            reasoners=args.reasoners),
+        TestMode.CORRECTNESS: OntologyReasoningCorrectnessTest(task=ReasoningTask.CLASSIFICATION,
+                                                               dataset=args.dataset,
+                                                               reasoners=args.reasoners,
+                                                               syntax=args.syntax),
 
-        TestMode.PERFORMANCE: ClassificationPerformanceTest(dataset=args.dataset,
-                                                            reasoners=args.reasoners,
-                                                            syntax=args.syntax,
-                                                            iterations=args.num_iterations),
+        TestMode.PERFORMANCE: OntologyReasoningPerformanceTest(task=ReasoningTask.CLASSIFICATION,
+                                                               dataset=args.dataset,
+                                                               reasoners=args.reasoners,
+                                                               syntax=args.syntax,
+                                                               iterations=args.num_iterations),
 
-        TestMode.ENERGY: ClassificationEnergyTest(dataset=args.dataset,
-                                                  reasoners=args.reasoners,
-                                                  syntax=args.syntax,
-                                                  iterations=args.num_iterations)
+        TestMode.ENERGY: OntologyReasoningEnergyTest(task=ReasoningTask.CLASSIFICATION,
+                                                     dataset=args.dataset,
+                                                     reasoners=args.reasoners,
+                                                     syntax=args.syntax,
+                                                     iterations=args.num_iterations)
     }[args.mode].start(args.resume_after)
     return 0
 
 
 def consistency_sub(args) -> int:
     {
-        TestMode.CORRECTNESS: ConsistencyCorrectnessTest(dataset=args.dataset,
-                                                         reasoners=args.reasoners),
+        TestMode.CORRECTNESS: OntologyReasoningCorrectnessTest(task=ReasoningTask.CONSISTENCY,
+                                                               dataset=args.dataset,
+                                                               reasoners=args.reasoners,
+                                                               syntax=args.syntax),
 
-        TestMode.PERFORMANCE: ConsistencyPerformanceTest(dataset=args.dataset,
-                                                         reasoners=args.reasoners,
-                                                         syntax=args.syntax,
-                                                         iterations=args.num_iterations),
+        TestMode.PERFORMANCE: OntologyReasoningPerformanceTest(task=ReasoningTask.CONSISTENCY,
+                                                               dataset=args.dataset,
+                                                               reasoners=args.reasoners,
+                                                               syntax=args.syntax,
+                                                               iterations=args.num_iterations),
 
-        TestMode.ENERGY: ConsistencyEnergyTest(dataset=args.dataset,
-                                               reasoners=args.reasoners,
-                                               syntax=args.syntax,
-                                               iterations=args.num_iterations)
+        TestMode.ENERGY: OntologyReasoningEnergyTest(task=ReasoningTask.CONSISTENCY,
+                                                     dataset=args.dataset,
+                                                     reasoners=args.reasoners,
+                                                     syntax=args.syntax,
+                                                     iterations=args.num_iterations)
     }[args.mode].start(args.resume_after)
     return 0
 

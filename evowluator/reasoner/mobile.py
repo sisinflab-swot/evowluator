@@ -9,7 +9,7 @@ from .base import (
     ClassificationOutputFormat,
     MetaArgs,
     Reasoner,
-    ReasoningStats,
+    ReasoningResults,
     ReasoningTask
 )
 
@@ -70,7 +70,7 @@ class MobileReasonerIOS(Reasoner, ABC):
                  input_file: str,
                  output_file: Optional[str] = None,
                  timeout: Optional[float] = None,
-                 mode: str = TestMode.CORRECTNESS) -> ReasoningStats:
+                 mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
         exc.raise_if_not_found(input_file, file_type=exc.FileType.FILE)
 
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.CLASSIFICATION, mode=mode),

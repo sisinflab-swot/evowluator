@@ -1,13 +1,13 @@
 import os
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 from evowluator.config import OWLTool, Paths
 from evowluator.data.ontology import Ontology
 from evowluator.pyutils import exc, fileutils
 from evowluator.pyutils.proc import Benchmark, EnergyProfiler, Jar, OutputAction, Task
 from evowluator.test.test_mode import TestMode
-from .results import ConsistencyResults, MatchmakingResults, ReasoningStats, ResultsParser
+from .results import MatchmakingResults, ReasoningResults, ResultsParser
 
 
 class ReasoningTask:
@@ -111,11 +111,22 @@ class Reasoner(ABC):
     def __init__(self) -> None:
         exc.raise_if_not_found(self.absolute_path, file_type=exc.FileType.FILE)
 
+    def perform_task(self, task: str, input_file: Union[str, Tuple[str, str]],
+                     output_file: Optional[str] = None, timeout: Optional[float] = None,
+                     mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
+        """Performs the specified reasoning task."""
+        if task == ReasoningTask.CLASSIFICATION:
+            return self.classify(input_file, output_file=output_file, timeout=timeout, mode=mode)
+        elif task == ReasoningTask.CONSISTENCY:
+            return self.consistency(input_file, timeout=timeout, mode=mode)
+        else:
+            return self.matchmaking(input_file[0], input_file[1], timeout=timeout, mode=mode)
+
     def classify(self,
                  input_file: str,
                  output_file: Optional[str] = None,
                  timeout: Optional[float] = None,
-                 mode: str = TestMode.CORRECTNESS) -> ReasoningStats:
+                 mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
         """Runs the classification reasoning task."""
         exc.raise_if_not_found(input_file, file_type=exc.FileType.FILE)
 
@@ -143,12 +154,13 @@ class Reasoner(ABC):
                       vm_opts=OWLTool.VM_OPTS, output_action=OutputAction.DISCARD)
             jar.run()
 
-        return self.results_parser.parse_classification_results(task)
+        results = self.results_parser.parse_classification_results(task)
+        return results.with_output(output_file, is_file=True)
 
     def consistency(self,
                     input_file: str,
                     timeout: Optional[float] = None,
-                    mode: str = TestMode.CORRECTNESS) -> ConsistencyResults:
+                    mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
         """Checks if the given ontology is consistent."""
         exc.raise_if_not_found(input_file, file_type=exc.FileType.FILE)
 
@@ -161,18 +173,24 @@ class Reasoner(ABC):
     def matchmaking(self,
                     resource_file: str,
                     request_file: str,
+                    output_file: Optional[str] = None,
                     timeout: Optional[float] = None,
                     mode: str = TestMode.CORRECTNESS) -> MatchmakingResults:
         """Runs abductions or contractions between all resource and request individuals."""
         exc.raise_if_not_found(resource_file, file_type=exc.FileType.FILE)
         exc.raise_if_not_found(request_file, file_type=exc.FileType.FILE)
 
+        if output_file:
+            fileutils.remove(output_file)
+
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.MATCHMAKING, mode=mode),
-                                input_arg=resource_file,
-                                request_arg=request_file)
+                                input_arg=resource_file, request_arg=request_file,
+                                output_arg=output_file)
 
         task = self._run(args, timeout=timeout, mode=mode)
-        return self.results_parser.parse_matchmaking_results(task)
+
+        results = self.results_parser.parse_matchmaking_results(task)
+        return results.with_output(output_file, is_file=True)
 
     # Protected methods
 
