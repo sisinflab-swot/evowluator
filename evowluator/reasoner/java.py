@@ -24,7 +24,7 @@ class JavaReasoner(Reasoner, ABC):
     # Protected methods
 
     def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
-        path = self.absolute_path
+        path = self._absolute_path(self.path)
         task = Jar(path, jar_args=args, vm_opts=self.vm_opts)
 
         if mode == TestMode.PERFORMANCE:

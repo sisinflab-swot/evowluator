@@ -1,4 +1,5 @@
 import errno
+import os
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
@@ -7,6 +8,7 @@ from evowluator.pyutils.proc import Task, find_executable
 from evowluator.test.test_mode import TestMode
 from .base import (
     ClassificationOutputFormat,
+    MatchmakingResults,
     MetaArgs,
     Reasoner,
     ReasoningResults,
@@ -18,6 +20,10 @@ class MobileReasonerIOS(Reasoner, ABC):
     """iOS mobile reasoner wrapper."""
 
     # Overrides
+
+    @classmethod
+    def is_template(cls) -> bool:
+        return cls == MobileReasonerIOS
 
     @property
     @abstractmethod
@@ -37,7 +43,7 @@ class MobileReasonerIOS(Reasoner, ABC):
         pass
 
     @abstractmethod
-    def test_name_for_task(self, test: str) -> str:
+    def test_name_for_task(self, task: str) -> str:
         """
         Override this method by returning the Xcode test name for the specified reasoning task.
         """
@@ -54,7 +60,7 @@ class MobileReasonerIOS(Reasoner, ABC):
         return ClassificationOutputFormat.TEXT
 
     def args(self, task: str, mode: str) -> List[str]:
-        args = ['-project', self.project,
+        args = ['-project', self._absolute_path(self.project),
                 '-scheme', self.scheme,
                 '-destination', 'platform=iOS,name={}'.format(self._detect_connected_device()),
                 '-only-testing:{}'.format(self.test_name_for_task(task)),
@@ -71,17 +77,36 @@ class MobileReasonerIOS(Reasoner, ABC):
                  output_file: Optional[str] = None,
                  timeout: Optional[float] = None,
                  mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
-        exc.raise_if_not_found(input_file, file_type=exc.FileType.FILE)
-
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.CLASSIFICATION, mode=mode),
-                                input_arg=input_file)
+                                input_arg=os.path.basename(input_file))
         task = self._run(args=args, timeout=timeout, mode=mode)
         return self.results_parser.parse_classification_results(task)
+
+    def consistency(self,
+                    input_file: str,
+                    timeout: Optional[float] = None,
+                    mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
+        args = MetaArgs.replace(args=self.args(task=ReasoningTask.CONSISTENCY, mode=mode),
+                                input_arg=os.path.basename(input_file))
+        task = self._run(args, timeout=timeout, mode=mode)
+        return self.results_parser.parse_consistency_results(task)
+
+    def matchmaking(self,
+                    resource_file: str,
+                    request_file: str,
+                    output_file: Optional[str] = None,
+                    timeout: Optional[float] = None,
+                    mode: str = TestMode.CORRECTNESS) -> MatchmakingResults:
+        args = MetaArgs.replace(args=self.args(task=ReasoningTask.MATCHMAKING, mode=mode),
+                                input_arg=os.path.basename(resource_file),
+                                request_arg=os.path.basename(request_file))
+        task = self._run(args, timeout=timeout, mode=mode)
+        return self.results_parser.parse_matchmaking_results(task)
 
     # Protected
 
     def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
-        task = Task(self.absolute_path, args=args)
+        task = Task(self._absolute_path(self.path), args=args)
         task.run(timeout=timeout)
         return task
 

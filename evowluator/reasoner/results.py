@@ -218,11 +218,14 @@ class ResultsParser:
         """Parses the results of the consistency task."""
         results = self._parse_reasoning_stats(task)
 
-        result = re.search(r'The ontology is (.*)\.', task.stdout)
-        exc.raise_if_falsy(result=result)
-        output = 'consistent' if result.group(1) == 'consistent' else 'not consistent'
+        res = re.search(r'The ontology is (.*)\.', task.stdout)
 
-        return results.with_output(output, is_file=False)
+        if res:
+            res = 'consistent' if res.group(1) == 'consistent' else 'not consistent'
+        else:
+            res = 'unknown'
+
+        return results.with_output(res, is_file=False)
 
     def parse_matchmaking_results(self, task: TestTask) -> MatchmakingResults:
         """Parses the result of the matchmaking task by parsing stdout."""
@@ -230,20 +233,16 @@ class ResultsParser:
         exc.raise_if_falsy(stdout=stdout)
 
         res = re.search(r'Resource parsing: (.*) ms', stdout)
-        exc.raise_if_falsy(res=res)
-        res_parsing_ms = float(res.group(1))
+        res_parsing_ms = float(res.group(1)) if res else 0.0
 
         res = re.search(r'Request parsing: (.*) ms', stdout)
-        exc.raise_if_falsy(res=res)
-        req_parsing_ms = float(res.group(1))
+        req_parsing_ms = float(res.group(1)) if res else 0.0
 
         res = re.search(r'Reasoner initialization: (.*) ms', stdout)
-        exc.raise_if_falsy(res=res)
-        init_ms = float(res.group(1))
+        init_ms = float(res.group(1)) if res else 0.0
 
         res = re.search(r'Reasoning: (.*) ms', stdout)
-        exc.raise_if_falsy(res=res)
-        matchmaking_ms = float(res.group(1))
+        matchmaking_ms = float(res.group(1)) if res else 0.0
 
         return MatchmakingResults(output='', output_is_file=False,
                                   resource_parsing_ms=res_parsing_ms,
@@ -261,12 +260,10 @@ class ResultsParser:
         exc.raise_if_falsy(stdout=stdout)
 
         res = re.search(r'Parsing: (.*) ms', stdout)
-        exc.raise_if_falsy(res=res)
-        parsing_ms = float(res.group(1))
+        parsing_ms = float(res.group(1)) if res else 0.0
 
         res = re.search(r'Reasoning: (.*) ms', stdout)
-        exc.raise_if_falsy(res=res)
-        reasoning_ms = float(res.group(1))
+        reasoning_ms = float(res.group(1)) if res else 0.0
 
         return StandardReasoningResults(output='', output_is_file=False,
                                         parsing_ms=parsing_ms,

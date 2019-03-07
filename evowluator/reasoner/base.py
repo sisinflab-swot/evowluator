@@ -30,13 +30,17 @@ class MetaArgs:
     def replace(args: List[str], input_arg: str,
                 output_arg: Optional[str] = None, request_arg: Optional[str] = None) -> List[str]:
         """Replace meta-args with actual ones."""
-        replacements = {
-            MetaArgs.INPUT: input_arg,
-            MetaArgs.OUTPUT: output_arg,
-            MetaArgs.REQUEST: request_arg
-        }
+        replacements = [
+            (MetaArgs.INPUT, input_arg),
+            (MetaArgs.OUTPUT, output_arg),
+            (MetaArgs.REQUEST, request_arg)
+        ]
 
-        return [replacements.get(arg, arg) for arg in args]
+        for meta_arg, replacement in replacements:
+            if replacement is not None:
+                args = [arg.replace(meta_arg, replacement) for arg in args]
+
+        return args
 
 
 class ClassificationOutputFormat:
@@ -102,14 +106,8 @@ class Reasoner(ABC):
 
     # Public
 
-    @property
-    def absolute_path(self) -> str:
-        """Absolute path of the reasoner executable."""
-        path = os.path.normpath(self.path)
-        return path if os.path.isabs(path) else os.path.join(Paths.BIN_DIR, path)
-
     def __init__(self) -> None:
-        exc.raise_if_not_found(self.absolute_path, file_type=exc.FileType.FILE)
+        exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
 
     def perform_task(self, task: str, input_file: Union[str, Tuple[str, str]],
                      output_file: Optional[str] = None, timeout: Optional[float] = None,
@@ -194,9 +192,14 @@ class Reasoner(ABC):
 
     # Protected methods
 
+    def _absolute_path(self, path: str) -> str:
+        """Absolute path for the specified relative path."""
+        path = os.path.normpath(path)
+        return path if os.path.isabs(path) else os.path.join(Paths.BIN_DIR, path)
+
     def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
         """Runs the reasoner."""
-        task = Task(self.absolute_path, args=args)
+        task = Task(self._absolute_path(self.path), args=args)
 
         if mode == TestMode.PERFORMANCE:
             task = Benchmark(task)
