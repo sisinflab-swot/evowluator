@@ -161,10 +161,15 @@ class PerformanceEvaluator(Evaluator):
 
         parsing = self.results_grouped_by_reasoner(parsing_cols).sum().sum()
         reasoning = self.results_grouped_by_reasoner(reasoning_cols).sum().sum()
+
         memory = self.results_grouped_by_reasoner(memory_cols).sum()
+        memory_min, memory_mean, memory_max = memory.min(), memory.mean(), memory.max()
 
         parsing = np.asarray([parsing[r] for r in reasoners])
         reasoning = np.asarray([reasoning[r] for r in reasoners])
+        memory_min = np.asarray([memory_min[r] for r in reasoners])
+        memory_mean = np.asarray([memory_mean[r] for r in reasoners])
+        memory_max = np.asarray([memory_max[r] for r in reasoners])
 
         if np.append(parsing, reasoning).min() < 1000.0:
             time_unit = 'ms'
@@ -178,9 +183,9 @@ class PerformanceEvaluator(Evaluator):
             'Total parsing time ({})'.format(time_unit): parsing,
             'Total reasoning time ({})'.format(time_unit): reasoning,
             'Total time ({})'.format(time_unit): parsing + reasoning,
-            'Min memory peak (MiB)': memory.min(),
-            'Avg memory peak (MiB)': memory.mean(),
-            'Max memory peak (MiB)': memory.max()
+            'Min memory peak (MiB)': memory_min,
+            'Avg memory peak (MiB)': memory_mean,
+            'Max memory peak (MiB)': memory_max
         }).set_index('Reasoner')
 
         data.to_csv(file_path, float_format='%.2f')
