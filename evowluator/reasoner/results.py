@@ -169,7 +169,7 @@ class MatchmakingResults(ReasoningResults):
 
     @property
     def parsing_ms(self) -> float:
-        return self.resource_parsing_ms + self.request_parsing_ms
+        return self._parsing_ms
 
     @property
     def reasoning_ms(self) -> float:
@@ -183,13 +183,11 @@ class MatchmakingResults(ReasoningResults):
     def energy_stats(self) -> EnergyStats:
         return self._energy_stats
 
-    def __init__(self, output: str, output_is_file: bool, resource_parsing_ms: float,
-                 request_parsing_ms: float, init_ms: float, matchmaking_ms: float,
-                 max_memory: int, energy_stats: EnergyStats) -> None:
-        self.resource_parsing_ms = resource_parsing_ms
-        self.request_parsing_ms = request_parsing_ms
+    def __init__(self, output: str, output_is_file: bool, parsing_ms: float, init_ms: float,
+                 matchmaking_ms: float, max_memory: int, energy_stats: EnergyStats) -> None:
         self.init_ms = init_ms
         self.matchmaking_ms = matchmaking_ms
+        self._parsing_ms = parsing_ms
         self._output = output
         self._output_is_file = output_is_file
         self._max_memory = max_memory
@@ -197,8 +195,7 @@ class MatchmakingResults(ReasoningResults):
 
     def with_output(self, output: str, is_file: bool) -> 'MatchmakingResults':
         return MatchmakingResults(output=output, output_is_file=is_file,
-                                  resource_parsing_ms=self.resource_parsing_ms,
-                                  request_parsing_ms=self.request_parsing_ms,
+                                  parsing_ms=self.parsing_ms,
                                   init_ms=self.init_ms,
                                   matchmaking_ms=self.matchmaking_ms,
                                   max_memory=self.max_memory,
@@ -232,11 +229,12 @@ class ResultsParser:
         stdout = task.stdout
         exc.raise_if_falsy(stdout=stdout)
 
-        res = re.search(r'Resource parsing: (.*) ms', stdout)
-        res_parsing_ms = float(res.group(1)) if res else 0.0
+        parsing_ms = 0.0
 
-        res = re.search(r'Request parsing: (.*) ms', stdout)
-        req_parsing_ms = float(res.group(1)) if res else 0.0
+        regex = re.compile(r'[pP]arsing: (.*) ms')
+
+        for res in regex.finditer(stdout):
+            parsing_ms += float(res.group(1)) if res else 0.0
 
         res = re.search(r'Reasoner initialization: (.*) ms', stdout)
         init_ms = float(res.group(1)) if res else 0.0
@@ -245,8 +243,7 @@ class ResultsParser:
         matchmaking_ms = float(res.group(1)) if res else 0.0
 
         return MatchmakingResults(output='', output_is_file=False,
-                                  resource_parsing_ms=res_parsing_ms,
-                                  request_parsing_ms=req_parsing_ms,
+                                  parsing_ms=parsing_ms,
                                   init_ms=init_ms,
                                   matchmaking_ms=matchmaking_ms,
                                   max_memory=self._parse_memory(task),
