@@ -175,9 +175,9 @@ class OntologyReasoningPerformanceTest(OntologyReasoningMeasurementTest):
         self._logger.log('{:.0f} ms'.format(results.total_ms))
 
         self._logger.indent_level += 1
-        self._logger.log('Parsing {:.0f} ms'.format(results.parsing_ms))
-        self._logger.log('Classification {:.0f} ms'.format(results.reasoning_ms))
-        self._logger.log('Memory {}'.format(fileutils.human_readable_bytes(results.max_memory)))
+        self._logger.log('Parsing: {:.0f} ms'.format(results.parsing_ms))
+        self._logger.log('Reasoning: {:.0f} ms'.format(results.reasoning_ms))
+        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(results.max_memory)))
         self._logger.indent_level -= 1
 
         return [results.parsing_ms, results.reasoning_ms, results.max_memory]

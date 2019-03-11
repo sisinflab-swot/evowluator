@@ -110,10 +110,10 @@ class MatchmakingPerformanceTest(MatchmakingMeasurementTest):
         self._logger.log('{:.0f} ms'.format(stats.total_ms))
 
         self._logger.indent_level += 1
-        self._logger.log('Parsing {:.0f} ms'.format(stats.parsing_ms))
-        self._logger.log('Init {:.0f} ms'.format(stats.init_ms))
-        self._logger.log('Reasoning {:.0f} ms'.format(stats.reasoning_ms))
-        self._logger.log('Memory {}'.format(fileutils.human_readable_bytes(stats.max_memory)))
+        self._logger.log('Parsing: {:.0f} ms'.format(stats.parsing_ms))
+        self._logger.log('Init: {:.0f} ms'.format(stats.init_ms))
+        self._logger.log('Reasoning: {:.0f} ms'.format(stats.reasoning_ms))
+        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(stats.max_memory)))
         self._logger.indent_level -= 1
 
         return [stats.parsing_ms, stats.init_ms, stats.reasoning_ms, stats.max_memory]
