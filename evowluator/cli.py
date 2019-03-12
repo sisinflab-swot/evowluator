@@ -10,7 +10,11 @@ from .evaluation.evaluator import Evaluator
 from .reasoner.base import ReasoningTask
 from .test.base import NotImplementedTest
 from .test.info import InfoTest
-from .test.matchmaking import MatchmakingEnergyTest, MatchmakingPerformanceTest
+from .test.matchmaking import (
+    MatchmakingCorrectnessTest,
+    MatchmakingEnergyTest,
+    MatchmakingPerformanceTest
+)
 from .test.ontology import (
     OntologyReasoningCorrectnessTest,
     OntologyReasoningEnergyTest,
@@ -174,7 +178,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def matchmaking_sub(args) -> int:
     {
-        TestMode.CORRECTNESS: NotImplementedTest(),
+        TestMode.CORRECTNESS: MatchmakingCorrectnessTest(dataset=args.dataset,
+                                                         reasoners=args.reasoners,
+                                                         syntax=args.syntax),
 
         TestMode.PERFORMANCE: MatchmakingPerformanceTest(dataset=args.dataset,
                                                          reasoners=args.reasoners,

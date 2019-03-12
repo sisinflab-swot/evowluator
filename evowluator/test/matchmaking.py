@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 from subprocess import TimeoutExpired
 from typing import List, Optional
@@ -10,6 +11,96 @@ from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import MatchmakingResults
 from .base import ReasoningTest
 from .test_mode import TestMode
+
+
+class MatchmakingCorrectnessTest(ReasoningTest):
+    """Test class for checking the correctness of non-standard reasoning."""
+
+    @property
+    def mode(self) -> str:
+        return TestMode.CORRECTNESS
+
+    def __init__(self,
+                 dataset: Optional[str] = None,
+                 reasoners: Optional[List[str]] = None,
+                 syntax: Optional[str] = None):
+        super().__init__(ReasoningTask.MATCHMAKING, dataset, reasoners, syntax)
+
+    def setup(self):
+        csv_header = ['Resource', 'Request']
+        reasoners = self._usable_reasoners()
+
+        for reasoner in reasoners[1:]:
+            csv_header.append(reasoner.name)
+
+        self._csv_writer.write_row(csv_header)
+
+    def run(self, entry):
+
+        if entry.request_count() == 0:
+            self._logger.log('No available requests.\n', color=echo.Color.YELLOW)
+            return
+
+        reasoners = self._usable_reasoners()
+        reference = reasoners[0]
+        reasoners = reasoners[1:]
+
+        r_out = os.path.join(self.temp_dir, 'reasoner.txt')
+        ref_out = os.path.join(self.temp_dir, 'reference.txt')
+        ref_syntax = self._syntax_for_reasoner(reference)
+
+        for request in entry.requests():
+            self.clear_temp()
+
+            self._logger.log('Request: ', color=echo.Color.YELLOW, endl=False)
+            self._logger.log(request.name)
+            self._logger.indent_level += 1
+            self._logger.log('{}: '.format(reference.name), endl=False)
+
+            ref_resource, ref_request = entry.ontology(ref_syntax), request.ontology(ref_syntax)
+            ref_result = reference.matchmaking(ref_resource.path, ref_request.path,
+                                               output_file=ref_out, timeout=TestConfig.TIMEOUT,
+                                               mode=self.mode)
+
+            self._logger.log('done', color=echo.Color.GREEN)
+            self._logger.indent_level += 1
+
+            csv_row = [entry.name, request.name]
+
+            for reasoner in reasoners:
+                self._logger.log('{}: '.format(reasoner.name), endl=False)
+
+                syntax = self._syntax_for_reasoner(reasoner)
+                resource_onto, request_onto = entry.ontology(syntax), request.ontology(syntax)
+
+                try:
+                    r_result = reasoner.matchmaking(resource_onto.path, request_onto.path,
+                                                    output_file=r_out, timeout=TestConfig.TIMEOUT,
+                                                    mode=self.mode)
+                except TimeoutExpired:
+                    result = 'timeout'
+                    color = echo.Color.RED
+                except Exception as e:
+                    if config.DEBUG:
+                        raise e
+                    result = 'error'
+                    color = echo.Color.RED
+                else:
+                    if r_result.output_matches(ref_result):
+                        result = 'same'
+                        color = echo.Color.GREEN
+                    else:
+                        result = 'different'
+                        color = echo.Color.RED
+
+                self._logger.log(result, color=color)
+                csv_row.append(result)
+
+            self._logger.indent_level -= 2
+            self._logger.log('')
+            self._csv_writer.write_row(csv_row)
+
+        self._logger.log('')
 
 
 class MatchmakingMeasurementTest(ReasoningTest, ABC):
@@ -78,13 +169,12 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
                         csv_row.extend(self.extract_results(stats))
                     except TimeoutExpired:
                         csv_row.extend(['timeout'] * len(self.result_fields))
-                        self._logger.log('timeout')
+                        self._logger.log('timeout', color=echo.Color.RED)
                     except Exception as e:
                         if config.DEBUG:
                             raise e
-
                         csv_row.extend(['error'] * len(self.result_fields))
-                        self._logger.log('error')
+                        self._logger.log('error', color=echo.Color.RED)
 
                 self._logger.indent_level -= 1
                 self._logger.log('')
