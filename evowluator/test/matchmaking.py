@@ -156,7 +156,7 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
                 csv_row = [entry.name, request.name]
 
                 for reasoner in self._usable_reasoners():
-                    self._logger.log('- {}: '.format(reasoner.name), endl=False)
+                    self._logger.log('{}: '.format(reasoner.name), endl=False)
 
                     syntax = self._syntax_for_reasoner(reasoner)
                     resource_onto = entry.ontology(syntax)

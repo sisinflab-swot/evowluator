@@ -15,7 +15,7 @@ def convert(dataset: Dataset, syntax: str) -> None:
     for entry in dataset.get_entries():
         target_ontology = entry.ontology(syntax)
 
-        echo.pretty('- {}: '.format(target_ontology.name),
+        echo.pretty('{}: '.format(target_ontology.name),
                     color=echo.Color.YELLOW, endl=False)
 
         fileutils.create_dir(os.path.dirname(target_ontology.path))
@@ -26,7 +26,7 @@ def convert(dataset: Dataset, syntax: str) -> None:
         for request in entry.requests():
             target_request = request.ontology(syntax)
 
-            echo.pretty('    - {}: '.format(target_request.name),
+            echo.pretty('    {}: '.format(target_request.name),
                         color=echo.Color.YELLOW, endl=False)
 
             fileutils.create_dir(os.path.dirname(target_request.path))

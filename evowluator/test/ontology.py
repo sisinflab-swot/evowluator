@@ -127,7 +127,7 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
             csv_row = [entry.name]
 
             for reasoner in self._usable_reasoners():
-                self._logger.log('- {}: '.format(reasoner.name), endl=False)
+                self._logger.log('{}: '.format(reasoner.name), endl=False)
                 ontology = entry.ontology(self._syntax_for_reasoner(reasoner))
 
                 # Skip already failed or timed out.
