@@ -133,7 +133,7 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
                 # Skip already failed or timed out.
                 if reasoner.name in fail:
                     csv_row.extend(['skip'] * len(self.result_fields))
-                    self._logger.log('skip')
+                    self._logger.log('skip', color=echo.Color.YELLOW)
                     continue
 
                 try:
@@ -141,14 +141,13 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
                                                     timeout=config.Test.TIMEOUT, mode=self.mode)
                 except TimeoutExpired:
                     csv_row.extend(['timeout'] * len(self.result_fields))
-                    self._logger.log('timeout')
+                    self._logger.log('timeout', color=echo.Color.RED)
                     fail.append(reasoner.name)
                 except Exception as e:
                     if config.DEBUG:
                         raise e
-
                     csv_row.extend(['error'] * len(self.result_fields))
-                    self._logger.log('error')
+                    self._logger.log('error', color=echo.Color.RED)
                     fail.append(reasoner.name)
                 else:
                     csv_row.extend(self.extract_results(results))
