@@ -8,7 +8,6 @@ from .data.dataset import Dataset
 from .data.ontology import Ontology
 from .evaluation.evaluator import Evaluator
 from .reasoner.base import ReasoningTask
-from .test.base import NotImplementedTest
 from .test.info import InfoTest
 from .test.matchmaking import (
     MatchmakingCorrectnessTest,

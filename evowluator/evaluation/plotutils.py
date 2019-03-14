@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from matplotlib import pyplot as plt, ticker
 
@@ -8,7 +8,9 @@ def setup_plot(**kwargs) -> (plt.Figure, Union[plt.Axes, List[plt.Axes]]):
     n_figures = kwargs.get('nrows', 0) * kwargs.get('ncols', 0)
 
     if 'figsize' not in kwargs:
-        kwargs['figsize'] = (16, 9) if n_figures > 2 else (10, 9)
+        height = 5 if n_figures == 1 else 9
+        width = 10 if n_figures <= 2 else 16
+        kwargs['figsize'] = (width, height)
 
     kwargs['squeeze'] = False
     fig, axes = plt.subplots(**kwargs)
@@ -44,46 +46,75 @@ def set_scale(ax: plt.Axes, scale: str, axis: str = 'both') -> None:
     ax.yaxis.set_minor_formatter(y_min)
 
 
-def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, Tuple[float, float, float]],
-                                metric: str, unit: str) -> None:
+def draw_histograms(ax: plt.Axes, data: Dict[str, float], metric: str,
+                    unit: Optional[str] = None) -> None:
+    reasoners = list(data.keys())
+    reasoners.sort()
+    n_reasoners = len(reasoners)
+
+    width = (1.0 / n_reasoners) * 0.8
+
+    for i, reasoner in enumerate(reasoners):
+        ax.bar([i], data[reasoner], width=width, alpha=0.9, label=reasoner)
+
+    display_labels(ax)
+
+    ax.set_title(metric[0].upper() + metric[1:])
+
+    ax.set_xticks(np.arange(n_reasoners))
+    ax.set_xticklabels(reasoners)
+
+    ylabel = '{} ({})'.format(metric, unit) if unit else metric
+    ax.set_ylabel(ylabel[0].upper() + ylabel[1:])
+
+    display_grid(ax, axis='y')
+    legend = ax.legend()
+    legend.set_draggable(True)
+
+
+def draw_grouped_histograms(ax: plt.Axes, data: Dict[str, List[float]], metrics: List[str]) -> None:
     reasoners = list(data.keys())
     reasoners.sort()
 
     n_reasoners = len(reasoners)
-    n_stats = 3
+    n_stats = len(metrics)
 
     width = 1.0 / (n_reasoners + 1)
     bar_width = 0.8 * width
 
     for i, reasoner in enumerate(reasoners):
-        ax.bar([j + width * i for j in range(n_stats)],
-               data[reasoner],
-               bar_width, alpha=0.9, label=reasoner)
+        ax.bar([j + width * i for j in range(n_stats)], data[reasoner],
+               width=bar_width, alpha=0.9, label=reasoner)
 
     display_labels(ax)
 
-    ax.set_title('Minimum, average and maximum {}'.format(metric))
-
-    ylabel = '{} ({})'.format(metric, unit)
-    ax.set_ylabel(ylabel[0].upper() + ylabel[1:])
-
     ax.set_xticks([p + width * ((n_reasoners - 1) / 2) for p in range(n_stats)])
-    ax.set_xticklabels(['Min', 'Avg', 'Max'])
+    ax.set_xticklabels(metrics)
 
-    set_scale(ax, 'log', axis='y')
     display_grid(ax, axis='y')
 
     legend = ax.legend()
     legend.set_draggable(True)
 
 
+def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, List[float]],
+                                metric: str, unit: str) -> None:
+    ax.set_title('Minimum, average and maximum {}'.format(metric))
+
+    ylabel = '{} ({})'.format(metric, unit)
+    ax.set_ylabel(ylabel[0].upper() + ylabel[1:])
+
+    draw_grouped_histograms(ax, data, ['Min', 'Avg', 'Max'])
+
+
 def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: List[str]) -> None:
     reasoners = list(data.keys())
     reasoners.sort()
+    n_reasoners = len(reasoners)
 
     n_sections = len(next(iter(data.values())))
     pos = np.arange(len(reasoners))
-    width = 0.35
+    width = (1.0 / n_reasoners) * 0.8
 
     values = [data[r][0] for r in reasoners]
     ax.bar(pos, values, width, alpha=0.9, label=labels[0])

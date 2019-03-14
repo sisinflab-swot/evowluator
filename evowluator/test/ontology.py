@@ -18,12 +18,8 @@ class OntologyReasoningCorrectnessTest(ReasoningTest):
         return TestMode.CORRECTNESS
 
     def setup(self):
-        csv_header = ['Ontology']
         reasoners = self._usable_reasoners()
-
-        for reasoner in reasoners[1:]:
-            csv_header.append(reasoner.name)
-
+        csv_header = ['Ontology'] + ['{}: match'.format(r.name) for r in reasoners[1:]]
         self._csv_writer.write_row(csv_header)
 
     def run(self, entry):

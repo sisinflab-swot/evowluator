@@ -27,12 +27,8 @@ class MatchmakingCorrectnessTest(ReasoningTest):
         super().__init__(ReasoningTask.MATCHMAKING, dataset, reasoners, syntax)
 
     def setup(self):
-        csv_header = ['Resource', 'Request']
         reasoners = self._usable_reasoners()
-
-        for reasoner in reasoners[1:]:
-            csv_header.append(reasoner.name)
-
+        csv_header = ['Resource', 'Request'] + ['{}: match'.format(r.name) for r in reasoners[1:]]
         self._csv_writer.write_row(csv_header)
 
     def run(self, entry):

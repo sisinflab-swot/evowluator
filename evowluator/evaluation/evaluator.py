@@ -28,6 +28,7 @@ class Evaluator(ABC):
 
     @classmethod
     def from_dir(cls, test_dir: str) -> 'Evaluator':
+        from .correctness import CorrectnessEvaluator
         from .performance import EnergyEvaluator, PerformanceEvaluator
 
         cfg = json.load(os.path.join(test_dir, Paths.CONFIG_FILE_NAME))
@@ -35,7 +36,9 @@ class Evaluator(ABC):
 
         cols = ['Resource', 'Request'] if ReasoningTask.MATCHMAKING in test_name else ['Ontology']
 
-        if TestMode.PERFORMANCE in test_name:
+        if TestMode.CORRECTNESS in test_name:
+            return CorrectnessEvaluator(test_dir, cfg, index_columns=cols)
+        elif TestMode.PERFORMANCE in test_name:
             return PerformanceEvaluator(test_dir, cfg, index_columns=cols)
         elif TestMode.ENERGY in test_name:
             return EnergyEvaluator(test_dir, cfg, index_columns=cols)
@@ -68,7 +71,9 @@ class Evaluator(ABC):
         )
 
         results = pd.read_csv(self.results_path, index_col=self.index_columns)
-        results = results.groupby(results.index).mean()
+
+        if not results.index.is_unique:
+            results = results.groupby(results.index).mean()
 
         if len(self.index_columns) > 1:
             results.index = pd.MultiIndex.from_tuples(results.index, names=self.index_columns)
@@ -83,7 +88,9 @@ class Evaluator(ABC):
 
     def results_for_reasoner(self, reasoner: str) -> pd.DataFrame:
         needle = reasoner + ':'
-        return self._results[[f for f in self._results if f.startswith(needle)]]
+        results = self._results[[f for f in self._results if f.startswith(needle)]]
+        results = results.rename(lambda s: s.rsplit(':', maxsplit=1)[1].strip(), axis='columns')
+        return results
 
     def results_for_ontology(self, ontology: str) -> pd.DataFrame:
         return self._results.loc[ontology]
