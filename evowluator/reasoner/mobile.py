@@ -16,61 +16,18 @@ from .base import (
 )
 
 
-class MobileReasonerIOS(Reasoner, ABC):
-    """iOS mobile reasoner wrapper."""
+class MobileReasoner(Reasoner, ABC):
+    """Mobile reasoner wrapper."""
 
     # Overrides
 
     @classmethod
     def is_template(cls) -> bool:
-        return cls == MobileReasonerIOS
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def project(self) -> str:
-        """Xcode project path."""
-        pass
-
-    @property
-    @abstractmethod
-    def scheme(self) -> str:
-        """Xcode scheme for the test."""
-        pass
-
-    @abstractmethod
-    def test_name_for_task(self, task: str) -> str:
-        """
-        Override this method by returning the Xcode test name for the specified reasoning task.
-        """
-        pass
-
-    # Public
-
-    @property
-    def path(self):
-        return find_executable('xcodebuild')
+        return cls == MobileReasoner
 
     @property
     def classification_output_format(self):
         return ClassificationOutputFormat.TEXT
-
-    def args(self, task: str, mode: str) -> List[str]:
-        args = ['-project', self._absolute_path(self.project),
-                '-scheme', self.scheme,
-                '-destination', 'platform=iOS,name={}'.format(self._detect_connected_device()),
-                '-only-testing:{}'.format(self.test_name_for_task(task)),
-                'test-without-building',
-                'RESOURCE={}'.format(MetaArgs.INPUT)]
-
-        if task == ReasoningTask.MATCHMAKING:
-            args.append('REQUEST={}'.format(MetaArgs.REQUEST))
-
-        return args
 
     def classify(self,
                  input_file: str,
@@ -103,12 +60,60 @@ class MobileReasonerIOS(Reasoner, ABC):
         task = self._run(args, timeout=timeout, mode=mode)
         return self.results_parser.parse_matchmaking_results(task)
 
-    # Protected
-
     def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
         task = Task(self._absolute_path(self.path), args=args)
         task.run(timeout=timeout)
         return task
+
+
+class MobileReasonerIOS(MobileReasoner, ABC):
+    """iOS mobile reasoner wrapper."""
+
+    # Override
+
+    @property
+    @abstractmethod
+    def project(self) -> str:
+        """Xcode project path."""
+        pass
+
+    @property
+    @abstractmethod
+    def scheme(self) -> str:
+        """Xcode scheme for the test."""
+        pass
+
+    @abstractmethod
+    def test_name_for_task(self, task: str) -> str:
+        """
+        Override this method by returning the Xcode test name for the specified reasoning task.
+        """
+        pass
+
+    # Overrides
+
+    @classmethod
+    def is_template(cls) -> bool:
+        return cls == MobileReasonerIOS
+
+    @property
+    def path(self):
+        return find_executable('xcodebuild')
+
+    def args(self, task: str, mode: str) -> List[str]:
+        args = ['-project', self._absolute_path(self.project),
+                '-scheme', self.scheme,
+                '-destination', 'platform=iOS,name={}'.format(self._detect_connected_device()),
+                '-only-testing:{}'.format(self.test_name_for_task(task)),
+                'test-without-building',
+                'RESOURCE={}'.format(MetaArgs.INPUT)]
+
+        if task == ReasoningTask.MATCHMAKING:
+            args.append('REQUEST={}'.format(MetaArgs.REQUEST))
+
+        return args
+
+    # Protected
 
     def _detect_connected_device(self) -> str:
         """Returns the name of a connected device."""
