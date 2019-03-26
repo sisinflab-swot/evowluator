@@ -66,7 +66,7 @@ class MobileReasoner(Reasoner, ABC):
         return task
 
 
-class MobileReasonerIOS(MobileReasoner, ABC):
+class IOSReasoner(MobileReasoner, ABC):
     """iOS mobile reasoner wrapper."""
 
     # Override
@@ -94,7 +94,7 @@ class MobileReasonerIOS(MobileReasoner, ABC):
 
     @classmethod
     def is_template(cls) -> bool:
-        return cls == MobileReasonerIOS
+        return cls == IOSReasoner
 
     @property
     def path(self):
