@@ -108,10 +108,13 @@ class ReasoningResults(ABC):
         if self.output_is_file != results.output_is_file:
             return False
 
-        if self.output_is_file:
-            return filecmp.cmp(self.output, results.output, shallow=False)
-        else:
-            return self.output.strip() == results.output.strip()
+        try:
+            if self.output_is_file:
+                return filecmp.cmp(self.output, results.output, shallow=False)
+            else:
+                return self.output.strip() == results.output.strip()
+        except Exception:
+            return False
 
 
 class StandardReasoningResults(ReasoningResults):
