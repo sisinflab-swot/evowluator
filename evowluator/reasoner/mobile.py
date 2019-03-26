@@ -66,6 +66,48 @@ class MobileReasoner(Reasoner, ABC):
         return task
 
 
+class AndroidReasoner(MobileReasoner, ABC):
+    """Android mobile reasoner wrapper."""
+
+    # Override
+
+    @property
+    @abstractmethod
+    def test_class(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def log_prefix(self) -> str:
+        pass
+
+    # Overrides
+
+    @classmethod
+    def is_template(cls) -> bool:
+        return cls == AndroidReasoner
+
+    @property
+    def path(self):
+        return find_executable('adb')
+
+    def args(self, task: str, mode: str) -> List[str]:
+        instrument_env = [('task', task), ('resource', MetaArgs.INPUT)]
+
+        if task == ReasoningTask.MATCHMAKING:
+            instrument_env.append(('request', MetaArgs.REQUEST))
+
+        instrument_env = ' '.join(['-e {} {}'.format(*env_kv) for env_kv in instrument_env])
+
+        shell_cmds = [
+            'logcat -c',
+            'am instrument -w {} {}'.format(instrument_env, self.test_class),
+            'logcat -d -s {}'.format(self.log_prefix)
+        ]
+
+        return ['shell', '-x', ';'.join(shell_cmds)]
+
+
 class IOSReasoner(MobileReasoner, ABC):
     """iOS mobile reasoner wrapper."""
 
