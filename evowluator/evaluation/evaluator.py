@@ -92,7 +92,7 @@ class Evaluator(ABC):
         results = self._results[columns] if columns else self._results
 
         if drop_missing:
-            results.dropna(inplace=True)
+            results = results.dropna()
 
         return results.groupby(lambda x: x.split(':', maxsplit=1)[0], axis=1)
 
