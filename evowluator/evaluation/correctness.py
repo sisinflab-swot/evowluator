@@ -20,7 +20,7 @@ class CorrectnessEvaluator(Evaluator):
         return list(super().reasoners())[1:]
 
     def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
-        super().__init__(test_dir, cfg, index_columns)
+        super().__init__(test_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
         self._global_stats: pd.DataFrame = None
 
     def _write_results(self) -> None:

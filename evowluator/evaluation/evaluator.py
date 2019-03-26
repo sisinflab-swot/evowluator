@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from math import ceil
 from os import path
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, Iterable, List, Optional, Union
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -61,7 +61,8 @@ class Evaluator(ABC):
     def config_path(self) -> str:
         return os.path.join(self.test_dir, Paths.CONFIG_FILE_NAME)
 
-    def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
+    def __init__(self, test_dir: str, cfg, index_columns: List[str] = None,
+                 non_numeric_columns: Union[bool, List[str]] = False) -> None:
         self.test_dir = test_dir
         self.index_columns = index_columns if index_columns else ['Ontology']
         self.dataset_name = cfg[ConfigKey.DATASET]
@@ -70,15 +71,7 @@ class Evaluator(ABC):
             (r[ConfigKey.NAME], r[ConfigKey.SYNTAX]) for r in cfg[ConfigKey.REASONERS]
         )
 
-        results = pd.read_csv(self.results_path, index_col=self.index_columns)
-
-        if not results.index.is_unique:
-            results = results.groupby(results.index).mean()
-
-        if len(self.index_columns) > 1:
-            results.index = pd.MultiIndex.from_tuples(results.index, names=self.index_columns)
-
-        self._results: pd.DataFrame = results
+        self._load_results(non_numeric_columns)
 
     def reasoners(self) -> Iterable[str]:
         return self._syntaxes_by_reasoner.keys()
@@ -95,8 +88,12 @@ class Evaluator(ABC):
     def results_for_ontology(self, ontology: str) -> pd.DataFrame:
         return self._results.loc[ontology]
 
-    def results_grouped_by_reasoner(self, columns: List[str] = None):
+    def results_grouped_by_reasoner(self, columns: List[str] = None, drop_missing: bool = True):
         results = self._results[columns] if columns else self._results
+
+        if drop_missing:
+            results.dropna(inplace=True)
+
         return results.groupby(lambda x: x.split(':', maxsplit=1)[0], axis=1)
 
     def write_results(self) -> None:
@@ -130,3 +127,29 @@ class Evaluator(ABC):
 
         fig.tight_layout()
         plt.show()
+
+    # Private
+
+    def _load_results(self, non_numeric_columns: Union[bool, List[str]] = False) -> None:
+        results = pd.read_csv(self.results_path, index_col=self.index_columns)
+
+        numeric_columns = results.columns.values.tolist()
+
+        if non_numeric_columns:
+            if isinstance(non_numeric_columns, list):
+                numeric_columns = [c for c in numeric_columns if c not in non_numeric_columns]
+            else:
+                numeric_columns = []
+
+        if numeric_columns:
+            results[numeric_columns] = results[numeric_columns].apply(pd.to_numeric,
+                                                                      errors='coerce')
+            results.dropna(inplace=True)
+
+        if not results.index.is_unique:
+            results = results.groupby(results.index).mean()
+
+        if len(self.index_columns) > 1:
+            results.index = pd.MultiIndex.from_tuples(results.index, names=self.index_columns)
+
+        self._results: pd.DataFrame = results
