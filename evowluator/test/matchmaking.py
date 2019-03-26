@@ -53,49 +53,58 @@ class MatchmakingCorrectnessTest(ReasoningTest):
             self._logger.indent_level += 1
             self._logger.log('{}: '.format(reference.name), endl=False)
 
-            ref_resource, ref_request = entry.ontology(ref_syntax), request.ontology(ref_syntax)
-            ref_result = reference.matchmaking(ref_resource.path, ref_request.path,
-                                               output_file=ref_out, timeout=TestConfig.TIMEOUT,
-                                               mode=self.mode)
-
-            self._logger.log('done', color=echo.Color.GREEN)
-            self._logger.indent_level += 1
-
             csv_row = [entry.name, request.name]
 
-            for reasoner in reasoners:
-                self._logger.log('{}: '.format(reasoner.name), endl=False)
+            try:
+                ref_resource, ref_request = entry.ontology(ref_syntax), request.ontology(ref_syntax)
+                ref_result = reference.matchmaking(ref_resource.path, ref_request.path,
+                                                   output_file=ref_out, timeout=TestConfig.TIMEOUT,
+                                                   mode=self.mode)
+            except Exception as e:
+                if config.DEBUG:
+                    raise e
 
-                syntax = self._syntax_for_reasoner(reasoner)
-                resource_onto, request_onto = entry.ontology(syntax), request.ontology(syntax)
+                self._logger.log('error', color=echo.Color.RED)
+                csv_row.append(['unknown'] * len(reasoners))
+            else:
+                self._logger.log('done', color=echo.Color.GREEN)
+                self._logger.indent_level += 1
 
-                try:
-                    r_result = reasoner.matchmaking(resource_onto.path, request_onto.path,
-                                                    output_file=r_out, timeout=TestConfig.TIMEOUT,
-                                                    mode=self.mode)
-                except TimeoutExpired:
-                    result = 'timeout'
-                    color = echo.Color.RED
-                except Exception as e:
-                    if config.DEBUG:
-                        raise e
-                    result = 'error'
-                    color = echo.Color.RED
-                else:
-                    if r_result.output_matches(ref_result):
-                        result = 'same'
-                        color = echo.Color.GREEN
-                    else:
-                        result = 'different'
+                for reasoner in reasoners:
+                    self._logger.log('{}: '.format(reasoner.name), endl=False)
+
+                    syntax = self._syntax_for_reasoner(reasoner)
+                    resource_onto, request_onto = entry.ontology(syntax), request.ontology(syntax)
+
+                    try:
+                        r_result = reasoner.matchmaking(resource_onto.path, request_onto.path,
+                                                        output_file=r_out,
+                                                        timeout=TestConfig.TIMEOUT,
+                                                        mode=self.mode)
+                    except TimeoutExpired:
+                        result = 'timeout'
                         color = echo.Color.RED
+                    except Exception as e:
+                        if config.DEBUG:
+                            raise e
+                        result = 'error'
+                        color = echo.Color.RED
+                    else:
+                        if r_result.output_matches(ref_result):
+                            result = 'same'
+                            color = echo.Color.GREEN
+                        else:
+                            result = 'different'
+                            color = echo.Color.RED
 
-                self._logger.log(result, color=color)
-                csv_row.append(result)
+                    self._logger.log(result, color=color)
+                    csv_row.append(result)
 
-            self._logger.indent_level -= 2
+                self._logger.indent_level -= 1
+
+            self._logger.indent_level -= 1
             self._logger.log('')
             self._csv_writer.write_row(csv_row)
-
         self._logger.log('')
 
 

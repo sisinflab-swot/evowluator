@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from evowluator import config
 from evowluator.pyutils import echo, fileutils
+from evowluator.data.dataset import Dataset
 from evowluator.reasoner.results import ReasoningResults
 from .base import ReasoningTest
 from .test_mode import TestMode
@@ -22,15 +23,15 @@ class OntologyReasoningCorrectnessTest(ReasoningTest):
         csv_header = ['Ontology'] + ['{}: match'.format(r.name) for r in reasoners[1:]]
         self._csv_writer.write_row(csv_header)
 
-    def run(self, entry):
+    def run(self, entry: Dataset.Entry) -> None:
         self.clear_temp()
 
         reasoners = self._usable_reasoners()
         reference = reasoners[0]
         reasoners = reasoners[1:]
 
-        reasoner_out = os.path.join(self.temp_dir, 'reasoner.txt')
         reference_out = os.path.join(self.temp_dir, 'reference.txt')
+        reasoner_out = os.path.join(self.temp_dir, 'reasoner.txt')
 
         csv_row = [entry.name]
 
@@ -38,39 +39,47 @@ class OntologyReasoningCorrectnessTest(ReasoningTest):
         self._logger.log('{}: '.format(reference.name), endl=False)
         self._logger.indent_level += 1
 
-        ref_ontology = entry.ontology(self._syntax_for_reasoner(reference))
-        ref_result = reference.perform_task(self.task, ref_ontology.path, output_file=reference_out,
-                                            timeout=config.Test.TIMEOUT, mode=self.mode)
+        try:
+            ref_ontology = entry.ontology(self._syntax_for_reasoner(reference))
+            ref_result = reference.perform_task(self.task, ref_ontology.path,
+                                                output_file=reference_out,
+                                                timeout=config.Test.TIMEOUT, mode=self.mode)
+        except Exception as e:
+            if config.DEBUG:
+                raise e
 
-        self._logger.log('done', color=echo.Color.GREEN)
+            self._logger.log('error', color=echo.Color.RED)
+            csv_row.append(['unknown'] * len(reasoners))
+        else:
+            self._logger.log('done', color=echo.Color.GREEN)
 
-        for reasoner in reasoners:
-            self._logger.log('{}: '.format(reasoner.name), endl=False)
+            for reasoner in reasoners:
+                self._logger.log('{}: '.format(reasoner.name), endl=False)
 
-            try:
-                r_ontology = entry.ontology(self._syntax_for_reasoner(reasoner))
-                r_result = reasoner.perform_task(self.task, r_ontology.path,
-                                                 output_file=reasoner_out,
-                                                 timeout=config.Test.TIMEOUT,
-                                                 mode=self.mode)
-            except TimeoutExpired:
-                result = 'timeout'
-                color = echo.Color.RED
-            except Exception as e:
-                if config.DEBUG:
-                    raise e
-                result = 'error'
-                color = echo.Color.RED
-            else:
-                if ref_result.output_matches(r_result):
-                    result = 'same'
-                    color = echo.Color.GREEN
-                else:
-                    result = 'different'
+                try:
+                    r_ontology = entry.ontology(self._syntax_for_reasoner(reasoner))
+                    r_result = reasoner.perform_task(self.task, r_ontology.path,
+                                                     output_file=reasoner_out,
+                                                     timeout=config.Test.TIMEOUT,
+                                                     mode=self.mode)
+                except TimeoutExpired:
+                    result = 'timeout'
                     color = echo.Color.RED
+                except Exception as e:
+                    if config.DEBUG:
+                        raise e
+                    result = 'error'
+                    color = echo.Color.RED
+                else:
+                    if ref_result.output_matches(r_result):
+                        result = 'same'
+                        color = echo.Color.GREEN
+                    else:
+                        result = 'different'
+                        color = echo.Color.RED
 
-            self._logger.log(result, color=color)
-            csv_row.append(result)
+                self._logger.log(result, color=color)
+                csv_row.append(result)
 
         self._logger.indent_level -= 1
         self._csv_writer.write_row(csv_row)
