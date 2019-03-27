@@ -74,11 +74,16 @@ class AndroidReasoner(MobileReasoner, ABC):
     @property
     @abstractmethod
     def test_class(self) -> str:
+        """
+        Test package and runner class, formatted as "<test_package>/<runner_class>"
+        as shown in https://developer.android.com/studio/test/command-line.
+        """
         pass
 
     @property
     @abstractmethod
     def log_prefix(self) -> str:
+        """Prefix appended to log messages, used to filter logcat output."""
         pass
 
     # Overrides
@@ -97,7 +102,7 @@ class AndroidReasoner(MobileReasoner, ABC):
         if task == ReasoningTask.MATCHMAKING:
             instrument_env.append(('request', MetaArgs.REQUEST))
 
-        instrument_env = ' '.join(['-e {} {}'.format(*env_kv) for env_kv in instrument_env])
+        instrument_env = ' '.join('-e {} {}'.format(*env_kv) for env_kv in instrument_env)
 
         shell_cmds = [
             'logcat -c',
