@@ -1,7 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 from os import path
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -36,7 +36,7 @@ class SingleValueEvaluator(Evaluator, ABC):
 
     def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(test_dir, cfg, index_columns)
-        self._global_stats: pd.DataFrame = None
+        self._global_stats: Optional[pd.DataFrame] = None
 
     def _write_results(self):
         self._write_global_stats(path.join(self.evaluation_dir, 'global_stats.csv'))
@@ -123,7 +123,7 @@ class PerformanceEvaluator(Evaluator):
     def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(test_dir, cfg, index_columns)
         self._results[self.__memory_cols()] /= (1024 * 1024)
-        self._global_stats: PerformanceEvaluator.GlobalStats = None
+        self._global_stats: Optional[PerformanceEvaluator.GlobalStats] = None
 
     def _write_results(self):
         self.__write_total_times(path.join(self.evaluation_dir, 'total_times.csv'))

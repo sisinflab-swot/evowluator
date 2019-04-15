@@ -84,8 +84,8 @@ class Test(ABC):
 
         self._loader = Loader()
         self._syntax = syntax
-        self._logger: Logger = None
-        self._csv_writer: CSVWriter = None
+        self._logger: Optional[Logger] = None
+        self._csv_writer: Optional[CSVWriter] = None
 
         if reasoners:
             try:

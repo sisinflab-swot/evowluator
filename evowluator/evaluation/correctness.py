@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from os import path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,7 +21,7 @@ class CorrectnessEvaluator(Evaluator):
 
     def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(test_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
-        self._global_stats: pd.DataFrame = None
+        self._global_stats: Optional[pd.DataFrame] = None
 
     def _write_results(self) -> None:
         self._write_global_stats(path.join(self.evaluation_dir, 'global_stats.csv'))

@@ -11,7 +11,7 @@ class Loader:
     """Reasoner loader."""
 
     @property
-    def reasoners(self) ->List[Reasoner]:
+    def reasoners(self) -> List[Reasoner]:
         """Reasoner instances."""
         return self._reasoners
 
