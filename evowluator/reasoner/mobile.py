@@ -69,15 +69,14 @@ class MobileReasoner(Reasoner, ABC):
 class AndroidReasoner(MobileReasoner, ABC):
     """Android mobile reasoner wrapper."""
 
+    LAUNCHER_CLASSPATH = 'it.poliba.sisinflab.owl.evowluator/.Launcher'
+
     # Override
 
     @property
     @abstractmethod
-    def test_class(self) -> str:
-        """
-        Test package and runner class, formatted as "<test_package>/<runner_class>"
-        as shown in https://developer.android.com/studio/test/command-line.
-        """
+    def target_package(self) -> str:
+        """Main reasoner app package."""
         pass
 
     @property
@@ -102,11 +101,14 @@ class AndroidReasoner(MobileReasoner, ABC):
         if task == ReasoningTask.MATCHMAKING:
             instrument_env.append(('request', MetaArgs.REQUEST))
 
-        instrument_env = ' '.join('-e {} {}'.format(*env_kv) for env_kv in instrument_env)
-
+        instrument_env = ' '.join(['{}:{}'.format(*env_kv) for env_kv in instrument_env])
         shell_cmds = [
             'logcat -c',
-            'am instrument -w {} {}'.format(instrument_env, self.test_class),
+            'am instrument -w -e "target" "{}" -e "args" "{}" {}'.format(self.target_package,
+                                                                         instrument_env,
+                                                                         self.LAUNCHER_CLASSPATH),
+            'am force-stop {}'.format(self.target_package),
+            'am kill {}'.format(self.target_package),
             'logcat -d -s {}'.format(self.log_prefix)
         ]
 
