@@ -1,3 +1,4 @@
+import numpy as np
 import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
@@ -144,6 +145,7 @@ class Evaluator(ABC):
         if numeric_columns:
             results[numeric_columns] = results[numeric_columns].apply(pd.to_numeric,
                                                                       errors='coerce')
+            results[numeric_columns] = results[numeric_columns].replace(0, np.nan)
             results.dropna(inplace=True)
 
         if not results.index.is_unique:
