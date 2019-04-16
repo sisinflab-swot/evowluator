@@ -73,6 +73,8 @@ def draw_histograms(ax: plt.Axes, data: Dict[str, float], metric: str,
 
 
 def draw_grouped_histograms(ax: plt.Axes, data: Dict[str, List[float]], metrics: List[str]) -> None:
+    configure_histogram_plot(ax, data)
+
     reasoners = list(data.keys())
     reasoners.sort()
 
@@ -108,13 +110,15 @@ def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, List[float]],
 
 
 def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: List[str]) -> None:
+    configure_histogram_plot(ax, data, stacked=True)
+
     reasoners = list(data.keys())
     reasoners.sort()
     n_reasoners = len(reasoners)
 
     n_sections = len(next(iter(data.values())))
-    pos = np.arange(len(reasoners))
-    width = (1.0 / n_reasoners) * 0.8
+    pos = np.arange(n_reasoners)
+    width = 0.5
 
     values = [data[r][0] for r in reasoners]
     ax.bar(pos, values, width, alpha=0.9, label=labels[0])
@@ -135,11 +139,27 @@ def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: 
     legend.set_draggable(True)
 
 
+def configure_histogram_plot(ax: plt.Axes, data: Dict[str, List[float]],
+                             stacked: bool = False) -> None:
+    if stacked:
+        data_min = min(p for l in data.values() for p in l)
+        data_max = max(sum(l) for l in data.values())
+    else:
+        data_min = min(p for l in data.values() for p in l)
+        data_max = max(p for l in data.values() for p in l)
+
+    if data_max / data_min > 50.0:
+        set_scale(ax, 'symlog', axis='y')
+        data_min = 10.0 ** np.floor(np.log10(data_min))
+        data_max = 10.0 ** np.ceil(np.log10(data_max))
+        ax.set_ylim(bottom=data_min, top=data_max)
+
+
 def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[float]]]) -> None:
     reasoners = list(data.keys())
     reasoners.sort()
 
-    dataset_size = len(next(iter(data.values())))
+    dataset_size = len(next(iter(data.values()))[0])
     point_size = configure_scatter_plot(ax, dataset_size)
 
     for reasoner in reasoners:
@@ -154,10 +174,6 @@ def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[floa
     legend.set_draggable(True)
 
 
-def default_formatter() -> ticker.Formatter:
-    return ticker.FormatStrFormatter('%g')
-
-
 def configure_scatter_plot(ax: plt.Axes, dataset_size: int) -> float:
     if dataset_size > 100:
         set_scale(ax, 'log')
@@ -166,6 +182,10 @@ def configure_scatter_plot(ax: plt.Axes, dataset_size: int) -> float:
         point_size = 50.0
 
     return point_size
+
+
+def default_formatter() -> ticker.Formatter:
+    return ticker.FormatStrFormatter('%g')
 
 
 def display_labels(ax: plt.Axes, center: bool = False, fmt: str = '{:.0f}') -> None:
