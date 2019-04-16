@@ -201,17 +201,20 @@ class MatchmakingPerformanceTest(MatchmakingMeasurementTest):
     def result_fields(self) -> List[str]:
         return ['parsing', 'init', 'reasoning', 'memory']
 
-    def extract_results(self, stats: MatchmakingResults) -> List:
-        self._logger.log('{:.0f} ms'.format(stats.total_ms))
+    def extract_results(self, results: MatchmakingResults) -> List:
+        if not results.has_performance_stats:
+            raise ValueError('Missing performance stats.')
+
+        self._logger.log('{:.0f} ms'.format(results.total_ms))
 
         self._logger.indent_level += 1
-        self._logger.log('Parsing: {:.0f} ms'.format(stats.parsing_ms))
-        self._logger.log('Init: {:.0f} ms'.format(stats.init_ms))
-        self._logger.log('Matchmaking: {:.0f} ms'.format(stats.matchmaking_ms))
-        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(stats.max_memory)))
+        self._logger.log('Parsing: {:.0f} ms'.format(results.parsing_ms))
+        self._logger.log('Init: {:.0f} ms'.format(results.init_ms))
+        self._logger.log('Matchmaking: {:.0f} ms'.format(results.matchmaking_ms))
+        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(results.max_memory)))
         self._logger.indent_level -= 1
 
-        return [stats.parsing_ms, stats.init_ms, stats.matchmaking_ms, stats.max_memory]
+        return [results.parsing_ms, results.init_ms, results.matchmaking_ms, results.max_memory]
 
 
 class MatchmakingEnergyTest(MatchmakingMeasurementTest):
@@ -226,6 +229,9 @@ class MatchmakingEnergyTest(MatchmakingMeasurementTest):
     def result_fields(self) -> List[str]:
         return ['energy']
 
-    def extract_results(self, stats: MatchmakingResults) -> List:
-        self._logger.log('{:.2f}'.format(stats.energy_score))
-        return [stats.energy_score]
+    def extract_results(self, results: MatchmakingResults) -> List:
+        if not results.has_energy_stats:
+            raise ValueError('Missing energy stats.')
+
+        self._logger.log('{:.2f}'.format(results.energy_score))
+        return [results.energy_score]

@@ -144,6 +144,7 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
                 try:
                     results = reasoner.perform_task(self.task, ontology.path,
                                                     timeout=config.Test.TIMEOUT, mode=self.mode)
+                    csv_row.extend(self.extract_results(results))
                 except TimeoutExpired:
                     csv_row.extend(['timeout'] * len(self.result_fields))
                     self._logger.log('timeout', color=echo.Color.RED)
@@ -154,8 +155,6 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
                     csv_row.extend(['error'] * len(self.result_fields))
                     self._logger.log('error', color=echo.Color.RED)
                     fail.append(reasoner.name)
-                else:
-                    csv_row.extend(self.extract_results(results))
 
             self._logger.indent_level -= 1
             self._logger.log('')
@@ -176,6 +175,9 @@ class OntologyReasoningPerformanceTest(OntologyReasoningMeasurementTest):
         return ['parsing', 'reasoning', 'memory']
 
     def extract_results(self, results: ReasoningResults) -> List:
+        if not results.has_performance_stats:
+            raise ValueError('Missing performance stats.')
+
         self._logger.log('{:.0f} ms'.format(results.total_ms))
 
         self._logger.indent_level += 1
@@ -201,5 +203,8 @@ class OntologyReasoningEnergyTest(OntologyReasoningMeasurementTest, ABC):
         return ['energy']
 
     def extract_results(self, results: ReasoningResults) -> List:
+        if not results.has_energy_stats:
+            raise ValueError('Missing energy stats.')
+
         self._logger.log('{:.2f}'.format(results.energy_score))
         return [results.energy_score]

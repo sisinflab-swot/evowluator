@@ -104,6 +104,26 @@ class ReasoningResults(ABC):
     def energy_score(self) -> float:
         return self.energy_stats.score(self.total_ms)
 
+    @property
+    def has_output(self) -> bool:
+        return True if self.output else False
+
+    @property
+    def has_time_stats(self) -> bool:
+        return self.parsing_ms > 0.0 and self.reasoning_ms > 0.0
+
+    @property
+    def has_memory_stats(self) -> bool:
+        return self.max_memory > 0
+
+    @property
+    def has_performance_stats(self) -> bool:
+        return self.has_time_stats and self.has_memory_stats
+
+    @property
+    def has_energy_stats(self) -> bool:
+        return True if self.energy_stats else False
+
     def output_matches(self, results: 'ReasoningResults') -> bool:
         if self.output_is_file != results.output_is_file:
             return False
