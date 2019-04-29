@@ -165,13 +165,24 @@ def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[floa
     for reasoner in reasoners:
         x, y = data[reasoner]
         ax.scatter(x, y, s=point_size, alpha=0.5, label=reasoner)
-        weights = list(range(len(x), 0, -1))
-        ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x))
+        draw_polyline(ax, x, y)
 
     display_grid(ax)
 
     legend = ax.legend()
     legend.set_draggable(True)
+
+
+def draw_polyline(ax: plt.Axes, x: List[float], y: List[float]) -> None:
+    data_point_count = len(x)
+    weights = [1.0] * data_point_count
+
+    # Force start from first data points
+    data_point_count = max(data_point_count // 100, 1)
+    y[0] = sum(y[:data_point_count]) / data_point_count
+    weights[0] = max(y) * 10.0
+
+    ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x))
 
 
 def configure_scatter_plot(ax: plt.Axes, dataset_size: int) -> float:
