@@ -193,15 +193,15 @@ class PerformanceEvaluator(Evaluator):
 
     def __time_histogram_plotter(self, ax: plt.Axes) -> None:
         data = self._global_stats.data.iloc[:, :2]
-        reasoners = data.index.values
+        reasoners = list(data.index.values)
 
-        values = [list(data.loc[r].values) for r in reasoners]
-        data = dict(zip(reasoners, values))
+        values = data.values.transpose()
+        data = dict(zip(['Parsing', 'Reasoning'], list(values)))
 
         ax.set_title('Total parsing and reasoning time')
         ax.set_ylabel('Time ({})'.format(self._global_stats.time_unit))
 
-        plotutils.draw_stacked_histograms(ax, data, ['Parsing', 'Reasoning'])
+        plotutils.draw_grouped_histograms(ax, data, reasoners)
 
     def __time_scatter_plotter(self, ax: plt.Axes) -> None:
         reasoners = list(self.reasoners())
