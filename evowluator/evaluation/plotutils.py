@@ -48,21 +48,21 @@ def set_scale(ax: plt.Axes, scale: str, axis: str = 'both') -> None:
 
 def draw_histograms(ax: plt.Axes, data: Dict[str, float], metric: str,
                     unit: Optional[str] = None) -> None:
-    reasoners = list(data.keys())
-    reasoners.sort()
-    n_reasoners = len(reasoners)
+    labels = list(data.keys())
+    labels.sort()
+    n_labels = len(labels)
 
-    width = (1.0 / n_reasoners) * 0.8
+    width = (1.0 / n_labels) * 0.8
 
-    for i, reasoner in enumerate(reasoners):
-        ax.bar([i], data[reasoner], width=width, alpha=0.9, label=reasoner)
+    for i, label in enumerate(labels):
+        ax.bar([i], data[label], width=width, alpha=0.9, label=label)
 
     display_labels(ax)
 
     ax.set_title(metric[0].upper() + metric[1:])
 
-    ax.set_xticks(np.arange(n_reasoners))
-    ax.set_xticklabels(reasoners)
+    ax.set_xticks(np.arange(n_labels))
+    ax.set_xticklabels(labels)
 
     ylabel = '{} ({})'.format(metric, unit) if unit else metric
     ax.set_ylabel(ylabel[0].upper() + ylabel[1:])
@@ -75,22 +75,22 @@ def draw_histograms(ax: plt.Axes, data: Dict[str, float], metric: str,
 def draw_grouped_histograms(ax: plt.Axes, data: Dict[str, List[float]], metrics: List[str]) -> None:
     configure_histogram_plot(ax, data)
 
-    reasoners = list(data.keys())
-    reasoners.sort()
+    labels = list(data.keys())
+    labels.sort()
 
-    n_reasoners = len(reasoners)
-    n_stats = len(metrics)
+    n_labels = len(labels)
+    n_metrics = len(metrics)
 
-    width = 1.0 / (n_reasoners + 1)
+    width = 1.0 / (n_labels + 1)
     bar_width = 0.8 * width
 
-    for i, reasoner in enumerate(reasoners):
-        ax.bar([j + width * i for j in range(n_stats)], data[reasoner],
-               width=bar_width, alpha=0.9, label=reasoner)
+    for i, label in enumerate(labels):
+        ax.bar([j + width * i for j in range(n_metrics)], data[label],
+               width=bar_width, alpha=0.9, label=label)
 
     display_labels(ax)
 
-    ax.set_xticks([p + width * ((n_reasoners - 1) / 2) for p in range(n_stats)])
+    ax.set_xticks([p + width * ((n_labels - 1) / 2) for p in range(n_metrics)])
     ax.set_xticklabels(metrics)
 
     display_grid(ax, axis='y')
@@ -112,26 +112,26 @@ def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, List[float]],
 def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: List[str]) -> None:
     configure_histogram_plot(ax, data, stacked=True)
 
-    reasoners = list(data.keys())
-    reasoners.sort()
-    n_reasoners = len(reasoners)
+    group_labels = list(data.keys())
+    group_labels.sort()
+    n_group_labels = len(group_labels)
 
     n_sections = len(next(iter(data.values())))
-    pos = np.arange(n_reasoners)
+    pos = np.arange(n_group_labels)
     width = 0.5
 
-    values = [data[r][0] for r in reasoners]
+    values = [data[r][0] for r in group_labels]
     ax.bar(pos, values, width, alpha=0.9, label=labels[0])
 
     for section in range(1, n_sections):
         prev_values = values
-        values = [data[r][section] for r in reasoners]
+        values = [data[r][section] for r in group_labels]
         ax.bar(pos, values, width, alpha=0.9, bottom=prev_values, label=labels[section])
 
     display_labels(ax, center=True, fmt='{:.2f}')
 
     ax.set_xticks(pos)
-    ax.set_xticklabels(reasoners)
+    ax.set_xticklabels(group_labels)
 
     display_grid(ax, axis='y')
 
@@ -156,15 +156,15 @@ def configure_histogram_plot(ax: plt.Axes, data: Dict[str, List[float]],
 
 
 def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[float]]]) -> None:
-    reasoners = list(data.keys())
-    reasoners.sort()
+    labels = list(data.keys())
+    labels.sort()
 
     dataset_size = len(next(iter(data.values()))[0])
     point_size = configure_scatter_plot(ax, dataset_size)
 
-    for reasoner in reasoners:
-        x, y = data[reasoner]
-        ax.scatter(x, y, s=point_size, alpha=0.5, label=reasoner)
+    for label in labels:
+        x, y = data[label]
+        ax.scatter(x, y, s=point_size, alpha=0.5, label=label)
         draw_polyline(ax, x, y)
 
     display_grid(ax)
