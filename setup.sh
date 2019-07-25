@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-cd "$(dirname "${0}")"
+
+# Configuration
+PYTHON="${EVOWLUATOR_PYTHON:-python3}"
 
 # Safeguards
 set -o pipefail
 set -o errtrace
 set -o errexit
 
-# Create virtualenv
-if [ ! -d venv ]; then
+# Start
+cd "$(dirname "${0}")"
+
+if [ ! -f venv/bin/activate ]; then
 	echo "Creating venv..."
-	python3 -m venv venv
+	rm -rf venv
+	"${PYTHON}" -m venv venv
 fi
 
 echo "Installing Python package requirements..."
