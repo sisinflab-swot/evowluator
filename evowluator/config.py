@@ -18,7 +18,7 @@ class Paths:
     RESULTS_FILE_NAME = 'results.csv'
     CONFIG_FILE_NAME = 'config.json'
 
-    OWLTOOL = path.join(BIN_DIR, 'OwlTool', 'owltool.jar')
+    OWLTOOL = path.join(BIN_DIR, 'OWLTool', 'owltool.jar')
 
 
 class OWLTool:

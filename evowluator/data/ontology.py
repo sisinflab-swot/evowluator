@@ -1,6 +1,7 @@
 import os
 from enum import Enum
 
+from evowluator.config import Paths
 from evowluator.pyutils import fileutils, proc
 
 
@@ -46,22 +47,14 @@ class Ontology:
         if os.path.isfile(target.path):
             return Ontology.ConversionResult.ALREADY_CONVERTED
 
-        robot_exe = os.path.realpath(proc.find_executable('robot'))
-        robot_jar = os.path.join(os.path.dirname(robot_exe), 'robot.jar')
-
         args = [
             'convert',
             '-i', self.path,
             '-o', target.path,
-            '-f', {
-                Ontology.Syntax.FUNCTIONAL: 'ofn',
-                Ontology.Syntax.MANCHESTER: 'omn',
-                Ontology.Syntax.OWLXML: 'owx',
-                Ontology.Syntax.RDFXML: 'owl'
-            }[target.syntax]
+            '-f', target.syntax
         ]
 
-        task = proc.Jar.spawn(robot_jar, jar_args=args)
+        task = proc.Jar.spawn(Paths.OWLTOOL, jar_args=args)
 
         if task.exit_code == 0:
             return Ontology.ConversionResult.SUCCESS
