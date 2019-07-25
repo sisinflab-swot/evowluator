@@ -1,9 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 cd "$(dirname "${0}")"
+source venv/bin/activate
 
-ACTIVATE='venv/bin/activate'
-[ -f "${ACTIVATE}" ] && USE_VENV=true || USE_VENV=false
+CHECK='import sys; sys.exit(1 if sys.version_info[:2] < (3, 7) else 0);'
 
-$USE_VENV && source "${ACTIVATE}"
-python3 -m evowluator.main "$@"
-$USE_VENV && deactivate
+if ! python -c "${CHECK}"; then
+    >&2 echo 'evOWLuator requires Python version >= 3.7'
+    exit 1
+fi
+
+python -m evowluator.main "$@"
+deactivate
