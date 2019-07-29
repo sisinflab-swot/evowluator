@@ -1,9 +1,9 @@
 import sys
-from os import path
+from os import environ, path
 
 
 DEBUG = False
-EXE_NAME = 'evowluate'
+EXE_NAME = environ.get('EVOWLUATOR_EXE', path.basename(sys.argv[0]))
 
 
 class Paths:

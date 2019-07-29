@@ -10,5 +10,5 @@ if ! python -c "${CHECK}"; then
     exit 1
 fi
 
+export EVOWLUATOR_EXE="$(basename "${0}")"
 python -m evowluator.main "$@"
-deactivate
