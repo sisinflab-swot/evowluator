@@ -2,9 +2,8 @@ import os
 from enum import Enum
 
 from pyutils.io import fileutils
-from pyutils.proc.task import Jar
 
-from evowluator.config import Paths
+from evowluator.util import owltool
 
 
 class Ontology:
@@ -49,16 +48,7 @@ class Ontology:
         if os.path.isfile(target.path):
             return Ontology.ConversionResult.ALREADY_CONVERTED
 
-        args = [
-            'convert',
-            '-i', self.path,
-            '-o', target.path,
-            '-f', target.syntax
-        ]
-
-        task = Jar.spawn(Paths.OWLTOOL, jar_args=args)
-
-        if task.exit_code == 0:
+        if owltool.convert(self.path, target.path, target.syntax):
             return Ontology.ConversionResult.SUCCESS
         else:
             return Ontology.ConversionResult.ERROR

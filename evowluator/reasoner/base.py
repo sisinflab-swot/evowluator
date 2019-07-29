@@ -5,11 +5,12 @@ from typing import List, Optional, Tuple, Union
 from pyutils import exc
 from pyutils.io import fileutils
 from pyutils.proc.bench import Benchmark, EnergyProfiler, PowermetricsProbe
-from pyutils.proc.task import Jar, Task, OutputAction
+from pyutils.proc.task import Task
 
-from evowluator.config import OWLTool, Paths
+from evowluator.config import Paths
 from evowluator.data.ontology import Ontology
 from evowluator.test.test_mode import TestMode
+from evowluator.util import owltool
 from .results import MatchmakingResults, ReasoningResults, ResultsParser
 
 
@@ -149,11 +150,7 @@ class Reasoner(ABC):
         task = self._run(args=args, timeout=timeout, mode=mode)
 
         if mode == TestMode.CORRECTNESS and use_owl_tool:
-            exc.raise_if_not_found(OWLTool.PATH, file_type=exc.FileType.FILE)
-            args = ['print-tbox', '-o', output_file, classification_out]
-            jar = Jar(OWLTool.PATH, jar_args=args,
-                      vm_opts=OWLTool.VM_OPTS, output_action=OutputAction.DISCARD)
-            jar.run()
+            owltool.print_tbox(classification_out, output_file)
 
         results = self.results_parser.parse_classification_results(task)
         return results.with_output(output_file, is_file=True)
