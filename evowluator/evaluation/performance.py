@@ -6,10 +6,10 @@ from typing import List, NamedTuple, Optional
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from pyutils.io import fileutils
 
 from evowluator.config import Paths
 from evowluator.data.dataset import Dataset
-from evowluator.pyutils import fileutils
 from . import plotutils
 from .evaluator import Evaluator
 

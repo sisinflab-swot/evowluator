@@ -3,8 +3,10 @@ import os
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from evowluator.pyutils import exc
-from evowluator.pyutils.proc import Task, find_executable
+from pyutils import exc
+from pyutils.proc.task import Task
+from pyutils.proc.util import find_executable
+
 from evowluator.test.test_mode import TestMode
 from .base import (
     ClassificationOutputFormat,

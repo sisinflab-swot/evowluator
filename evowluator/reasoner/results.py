@@ -3,8 +3,9 @@ import re
 from abc import ABC, abstractmethod
 from typing import List, NamedTuple, Union
 
-from evowluator.pyutils import exc
-from evowluator.pyutils.proc import Benchmark, EnergyProfiler, Task
+from pyutils import exc
+from pyutils.proc.bench import Benchmark, EnergyProfiler
+from pyutils.proc.task import Task
 
 TestTask = Union[Task, Benchmark, EnergyProfiler]
 

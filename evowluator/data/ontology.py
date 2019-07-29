@@ -1,8 +1,10 @@
 import os
 from enum import Enum
 
+from pyutils.io import fileutils
+from pyutils.proc.task import Jar
+
 from evowluator.config import Paths
-from evowluator.pyutils import fileutils, proc
 
 
 class Ontology:
@@ -54,7 +56,7 @@ class Ontology:
             '-f', target.syntax
         ]
 
-        task = proc.Jar.spawn(Paths.OWLTOOL, jar_args=args)
+        task = Jar.spawn(Paths.OWLTOOL, jar_args=args)
 
         if task.exit_code == 0:
             return Ontology.ConversionResult.SUCCESS

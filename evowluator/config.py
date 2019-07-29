@@ -3,6 +3,7 @@ from os import path
 
 
 DEBUG = False
+EXE_NAME = 'evowluate'
 
 
 class Paths:

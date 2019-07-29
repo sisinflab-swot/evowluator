@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from evowluator.pyutils.proc import Benchmark, EnergyProfiler, Jar, Task
+from pyutils.proc.bench import Benchmark, EnergyProfiler, PowermetricsProbe
+from pyutils.proc.task import Jar, Task
+
 from evowluator.test.test_mode import TestMode
 from .base import Reasoner
 
@@ -30,7 +32,7 @@ class JavaReasoner(Reasoner, ABC):
         if mode == TestMode.PERFORMANCE:
             task = Benchmark(task)
         elif mode == TestMode.ENERGY:
-            task = EnergyProfiler(task, sampling_interval=500)
+            task = EnergyProfiler(task, PowermetricsProbe(), sampling_interval=500)
 
         task.run(timeout=timeout)
         return task

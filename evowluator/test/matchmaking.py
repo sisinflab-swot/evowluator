@@ -3,10 +3,11 @@ from abc import ABC, abstractmethod
 from subprocess import TimeoutExpired
 from typing import List, Optional
 
+from pyutils.io import echo, fileutils
+
 from evowluator import config
 from evowluator.config import Test as TestConfig
 from evowluator.data.dataset import Dataset
-from evowluator.pyutils import echo, fileutils
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import MatchmakingResults
 from .base import ReasoningTest

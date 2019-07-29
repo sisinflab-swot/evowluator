@@ -2,8 +2,9 @@ import os
 from importlib import import_module
 from typing import Dict, List
 
+from pyutils.decorators import cached_property
+
 from evowluator.config import Paths
-from evowluator.pyutils.decorators import cached_property
 from .base import Reasoner
 
 

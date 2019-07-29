@@ -2,10 +2,13 @@ import os
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
 
+from pyutils import exc
+from pyutils.io import fileutils
+from pyutils.proc.bench import Benchmark, EnergyProfiler, PowermetricsProbe
+from pyutils.proc.task import Jar, Task, OutputAction
+
 from evowluator.config import OWLTool, Paths
 from evowluator.data.ontology import Ontology
-from evowluator.pyutils import exc, fileutils
-from evowluator.pyutils.proc import Benchmark, EnergyProfiler, Jar, OutputAction, Task
 from evowluator.test.test_mode import TestMode
 from .results import MatchmakingResults, ReasoningResults, ResultsParser
 
@@ -204,7 +207,7 @@ class Reasoner(ABC):
         if mode == TestMode.PERFORMANCE:
             task = Benchmark(task)
         elif mode == TestMode.ENERGY:
-            task = EnergyProfiler(task, sampling_interval=500)
+            task = EnergyProfiler(task, PowermetricsProbe(), sampling_interval=500)
 
         task.run(timeout=timeout)
         return task

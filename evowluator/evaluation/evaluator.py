@@ -9,9 +9,10 @@ from typing import Callable, Iterable, List, Optional, Union
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from pyutils.io import fileutils
+
 from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
-from evowluator.pyutils import fileutils
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.test.test_mode import TestMode
 from . import plotutils

@@ -2,7 +2,7 @@ import argparse
 import os
 
 from . import config
-from .config import Test as TestConfig
+from .config import Test as TestConfig, EXE_NAME
 from .data import dataset_converter
 from .data.dataset import Dataset
 from .data.ontology import Ontology
@@ -20,11 +20,6 @@ from .test.ontology import (
     OntologyReasoningPerformanceTest
 )
 from .test.test_mode import TestMode
-
-# Constants
-
-
-EXE_NAME = 'evowluate'
 
 
 # CLI parser

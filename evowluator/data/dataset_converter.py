@@ -1,7 +1,8 @@
 import os
 
+from pyutils.io import echo, fileutils
+
 from evowluator.data.ontology import Ontology
-from evowluator.pyutils import echo, fileutils
 from .dataset import Dataset
 
 
