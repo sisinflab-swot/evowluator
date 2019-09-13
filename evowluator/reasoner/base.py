@@ -198,9 +198,12 @@ class Reasoner(ABC):
         path = os.path.normpath(path)
         return path if os.path.isabs(path) else os.path.join(Paths.BIN_DIR, path)
 
+    def _task(self, args: List[str]) -> Task:
+        return Task(self._absolute_path(self.path), args=args)
+
     def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
         """Runs the reasoner."""
-        task = Task(self._absolute_path(self.path), args=args)
+        task = self._task(args)
 
         if mode == TestMode.PERFORMANCE:
             task = Benchmark(task)
@@ -208,4 +211,6 @@ class Reasoner(ABC):
             task = EnergyProfiler(task, self.energy_probe, sampling_interval=500)
 
         task.run(timeout=timeout)
+        task.raise_if_failed(message='{} exited with code: {}'.format(self.name, task.exit_code))
+
         return task
