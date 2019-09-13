@@ -10,7 +10,7 @@ from evowluator.config import Test as TestConfig
 from evowluator.data.dataset import Dataset
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import MatchmakingResults
-from .base import ReasoningTest
+from .base import ReasoningTest, ReasoningEnergyTest
 from .test_mode import TestMode
 
 
@@ -218,21 +218,13 @@ class MatchmakingPerformanceTest(MatchmakingMeasurementTest):
         return [results.parsing_ms, results.init_ms, results.matchmaking_ms, results.max_memory]
 
 
-class MatchmakingEnergyTest(MatchmakingMeasurementTest):
+class MatchmakingEnergyTest(ReasoningEnergyTest, MatchmakingMeasurementTest):
 
-    # Overrides
-
-    @property
-    def mode(self) -> str:
-        return TestMode.ENERGY
-
-    @property
-    def result_fields(self) -> List[str]:
-        return ['energy']
-
-    def extract_results(self, results: MatchmakingResults) -> List:
-        if not results.has_energy_stats:
-            raise ValueError('Missing energy stats.')
-
-        self._logger.log('{:.2f}'.format(results.energy_score))
-        return [results.energy_score]
+    def __init__(self,
+                 probe: str,
+                 dataset: Optional[str] = None,
+                 reasoners: Optional[List[str]] = None,
+                 syntax: Optional[str] = None,
+                 iterations: int = 1):
+        super().__init__(task=ReasoningTask.MATCHMAKING, probe=probe,
+                         dataset=dataset, reasoners=reasoners, syntax=syntax, iterations=iterations)

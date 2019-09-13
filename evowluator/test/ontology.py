@@ -8,7 +8,7 @@ from pyutils.io import echo, fileutils
 from evowluator import config
 from evowluator.data.dataset import Dataset
 from evowluator.reasoner.results import ReasoningResults
-from .base import ReasoningTest
+from .base import ReasoningTest, ReasoningEnergyTest
 from .test_mode import TestMode
 
 
@@ -104,8 +104,7 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
 
     # Overrides
 
-    def __init__(self,
-                 task: str,
+    def __init__(self, task: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
                  syntax: Optional[str] = None,
@@ -190,22 +189,13 @@ class OntologyReasoningPerformanceTest(OntologyReasoningMeasurementTest):
         return [results.parsing_ms, results.reasoning_ms, results.max_memory]
 
 
-class OntologyReasoningEnergyTest(OntologyReasoningMeasurementTest, ABC):
+class OntologyReasoningEnergyTest(ReasoningEnergyTest, OntologyReasoningMeasurementTest):
     """Abstract test class for measuring energy used by reasoning tasks over ontologies."""
 
-    # Overrides
-
-    @property
-    def mode(self) -> str:
-        return TestMode.ENERGY
-
-    @property
-    def result_fields(self) -> List[str]:
-        return ['energy']
-
-    def extract_results(self, results: ReasoningResults) -> List:
-        if not results.has_energy_stats:
-            raise ValueError('Missing energy stats.')
-
-        self._logger.log('{:.2f}'.format(results.energy_score))
-        return [results.energy_score]
+    def __init__(self, task: str, probe: str,
+                 dataset: Optional[str] = None,
+                 reasoners: Optional[List[str]] = None,
+                 syntax: Optional[str] = None,
+                 iterations: int = 1):
+        super().__init__(task=task, probe=probe, dataset=dataset, reasoners=reasoners,
+                         syntax=syntax, iterations=iterations)

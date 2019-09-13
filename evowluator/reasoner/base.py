@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple, Union
 
 from pyutils import exc
 from pyutils.io import fileutils
-from pyutils.proc.bench import Benchmark, EnergyProfiler, PowermetricsProbe
+from pyutils.proc.bench import Benchmark, EnergyProfiler, EnergyProbe
 from pyutils.proc.task import Task
 
 from evowluator.config import Paths
@@ -112,6 +112,7 @@ class Reasoner(ABC):
 
     def __init__(self) -> None:
         exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
+        self.energy_probe: Optional[EnergyProbe] = None
 
     def perform_task(self, task: str, input_file: Union[str, Tuple[str, str]],
                      output_file: Optional[str] = None, timeout: Optional[float] = None,
@@ -190,7 +191,7 @@ class Reasoner(ABC):
         results = self.results_parser.parse_matchmaking_results(task)
         return results.with_output(output_file, is_file=True)
 
-    # Protected methods
+    # Protected
 
     def _absolute_path(self, path: str) -> str:
         """Absolute path for the specified relative path."""
@@ -204,7 +205,7 @@ class Reasoner(ABC):
         if mode == TestMode.PERFORMANCE:
             task = Benchmark(task)
         elif mode == TestMode.ENERGY:
-            task = EnergyProfiler(task, PowermetricsProbe(), sampling_interval=500)
+            task = EnergyProfiler(task, self.energy_probe, sampling_interval=500)
 
         task.run(timeout=timeout)
         return task

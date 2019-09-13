@@ -13,7 +13,9 @@ class Paths:
     BIN_DIR = path.join(ROOT_DIR, 'bin')
     DATA_DIR = path.join(ROOT_DIR, 'data')
     RESULTS_DIR = path.join(ROOT_DIR, 'results')
-    REASONERS_DIR = path.join(SRC_DIR, 'reasoner', 'reasoners')
+    USER_DIR = path.join(SRC_DIR, 'user')
+    REASONERS_DIR = path.join(USER_DIR, 'reasoners')
+    PROBES_DIR = path.join(USER_DIR, 'probes')
 
     LOG_FILE_NAME = 'log.txt'
     RESULTS_FILE_NAME = 'results.csv'

@@ -62,6 +62,8 @@ def build_parser() -> argparse.ArgumentParser:
                        choices=TestMode.ALL,
                        default=TestMode.ALL[0],
                        help='Test mode.')
+    group.add_argument('-e', '--energy-probe',
+                       help='Probe to use for energy measurements.')
 
     # Configuration parser
     config_parser = argparse.ArgumentParser(add_help=False)
@@ -171,66 +173,58 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def matchmaking_sub(args) -> int:
-    {
-        TestMode.CORRECTNESS: MatchmakingCorrectnessTest(dataset=args.dataset,
-                                                         reasoners=args.reasoners,
-                                                         syntax=args.syntax),
+    test = None
 
-        TestMode.PERFORMANCE: MatchmakingPerformanceTest(dataset=args.dataset,
-                                                         reasoners=args.reasoners,
-                                                         syntax=args.syntax,
-                                                         iterations=args.num_iterations),
+    if args.mode == TestMode.CORRECTNESS:
+        test = MatchmakingCorrectnessTest(dataset=args.dataset,
+                                          reasoners=args.reasoners,
+                                          syntax=args.syntax)
+    elif args.mode == TestMode.PERFORMANCE:
+        test = MatchmakingPerformanceTest(dataset=args.dataset,
+                                          reasoners=args.reasoners,
+                                          syntax=args.syntax,
+                                          iterations=args.num_iterations)
+    elif args.mode == TestMode.ENERGY:
+        test = MatchmakingEnergyTest(probe=args.energy_probe,
+                                     dataset=args.dataset,
+                                     reasoners=args.reasoners,
+                                     syntax=args.syntax,
+                                     iterations=args.num_iterations)
+    test.start(args.resume_after)
+    return 0
 
-        TestMode.ENERGY: MatchmakingEnergyTest(dataset=args.dataset,
-                                               reasoners=args.reasoners,
-                                               syntax=args.syntax,
-                                               iterations=args.num_iterations)
-    }[args.mode].start(args.resume_after)
+
+def ontology_reasoning_sub(args, task: str) -> int:
+    test = None
+
+    if args.mode == TestMode.CORRECTNESS:
+        test = OntologyReasoningCorrectnessTest(task=task,
+                                                dataset=args.dataset,
+                                                reasoners=args.reasoners,
+                                                syntax=args.syntax)
+    elif args.mode == TestMode.PERFORMANCE:
+        test = OntologyReasoningPerformanceTest(task=task,
+                                                dataset=args.dataset,
+                                                reasoners=args.reasoners,
+                                                syntax=args.syntax,
+                                                iterations=args.num_iterations)
+    elif args.mode == TestMode.ENERGY:
+        test = OntologyReasoningEnergyTest(task=task,
+                                           probe=args.energy_probe,
+                                           dataset=args.dataset,
+                                           reasoners=args.reasoners,
+                                           syntax=args.syntax,
+                                           iterations=args.num_iterations)
+    test.start(args.resume_after)
     return 0
 
 
 def classification_sub(args) -> int:
-    {
-        TestMode.CORRECTNESS: OntologyReasoningCorrectnessTest(task=ReasoningTask.CLASSIFICATION,
-                                                               dataset=args.dataset,
-                                                               reasoners=args.reasoners,
-                                                               syntax=args.syntax),
-
-        TestMode.PERFORMANCE: OntologyReasoningPerformanceTest(task=ReasoningTask.CLASSIFICATION,
-                                                               dataset=args.dataset,
-                                                               reasoners=args.reasoners,
-                                                               syntax=args.syntax,
-                                                               iterations=args.num_iterations),
-
-        TestMode.ENERGY: OntologyReasoningEnergyTest(task=ReasoningTask.CLASSIFICATION,
-                                                     dataset=args.dataset,
-                                                     reasoners=args.reasoners,
-                                                     syntax=args.syntax,
-                                                     iterations=args.num_iterations)
-    }[args.mode].start(args.resume_after)
-    return 0
+    return ontology_reasoning_sub(args, ReasoningTask.CLASSIFICATION)
 
 
 def consistency_sub(args) -> int:
-    {
-        TestMode.CORRECTNESS: OntologyReasoningCorrectnessTest(task=ReasoningTask.CONSISTENCY,
-                                                               dataset=args.dataset,
-                                                               reasoners=args.reasoners,
-                                                               syntax=args.syntax),
-
-        TestMode.PERFORMANCE: OntologyReasoningPerformanceTest(task=ReasoningTask.CONSISTENCY,
-                                                               dataset=args.dataset,
-                                                               reasoners=args.reasoners,
-                                                               syntax=args.syntax,
-                                                               iterations=args.num_iterations),
-
-        TestMode.ENERGY: OntologyReasoningEnergyTest(task=ReasoningTask.CONSISTENCY,
-                                                     dataset=args.dataset,
-                                                     reasoners=args.reasoners,
-                                                     syntax=args.syntax,
-                                                     iterations=args.num_iterations)
-    }[args.mode].start(args.resume_after)
-    return 0
+    return ontology_reasoning_sub(args, ReasoningTask.CONSISTENCY)
 
 
 def info_sub(args) -> int:

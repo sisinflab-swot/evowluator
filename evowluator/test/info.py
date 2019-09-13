@@ -10,10 +10,6 @@ class InfoTest(Test):
     def name(self):
         return 'info'
 
-    @property
-    def default_reasoners(self):
-        return self._loader.reasoners
-
     def setup(self):
         row = ['Ontology'] + ['Size ({})'.format(s) for s in Ontology.Syntax.ALL]
         self._csv_writer.write_row(row)

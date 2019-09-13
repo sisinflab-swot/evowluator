@@ -32,7 +32,7 @@ class JavaReasoner(Reasoner, ABC):
         if mode == TestMode.PERFORMANCE:
             task = Benchmark(task)
         elif mode == TestMode.ENERGY:
-            task = EnergyProfiler(task, PowermetricsProbe(), sampling_interval=500)
+            task = EnergyProfiler(task, self.energy_probe, sampling_interval=500)
 
         task.run(timeout=timeout)
         return task

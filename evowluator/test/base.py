@@ -17,6 +17,9 @@ from evowluator.data.csv import CSVWriter
 from evowluator.data.dataset import Dataset
 from evowluator.reasoner.base import Reasoner
 from evowluator.reasoner.loader import Loader
+from evowluator.reasoner.results import ReasoningResults
+
+from .test_mode import TestMode
 
 
 class Test(ABC):
@@ -28,12 +31,6 @@ class Test(ABC):
     @abstractmethod
     def name(self) -> str:
         """Name of this test."""
-        pass
-
-    @property
-    @abstractmethod
-    def default_reasoners(self) -> List[Reasoner]:
-        """Default reasoners for this test."""
         pass
 
     @abstractmethod
@@ -91,11 +88,11 @@ class Test(ABC):
 
         if reasoners:
             try:
-                self._reasoners = [self._loader.reasoners_by_name[n] for n in reasoners]
+                self._reasoners = [self._loader.reasoner_with_name(n) for n in reasoners]
             except KeyError as e:
                 exc.re_raise_new_message(e, 'No such reasoner: ' + str(e))
         else:
-            self._reasoners = self.default_reasoners
+            self._reasoners = self._loader.reasoners
 
     def clear_temp(self) -> None:
         """Clears temporary files."""
@@ -207,6 +204,7 @@ class ReasoningTest(Test):
     @abstractmethod
     def mode(self) -> str:
         """Test mode."""
+        pass
 
     # Overrides
 
@@ -214,17 +212,56 @@ class ReasoningTest(Test):
     def name(self) -> str:
         return '{} {}'.format(self.task, self.mode)
 
-    @property
-    def default_reasoners(self) -> List[Reasoner]:
-        return self._loader.reasoners_supporting_task(self.task)
-
     def __init__(self,
                  task: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
                  syntax: Optional[str] = None) -> None:
-        self.task = task
         super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
+        self.task = task
+
+        if not reasoners:
+            self._reasoners = self._loader.reasoners_supporting_task(task)
+
+
+class ReasoningEnergyTest(ReasoningTest, ABC):
+    """Abstract reasoning energy test class."""
+
+    @property
+    def mode(self) -> str:
+        return TestMode.ENERGY
+
+    @property
+    def result_fields(self) -> List[str]:
+        return ['energy']
+
+    def __init__(self,
+                 task: str, probe: str,
+                 dataset: Optional[str] = None,
+                 reasoners: Optional[List[str]] = None,
+                 syntax: Optional[str] = None,
+                 iterations: int = 1):
+        if not probe:
+            raise ValueError('No probe specified.')
+
+        super().__init__(task=task, dataset=dataset, reasoners=reasoners,
+                         syntax=syntax, iterations=iterations)
+        self.__configure_reasoners(probe)
+
+    def extract_results(self, results: ReasoningResults) -> List:
+        if not results.has_energy_stats:
+            raise ValueError('Missing energy stats.')
+
+        self._logger.log('{:.2f}'.format(results.energy_score))
+        return [results.energy_score]
+
+    # Private
+
+    def __configure_reasoners(self, probe_name: str) -> None:
+        probe = self._loader.probe_with_name(probe_name)
+
+        for reasoner in self._reasoners:
+            reasoner.energy_probe = probe
 
 
 class NotImplementedTest:
