@@ -1,30 +1,36 @@
-import numpy as np
 import os
-from abc import ABC, abstractmethod
 from collections import OrderedDict
 from math import ceil
 from os import path
 from typing import Callable, Iterable, List, Optional, Union
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-
 from pyutils.io import fileutils
 
 from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
+from evowluator.data.dataset import Dataset
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.test.test_mode import TestMode
 from . import plotutils
+from .metric import Metric
 
 
-class Evaluator(ABC):
+class Evaluator:
 
-    # Abstract
+    # Override
 
-    @abstractmethod
-    def _write_results(self) -> None:
-        pass
+    def write_results(self) -> None:
+        fileutils.create_dir(self.evaluation_dir)
+
+        avg_res_path = path.join(self.evaluation_dir, 'avg_results.csv')
+        self._results.to_csv(avg_res_path, float_format='%.2f')
+
+    @property
+    def plotters(self) -> List[Callable[[plt.Axes], None]]:
+        return []
 
     # Public
 
@@ -48,10 +54,6 @@ class Evaluator(ABC):
             raise NotImplementedError('Evaluator not implemented for test "{}"'.format(test_name))
 
     @property
-    def plotters(self) -> List[Callable[[plt.Axes], None]]:
-        return []
-
-    @property
     def results_path(self) -> str:
         return os.path.join(self.test_dir, Paths.RESULTS_FILE_NAME)
 
@@ -73,7 +75,7 @@ class Evaluator(ABC):
             (r[ConfigKey.NAME], r[ConfigKey.SYNTAX]) for r in cfg[ConfigKey.REASONERS]
         )
 
-        self._load_results(non_numeric_columns)
+        self._results: pd.DataFrame = self.load_results(non_numeric_columns)
 
     def reasoners(self) -> Iterable[str]:
         return self._syntaxes_by_reasoner.keys()
@@ -81,10 +83,15 @@ class Evaluator(ABC):
     def ontologies(self) -> Iterable[str]:
         return self._results.index.values
 
-    def results_for_reasoner(self, reasoner: str) -> pd.DataFrame:
+    def results_for_reasoner(self, reasoner: str,
+                             col_filter: Optional[Callable[[str], bool]] = None) -> pd.DataFrame:
         needle = reasoner + ':'
         results = self._results[[f for f in self._results if f.startswith(needle)]]
         results = results.rename(lambda s: s.rsplit(':', maxsplit=1)[1].strip(), axis='columns')
+
+        if col_filter:
+            results = results[[c for c in results.columns if col_filter(c)]]
+
         return results
 
     def results_for_ontology(self, ontology: str) -> pd.DataFrame:
@@ -97,15 +104,6 @@ class Evaluator(ABC):
             results = results.dropna()
 
         return results.groupby(lambda x: x.split(':', maxsplit=1)[0], axis=1)
-
-    def write_results(self) -> None:
-        fileutils.create_dir(self.evaluation_dir)
-
-        # Average results
-        avg_res_path = path.join(self.evaluation_dir, 'avg_results.csv')
-        self._results.to_csv(avg_res_path, float_format='%.2f')
-
-        self._write_results()
 
     def plot_results(self, plots: Optional[List[int]] = None) -> None:
         plotters = self.plotters
@@ -130,9 +128,7 @@ class Evaluator(ABC):
         fig.tight_layout()
         plt.show()
 
-    # Private
-
-    def _load_results(self, non_numeric_columns: Union[bool, List[str]] = False) -> None:
+    def load_results(self, non_numeric_columns: Union[bool, List[str]] = False) -> pd.DataFrame:
         results = pd.read_csv(self.results_path, index_col=self.index_columns)
 
         numeric_columns = results.columns.values.tolist()
@@ -155,4 +151,43 @@ class Evaluator(ABC):
         if len(self.index_columns) > 1:
             results.index = pd.MultiIndex.from_tuples(results.index, names=self.index_columns)
 
-        self._results: pd.DataFrame = results
+        return results
+
+    def draw_scatter(self, ax: plt.Axes, metric: Metric,
+                     col_filter: Optional[Callable[[str], bool]] = None) -> None:
+        reasoners = list(self.reasoners())
+        dataset = Dataset(os.path.join(Paths.DATA_DIR, self.dataset_name))
+
+        xscale, xunit = fileutils.human_readable_scale_and_unit(dataset.get_max_ontology_size())
+        xmetric = Metric('ontology size', xunit, '.2f')
+
+        data = []
+
+        for reasoner in reasoners:
+            ontologies = dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
+                                                sort_by_size=True)
+            results = self.results_for_reasoner(reasoner, col_filter=col_filter)
+
+            if isinstance(results.index, pd.MultiIndex):
+                results = results.groupby(level=0).mean()
+
+            ontologies = [o for o in ontologies if o.name in results.index]
+
+            x = [o.size / xscale for o in ontologies]
+            y = [results.loc[o.name].sum() for o in ontologies]
+
+            data.append((x, y))
+
+        plotutils.draw_scatter_plot(ax, dict(zip(reasoners, data)), xmetric, metric)
+
+    def draw_min_max_avg(self, ax: plt.Axes, data: pd.DataFrame, metric: Metric,
+                         col_filter: Optional[Callable[[str], bool]] = None) -> None:
+        if col_filter:
+            cols = [c for c in data.columns if col_filter(c)]
+            data = data[cols]
+
+        reasoners = data.index.values
+
+        data = [data.loc[r].values for r in reasoners]
+        data = dict(zip(reasoners, data))
+        plotutils.draw_min_avg_max_histograms(ax, data, metric)

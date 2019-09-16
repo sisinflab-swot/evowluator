@@ -1,11 +1,13 @@
-from typing import List, Optional
 from os import path
+from typing import List, Optional
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .evaluator import Evaluator
 from . import plotutils
+from .evaluator import Evaluator
+from .metric import Metric
 
 
 class CorrectnessEvaluator(Evaluator):
@@ -23,7 +25,8 @@ class CorrectnessEvaluator(Evaluator):
         super().__init__(test_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
         self._global_stats: Optional[pd.DataFrame] = None
 
-    def _write_results(self) -> None:
+    def write_results(self) -> None:
+        super().write_results()
         self._write_global_stats(path.join(self.evaluation_dir, 'global_stats.csv'))
 
     # Private
@@ -53,7 +56,6 @@ class CorrectnessEvaluator(Evaluator):
         reasoners = stats.index.values
         data = [stats.loc[r].values for r in reasoners]
 
+        metric = Metric('occurrences', fmt='.0f')
+        plotutils.draw_grouped_histograms(ax, dict(zip(reasoners, data)), metric, cols)
         ax.set_title('Correctness results')
-        ax.set_ylabel('Occurrences')
-
-        plotutils.draw_grouped_histograms(ax, dict(zip(reasoners, data)), cols)

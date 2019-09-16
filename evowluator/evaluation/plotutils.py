@@ -1,7 +1,10 @@
+import sys
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 from matplotlib import pyplot as plt, ticker
+
+from .metric import Metric
 
 
 def setup_plot(**kwargs) -> (plt.Figure, Union[plt.Axes, List[plt.Axes]]):
@@ -46,52 +49,31 @@ def set_scale(ax: plt.Axes, scale: str, axis: str = 'both') -> None:
     ax.yaxis.set_minor_formatter(y_min)
 
 
-def draw_histograms(ax: plt.Axes, data: Dict[str, float], metric: str,
-                    unit: Optional[str] = None) -> None:
-    labels = list(data.keys())
-    labels.sort()
-    n_labels = len(labels)
-
-    width = (1.0 / n_labels) * 0.8
-
-    for i, label in enumerate(labels):
-        ax.bar([i], data[label], width=width, alpha=0.9, label=label)
-
-    display_labels(ax)
-
-    ax.set_title(metric[0].upper() + metric[1:])
-
-    ax.set_xticks(np.arange(n_labels))
-    ax.set_xticklabels(labels)
-
-    ylabel = '{} ({})'.format(metric, unit) if unit else metric
-    ax.set_ylabel(ylabel[0].upper() + ylabel[1:])
-
-    display_grid(ax, axis='y')
-    legend = ax.legend()
-    legend.set_draggable(True)
-
-
-def draw_grouped_histograms(ax: plt.Axes, data: Dict[str, List[float]], metrics: List[str]) -> None:
+def draw_grouped_histograms(ax: plt.Axes, data: Dict[str, List[float]], metric: Metric,
+                            groups: List[str]) -> None:
     configure_histogram_plot(ax, data)
 
+    ax.set_ylabel(metric.to_string(capitalize=True))
+    ax.set_title(metric.capitalized_name)
+
     labels = list(data.keys())
     labels.sort()
 
     n_labels = len(labels)
-    n_metrics = len(metrics)
+    n_groups = len(groups)
 
     width = 1.0 / (n_labels + 1)
     bar_width = 0.8 * width
 
     for i, label in enumerate(labels):
-        ax.bar([j + width * i for j in range(n_metrics)], data[label],
+        ax.bar([j + width * i for j in range(n_groups)], data[label],
                width=bar_width, alpha=0.9, label=label)
 
-    display_labels(ax)
+    if metric.fmt:
+        display_labels(ax, fmt=metric.fmt)
 
-    ax.set_xticks([p + width * ((n_labels - 1) / 2) for p in range(n_metrics)])
-    ax.set_xticklabels(metrics)
+    ax.set_xticks([p + width * ((n_labels - 1) / 2) for p in range(n_groups)])
+    ax.set_xticklabels(groups)
 
     display_grid(ax, axis='y')
 
@@ -99,18 +81,17 @@ def draw_grouped_histograms(ax: plt.Axes, data: Dict[str, List[float]], metrics:
     legend.set_draggable(True)
 
 
-def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, List[float]],
-                                metric: str, unit: str) -> None:
-    ax.set_title('Minimum, average and maximum {}'.format(metric))
-
-    ylabel = '{} ({})'.format(metric, unit)
-    ax.set_ylabel(ylabel[0].upper() + ylabel[1:])
-
-    draw_grouped_histograms(ax, data, ['Min', 'Avg', 'Max'])
+def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, List[float]], metric: Metric) -> None:
+    draw_grouped_histograms(ax, data, metric, ['Min', 'Avg', 'Max'])
+    ax.set_title('Minimum, average and maximum {}'.format(metric.name))
 
 
-def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: List[str]) -> None:
+def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], metric: Metric,
+                            labels: List[str]) -> None:
     configure_histogram_plot(ax, data, stacked=True)
+
+    ax.set_ylabel(metric.to_string(capitalize=True))
+    ax.set_title(metric.capitalized_name)
 
     group_labels = list(data.keys())
     group_labels.sort()
@@ -128,7 +109,8 @@ def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: 
         values = [data[r][section] for r in group_labels]
         ax.bar(pos, values, width, alpha=0.9, bottom=prev_values, label=labels[section])
 
-    display_labels(ax, center=True, fmt='{:.2f}')
+    if metric.fmt:
+        display_labels(ax, center=True, fmt=metric.fmt)
 
     ax.set_xticks(pos)
     ax.set_xticklabels(group_labels)
@@ -141,21 +123,29 @@ def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], labels: 
 
 def configure_histogram_plot(ax: plt.Axes, data: Dict[str, List[float]],
                              stacked: bool = False) -> None:
+    data_min = min(p for l in data.values() for p in l)
+
+    if data_min == 0.0:
+        data_min = sys.float_info.epsilon
+
     if stacked:
-        data_min = min(p for l in data.values() for p in l)
         data_max = max(sum(l) for l in data.values())
     else:
-        data_min = min(p for l in data.values() for p in l)
         data_max = max(p for l in data.values() for p in l)
 
     if data_max / data_min > 50.0:
-        set_scale(ax, 'symlog', axis='y')
+        set_scale(ax, 'log' if data_min > 1.0 else 'symlog', axis='y')
         data_min = 10.0 ** np.floor(np.log10(data_min))
         data_max = 10.0 ** np.ceil(np.log10(data_max))
         ax.set_ylim(bottom=data_min, top=data_max)
 
 
-def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[float]]]) -> None:
+def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[float]]],
+                      xmetric: Metric, ymetric: Metric) -> None:
+    ax.set_title('{} by {}'.format(ymetric.capitalized_name, xmetric.name))
+    ax.set_xlabel(xmetric.to_string(capitalize=True))
+    ax.set_ylabel(ymetric.to_string(capitalize=True))
+
     labels = list(data.keys())
     labels.sort()
 
@@ -199,7 +189,7 @@ def default_formatter() -> ticker.Formatter:
     return ticker.FormatStrFormatter('%g')
 
 
-def display_labels(ax: plt.Axes, center: bool = False, fmt: str = '{:.0f}') -> None:
+def display_labels(ax: plt.Axes, center: bool = False, fmt: str = '.0f') -> None:
     fig = ax.get_figure()
     transform = fig.dpi_scale_trans.inverted()
 
@@ -221,7 +211,7 @@ def display_labels(ax: plt.Axes, center: bool = False, fmt: str = '{:.0f}') -> N
         x = rect.get_x() + w * x_mult
         y = rect.get_y() + h * y_mult
 
-        annotation = ax.annotate(fmt.format(h), (x, y), ha='center', va=va)
+        annotation = ax.annotate(format(h, fmt), (x, y), ha='center', va=va)
         annotation.draggable()
 
 
