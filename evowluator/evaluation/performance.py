@@ -37,11 +37,11 @@ class SingleValueEvaluator(Evaluator, ABC):
     # Private
 
     def _write_global_stats(self, file_path: str) -> None:
-        results = np.asarray([self.results_for_reasoner(r).values for r in self.reasoners()])
+        results = np.asarray([self.results_for_reasoner(r).values for r in self.reasoners])
         metric_str = self.metric.to_string()
 
         self._global_stats = pd.DataFrame({
-            'Reasoner': list(self.reasoners()),
+            'Reasoner': self.reasoners,
             'Min ' + metric_str: results.min(axis=1).flatten(),
             'Avg ' + metric_str: results.mean(axis=1).flatten(),
             'Max ' + metric_str: results.max(axis=1).flatten()
@@ -107,8 +107,7 @@ class PerformanceEvaluator(Evaluator):
         totals.to_csv(file_path, float_format='%.2f')
 
     def __write_global_stats(self, file_path: str) -> None:
-        reasoners = list(self.reasoners())
-
+        reasoners = self.reasoners
         parsing_cols = self.__parsing_cols()
         reasoning_cols = self.__reasoning_cols()
         memory_cols = self.__memory_cols()

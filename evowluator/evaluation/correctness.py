@@ -18,11 +18,9 @@ class CorrectnessEvaluator(Evaluator):
     def plotters(self):
         return super().plotters + [self._histogram_plotter]
 
-    def reasoners(self):
-        return list(super().reasoners())[1:]
-
     def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(test_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
+        self.reasoners = self.reasoners[1:]
         self._global_stats: Optional[pd.DataFrame] = None
 
     def write_results(self) -> None:
@@ -32,15 +30,16 @@ class CorrectnessEvaluator(Evaluator):
     # Private
 
     def _write_global_stats(self, file_path: str) -> None:
+        reasoners = self.reasoners
         results = [self.results_for_reasoner(r)['match'].value_counts(sort=False)
-                   for r in self.reasoners()]
+                   for r in reasoners]
 
         stats = ['same', 'different', 'timeout', 'error']
         correct, incorrect, timeout, error = [np.asarray([r.get(s, default=0) for r in results])
                                               for s in stats]
 
         self._global_stats = pd.DataFrame({
-            'reasoner': list(self.reasoners()),
+            'reasoner': reasoners,
             'correct': correct,
             'incorrect': incorrect,
             'timeout': timeout,

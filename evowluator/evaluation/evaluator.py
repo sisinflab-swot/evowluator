@@ -24,7 +24,6 @@ class Evaluator:
 
     def write_results(self) -> None:
         fileutils.create_dir(self.evaluation_dir)
-
         avg_res_path = path.join(self.evaluation_dir, 'avg_results.csv')
         self._results.to_csv(avg_res_path, float_format='%.2f')
 
@@ -76,9 +75,7 @@ class Evaluator:
         )
 
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)
-
-    def reasoners(self) -> Iterable[str]:
-        return self._syntaxes_by_reasoner.keys()
+        self.reasoners: List[str] = list(self._syntaxes_by_reasoner.keys())
 
     def ontologies(self) -> Iterable[str]:
         return self._results.index.values
@@ -155,7 +152,6 @@ class Evaluator:
 
     def draw_scatter(self, ax: plt.Axes, metric: Metric,
                      col_filter: Optional[Callable[[str], bool]] = None) -> None:
-        reasoners = list(self.reasoners())
         dataset = Dataset(os.path.join(Paths.DATA_DIR, self.dataset_name))
 
         xscale, xunit = fileutils.human_readable_scale_and_unit(dataset.get_max_ontology_size())
@@ -163,7 +159,7 @@ class Evaluator:
 
         data = []
 
-        for reasoner in reasoners:
+        for reasoner in self.reasoners:
             ontologies = dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
                                                 sort_by_size=True)
             results = self.results_for_reasoner(reasoner, col_filter=col_filter)
@@ -178,7 +174,7 @@ class Evaluator:
 
             data.append((x, y))
 
-        plotutils.draw_scatter_plot(ax, dict(zip(reasoners, data)), xmetric, metric)
+        plotutils.draw_scatter_plot(ax, dict(zip(self.reasoners, data)), xmetric, metric)
 
     def draw_min_max_avg(self, ax: plt.Axes, data: pd.DataFrame, metric: Metric,
                          col_filter: Optional[Callable[[str], bool]] = None) -> None:

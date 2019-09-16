@@ -132,7 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.set_defaults(func=info_sub)
 
-    # Evaluate subcommand
+    # Visualize subcommand
     desc = 'Generates high level statistics and plots.'
     parser = subparsers.add_parser('visualize',
                                    description=desc,
@@ -145,8 +145,11 @@ def build_parser() -> argparse.ArgumentParser:
                         nargs='+',
                         type=positive_int,
                         help='Subplots to show.')
+    parser.add_argument('-r', '--reasoners',
+                        nargs='+',
+                        help='Reasoners to show.')
 
-    parser.set_defaults(func=evaluate_sub)
+    parser.set_defaults(func=visualize_sub)
 
     # Convert subcommand
     desc = 'Converts the dataset into the specified syntax.'
@@ -234,8 +237,12 @@ def info_sub(args) -> int:
     return 0
 
 
-def evaluate_sub(args) -> int:
+def visualize_sub(args) -> int:
     evaluator = Evaluator.from_dir(args.path)
+
+    if args.reasoners:
+        evaluator.reasoners = args.reasoners
+
     evaluator.write_results()
 
     plots = [p - 1 for p in args.plots] if args.plots else None
