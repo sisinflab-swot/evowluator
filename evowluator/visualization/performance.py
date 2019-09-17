@@ -7,11 +7,11 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from . import plotutils
-from .evaluator import Evaluator
+from .base import Visualizer
 from .metric import Metric
 
 
-class SingleValueEvaluator(Evaluator, ABC):
+class SingleValueVisualizer(Visualizer, ABC):
 
     # Abstract
 
@@ -32,7 +32,7 @@ class SingleValueEvaluator(Evaluator, ABC):
 
     def write_results(self):
         super().write_results()
-        self._write_global_stats(path.join(self.evaluation_dir, 'global_stats.csv'))
+        self._write_global_stats(path.join(self.output_dir, 'global_stats.csv'))
 
     # Private
 
@@ -56,14 +56,14 @@ class SingleValueEvaluator(Evaluator, ABC):
         self.draw_scatter(ax, self.metric)
 
 
-class EnergyEvaluator(SingleValueEvaluator):
+class EnergyVisualizer(SingleValueVisualizer):
 
     @property
     def metric(self):
         return Metric('energy', None, '.0f')
 
 
-class PerformanceEvaluator(Evaluator):
+class PerformanceVisualizer(Visualizer):
 
     # Overrides
 
@@ -80,9 +80,9 @@ class PerformanceEvaluator(Evaluator):
 
     def write_results(self):
         super().write_results()
-        self.__write_total_times(path.join(self.evaluation_dir, 'total_times.csv'))
-        self.__write_memory(path.join(self.evaluation_dir, 'memory.csv'))
-        self.__write_global_stats(path.join(self.evaluation_dir, 'global_stats.csv'))
+        self.__write_total_times(path.join(self.output_dir, 'total_times.csv'))
+        self.__write_memory(path.join(self.output_dir, 'memory.csv'))
+        self.__write_global_stats(path.join(self.output_dir, 'global_stats.csv'))
 
     # Private
 

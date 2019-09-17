@@ -2,11 +2,10 @@ import argparse
 import os
 
 from . import config
-from .config import Test as TestConfig, EXE_NAME
+from .config import EXE_NAME, Test as TestConfig
 from .data import dataset_converter
 from .data.dataset import Dataset
 from .data.ontology import Ontology
-from .evaluation.evaluator import Evaluator
 from .reasoner.base import ReasoningTask
 from .test.info import InfoTest
 from .test.matchmaking import (
@@ -20,6 +19,7 @@ from .test.ontology import (
     OntologyReasoningPerformanceTest
 )
 from .test.test_mode import TestMode
+from .visualization.base import Visualizer
 
 
 # CLI parser
@@ -238,15 +238,15 @@ def info_sub(args) -> int:
 
 
 def visualize_sub(args) -> int:
-    evaluator = Evaluator.from_dir(args.path)
+    visualizer = Visualizer.from_dir(args.path)
 
     if args.reasoners:
-        evaluator.reasoners = args.reasoners
+        visualizer.reasoners = args.reasoners
 
-    evaluator.write_results()
+    visualizer.write_results()
 
     plots = [p - 1 for p in args.plots] if args.plots else None
-    evaluator.plot_results(plots)
+    visualizer.plot_results(plots)
     return 0
 
 

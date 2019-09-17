@@ -6,11 +6,11 @@ import numpy as np
 import pandas as pd
 
 from . import plotutils
-from .evaluator import Evaluator
+from .base import Visualizer
 from .metric import Metric
 
 
-class CorrectnessEvaluator(Evaluator):
+class CorrectnessVisualizer(Visualizer):
 
     # Overrides
 
@@ -25,7 +25,7 @@ class CorrectnessEvaluator(Evaluator):
 
     def write_results(self) -> None:
         super().write_results()
-        self._write_global_stats(path.join(self.evaluation_dir, 'global_stats.csv'))
+        self._write_global_stats(path.join(self.output_dir, 'global_stats.csv'))
 
     # Private
 

@@ -18,13 +18,13 @@ from . import plotutils
 from .metric import Metric
 
 
-class Evaluator:
+class Visualizer:
 
     # Override
 
     def write_results(self) -> None:
-        fileutils.create_dir(self.evaluation_dir)
-        avg_res_path = path.join(self.evaluation_dir, 'avg_results.csv')
+        fileutils.create_dir(self.output_dir)
+        avg_res_path = path.join(self.output_dir, 'avg_results.csv')
         self._results.to_csv(avg_res_path, float_format='%.2f')
 
     @property
@@ -34,9 +34,9 @@ class Evaluator:
     # Public
 
     @classmethod
-    def from_dir(cls, test_dir: str) -> 'Evaluator':
-        from .correctness import CorrectnessEvaluator
-        from .performance import EnergyEvaluator, PerformanceEvaluator
+    def from_dir(cls, test_dir: str) -> 'Visualizer':
+        from .correctness import CorrectnessVisualizer
+        from .performance import EnergyVisualizer, PerformanceVisualizer
 
         cfg = json.load(os.path.join(test_dir, Paths.CONFIG_FILE_NAME))
         test_name = cfg[ConfigKey.NAME]
@@ -44,21 +44,21 @@ class Evaluator:
         cols = ['Resource', 'Request'] if ReasoningTask.MATCHMAKING in test_name else ['Ontology']
 
         if TestMode.CORRECTNESS in test_name:
-            return CorrectnessEvaluator(test_dir, cfg, index_columns=cols)
+            return CorrectnessVisualizer(test_dir, cfg, index_columns=cols)
         elif TestMode.PERFORMANCE in test_name:
-            return PerformanceEvaluator(test_dir, cfg, index_columns=cols)
+            return PerformanceVisualizer(test_dir, cfg, index_columns=cols)
         elif TestMode.ENERGY in test_name:
-            return EnergyEvaluator(test_dir, cfg, index_columns=cols)
+            return EnergyVisualizer(test_dir, cfg, index_columns=cols)
         else:
-            raise NotImplementedError('Evaluator not implemented for test "{}"'.format(test_name))
+            raise NotImplementedError('Visualizer not implemented for test "{}"'.format(test_name))
 
     @property
     def results_path(self) -> str:
         return os.path.join(self.test_dir, Paths.RESULTS_FILE_NAME)
 
     @property
-    def evaluation_dir(self) -> str:
-        return path.join(self.test_dir, 'evaluation')
+    def output_dir(self) -> str:
+        return path.join(self.test_dir, 'visualization')
 
     @property
     def config_path(self) -> str:
