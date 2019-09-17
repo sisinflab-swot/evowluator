@@ -63,6 +63,7 @@ class MobileReasoner(Reasoner, ABC):
         return self.results_parser.parse_matchmaking_results(task)
 
     def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
+        exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
         task = Task(self._absolute_path(self.path), args=args)
         task.run(timeout=timeout)
         return task

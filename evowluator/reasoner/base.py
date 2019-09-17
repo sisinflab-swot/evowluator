@@ -111,7 +111,6 @@ class Reasoner(ABC):
     # Public
 
     def __init__(self) -> None:
-        exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
         self.energy_probe: Optional[EnergyProbe] = None
 
     def perform_task(self, task: str, input_file: Union[str, Tuple[str, str]],
@@ -203,6 +202,7 @@ class Reasoner(ABC):
 
     def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
         """Runs the reasoner."""
+        exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
         task = self._task(args)
 
         if mode == TestMode.PERFORMANCE:
