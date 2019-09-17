@@ -19,4 +19,4 @@ def convert(source_path: str, target_path: str, target_syntax: str) -> bool:
 
 def print_tbox(onto_path: str, output_path: str) -> bool:
     """Prints the TBox starting from the top concept."""
-    return _spawn_owltool(['print-tbox', '-o', output_path, onto_path])
+    return _spawn_owltool(['print-tbox', '-i', onto_path, '-o', output_path])
