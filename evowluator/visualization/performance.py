@@ -26,8 +26,8 @@ class SingleValueVisualizer(Visualizer, ABC):
     def plotters(self):
         return super().plotters + [self._histogram_plotter, self._scatter_plotter]
 
-    def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
-        super().__init__(test_dir, cfg, index_columns)
+    def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
+        super().__init__(results_dir, cfg, index_columns)
         self._global_stats: Optional[pd.DataFrame] = None
 
     def write_results(self):
@@ -60,7 +60,7 @@ class EnergyVisualizer(SingleValueVisualizer):
 
     @property
     def metric(self):
-        return Metric('energy', None, '.0f')
+        return Metric('energy', None, '.2f')
 
 
 class PerformanceVisualizer(Visualizer):
@@ -72,8 +72,8 @@ class PerformanceVisualizer(Visualizer):
         return super().plotters + [self.__time_histogram_plotter, self.__time_scatter_plotter,
                                    self.__memory_histogram_plotter, self.__memory_scatter_plotter]
 
-    def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
-        super().__init__(test_dir, cfg, index_columns)
+    def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
+        super().__init__(results_dir, cfg, index_columns)
         self._results[self.__memory_cols()] /= (1024 * 1024)
         self._global_stats: Optional[pd.DataFrame] = None
         self._time_unit: str = 'ms'

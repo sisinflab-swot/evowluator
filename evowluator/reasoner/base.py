@@ -9,7 +9,7 @@ from pyutils.proc.task import Task
 
 from evowluator.config import Paths
 from evowluator.data.ontology import Ontology
-from evowluator.test.test_mode import TestMode
+from evowluator.evaluation.mode import EvaluationMode
 from evowluator.util import owltool
 from .results import MatchmakingResults, ReasoningResults, ResultsParser
 
@@ -105,7 +105,7 @@ class Reasoner(ABC):
 
     @abstractmethod
     def args(self, task: str, mode: str) -> List[str]:
-        """Args to be passed to the reasoner executable for each task and test mode."""
+        """Args to be passed to the reasoner executable for each task and evaluation mode."""
         pass
 
     # Public
@@ -115,7 +115,7 @@ class Reasoner(ABC):
 
     def perform_task(self, task: str, input_file: Union[str, Tuple[str, str]],
                      output_file: Optional[str] = None, timeout: Optional[float] = None,
-                     mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
+                     mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         """Performs the specified reasoning task."""
         if task == ReasoningTask.CLASSIFICATION:
             return self.classify(input_file, output_file=output_file, timeout=timeout, mode=mode)
@@ -128,7 +128,7 @@ class Reasoner(ABC):
                  input_file: str,
                  output_file: Optional[str] = None,
                  timeout: Optional[float] = None,
-                 mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
+                 mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         """Runs the classification reasoning task."""
         exc.raise_if_not_found(input_file, file_type=exc.FileType.FILE)
 
@@ -149,7 +149,7 @@ class Reasoner(ABC):
 
         task = self._run(args=args, timeout=timeout, mode=mode)
 
-        if mode == TestMode.CORRECTNESS and use_owl_tool:
+        if mode == EvaluationMode.CORRECTNESS and use_owl_tool:
             owltool.print_tbox(classification_out, output_file)
 
         results = self.results_parser.parse_classification_results(task)
@@ -158,7 +158,7 @@ class Reasoner(ABC):
     def consistency(self,
                     input_file: str,
                     timeout: Optional[float] = None,
-                    mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
+                    mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         """Checks if the given ontology is consistent."""
         exc.raise_if_not_found(input_file, file_type=exc.FileType.FILE)
 
@@ -173,7 +173,7 @@ class Reasoner(ABC):
                     request_file: str,
                     output_file: Optional[str] = None,
                     timeout: Optional[float] = None,
-                    mode: str = TestMode.CORRECTNESS) -> MatchmakingResults:
+                    mode: str = EvaluationMode.CORRECTNESS) -> MatchmakingResults:
         """Runs abductions or contractions between all resource and request individuals."""
         exc.raise_if_not_found(resource_file, file_type=exc.FileType.FILE)
         exc.raise_if_not_found(request_file, file_type=exc.FileType.FILE)
@@ -205,9 +205,9 @@ class Reasoner(ABC):
         exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
         task = self._task(args)
 
-        if mode == TestMode.PERFORMANCE:
+        if mode == EvaluationMode.PERFORMANCE:
             task = Benchmark(task)
-        elif mode == TestMode.ENERGY:
+        elif mode == EvaluationMode.ENERGY:
             task = EnergyProfiler(task, self.energy_probe, sampling_interval=500)
 
         task.run(timeout=timeout)

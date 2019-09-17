@@ -2,23 +2,23 @@ import argparse
 import os
 
 from . import config
-from .config import EXE_NAME, Test as TestConfig
+from .config import EXE_NAME, Evaluation as EvaluationConfig
 from .data import dataset_converter
 from .data.dataset import Dataset
 from .data.ontology import Ontology
 from .reasoner.base import ReasoningTask
-from .test.info import InfoTest
-from .test.matchmaking import (
-    MatchmakingCorrectnessTest,
-    MatchmakingEnergyTest,
-    MatchmakingPerformanceTest
+from .evaluation.info import InfoEvaluator
+from .evaluation.matchmaking import (
+    MatchmakingCorrectnessEvaluator,
+    MatchmakingEnergyEvaluator,
+    MatchmakingPerformanceEvaluator
 )
-from .test.ontology import (
-    OntologyReasoningCorrectnessTest,
-    OntologyReasoningEnergyTest,
-    OntologyReasoningPerformanceTest
+from .evaluation.ontology import (
+    OntologyReasoningCorrectnessEvaluator,
+    OntologyReasoningEnergyEvaluator,
+    OntologyReasoningPerformanceEvaluator
 )
-from .test.test_mode import TestMode
+from .evaluation.mode import EvaluationMode
 from .visualization.base import Visualizer
 
 
@@ -59,9 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     group = mode_parser.add_argument_group('Mode')
     group.add_argument('-m', '--mode',
-                       choices=TestMode.ALL,
-                       default=TestMode.ALL[0],
-                       help='Test mode.')
+                       choices=EvaluationMode.ALL,
+                       default=EvaluationMode.ALL[0],
+                       help='Evaluation mode.')
     group.add_argument('-e', '--energy-probe',
                        help='Probe to use for energy measurements.')
 
@@ -76,13 +76,13 @@ def build_parser() -> argparse.ArgumentParser:
                        help='Desired reasoners.')
     group.add_argument('-n', '--num-iterations',
                        type=positive_int,
-                       default=TestConfig.DEFAULT_ITERATIONS,
-                       help='Number of iterations for each test.')
+                       default=EvaluationConfig.DEFAULT_ITERATIONS,
+                       help='Number of iterations.')
     group.add_argument('-s', '--syntax',
                        choices=Ontology.Syntax.ALL,
                        help='Use the specified OWL syntax whenever possible.')
     group.add_argument('--resume-after',
-                       help='Resume the test after the specified ontology.')
+                       help='Resume the evaluation after the specified ontology.')
 
     # Main parser
     main_parser = argparse.ArgumentParser(prog=EXE_NAME,
@@ -90,10 +90,10 @@ def build_parser() -> argparse.ArgumentParser:
                                           parents=[help_parser],
                                           add_help=False)
 
-    subparsers = main_parser.add_subparsers(title='Available tests')
+    subparsers = main_parser.add_subparsers(title='Available subcommands')
 
     # Classification subcommand
-    desc = 'Runs the classification test.'
+    desc = 'Evaluates the classification reasoning task.'
     parser = subparsers.add_parser('classification',
                                    description=desc,
                                    help=desc,
@@ -103,7 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.set_defaults(func=classification_sub)
 
     # Consistency subcommand
-    desc = 'Runs the consistency test.'
+    desc = 'Evaluates the consistency reasoning task.'
     parser = subparsers.add_parser('consistency',
                                    description=desc,
                                    help=desc,
@@ -113,7 +113,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.set_defaults(func=consistency_sub)
 
     # Matchmaking subcommand
-    desc = 'Runs the matchmaking test.'
+    desc = 'Evaluates the matchmaking task.'
     parser = subparsers.add_parser('matchmaking',
                                    description=desc,
                                    help=desc,
@@ -176,49 +176,49 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def matchmaking_sub(args) -> int:
-    test = None
+    evaluator = None
 
-    if args.mode == TestMode.CORRECTNESS:
-        test = MatchmakingCorrectnessTest(dataset=args.dataset,
-                                          reasoners=args.reasoners,
-                                          syntax=args.syntax)
-    elif args.mode == TestMode.PERFORMANCE:
-        test = MatchmakingPerformanceTest(dataset=args.dataset,
-                                          reasoners=args.reasoners,
-                                          syntax=args.syntax,
-                                          iterations=args.num_iterations)
-    elif args.mode == TestMode.ENERGY:
-        test = MatchmakingEnergyTest(probe=args.energy_probe,
-                                     dataset=args.dataset,
-                                     reasoners=args.reasoners,
-                                     syntax=args.syntax,
-                                     iterations=args.num_iterations)
-    test.start(args.resume_after)
+    if args.mode == EvaluationMode.CORRECTNESS:
+        evaluator = MatchmakingCorrectnessEvaluator(dataset=args.dataset,
+                                                    reasoners=args.reasoners,
+                                                    syntax=args.syntax)
+    elif args.mode == EvaluationMode.PERFORMANCE:
+        evaluator = MatchmakingPerformanceEvaluator(dataset=args.dataset,
+                                                    reasoners=args.reasoners,
+                                                    syntax=args.syntax,
+                                                    iterations=args.num_iterations)
+    elif args.mode == EvaluationMode.ENERGY:
+        evaluator = MatchmakingEnergyEvaluator(probe=args.energy_probe,
+                                               dataset=args.dataset,
+                                               reasoners=args.reasoners,
+                                               syntax=args.syntax,
+                                               iterations=args.num_iterations)
+    evaluator.start(args.resume_after)
     return 0
 
 
 def ontology_reasoning_sub(args, task: str) -> int:
-    test = None
+    evaluator = None
 
-    if args.mode == TestMode.CORRECTNESS:
-        test = OntologyReasoningCorrectnessTest(task=task,
-                                                dataset=args.dataset,
-                                                reasoners=args.reasoners,
-                                                syntax=args.syntax)
-    elif args.mode == TestMode.PERFORMANCE:
-        test = OntologyReasoningPerformanceTest(task=task,
-                                                dataset=args.dataset,
-                                                reasoners=args.reasoners,
-                                                syntax=args.syntax,
-                                                iterations=args.num_iterations)
-    elif args.mode == TestMode.ENERGY:
-        test = OntologyReasoningEnergyTest(task=task,
-                                           probe=args.energy_probe,
-                                           dataset=args.dataset,
-                                           reasoners=args.reasoners,
-                                           syntax=args.syntax,
-                                           iterations=args.num_iterations)
-    test.start(args.resume_after)
+    if args.mode == EvaluationMode.CORRECTNESS:
+        evaluator = OntologyReasoningCorrectnessEvaluator(task=task,
+                                                          dataset=args.dataset,
+                                                          reasoners=args.reasoners,
+                                                          syntax=args.syntax)
+    elif args.mode == EvaluationMode.PERFORMANCE:
+        evaluator = OntologyReasoningPerformanceEvaluator(task=task,
+                                                          dataset=args.dataset,
+                                                          reasoners=args.reasoners,
+                                                          syntax=args.syntax,
+                                                          iterations=args.num_iterations)
+    elif args.mode == EvaluationMode.ENERGY:
+        evaluator = OntologyReasoningEnergyEvaluator(task=task,
+                                                     probe=args.energy_probe,
+                                                     dataset=args.dataset,
+                                                     reasoners=args.reasoners,
+                                                     syntax=args.syntax,
+                                                     iterations=args.num_iterations)
+    evaluator.start(args.resume_after)
     return 0
 
 
@@ -231,9 +231,9 @@ def consistency_sub(args) -> int:
 
 
 def info_sub(args) -> int:
-    InfoTest(dataset=args.dataset,
-             reasoners=args.reasoners,
-             syntax=args.syntax).start(args.resume_after)
+    InfoEvaluator(dataset=args.dataset,
+                  reasoners=args.reasoners,
+                  syntax=args.syntax).start(args.resume_after)
     return 0
 
 

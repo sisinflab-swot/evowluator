@@ -7,7 +7,7 @@ from pyutils import exc
 from pyutils.proc.task import Task
 from pyutils.proc.util import find_executable
 
-from evowluator.test.test_mode import TestMode
+from evowluator.evaluation.mode import EvaluationMode
 from .base import (
     ClassificationOutputFormat,
     MatchmakingResults,
@@ -35,7 +35,7 @@ class MobileReasoner(Reasoner, ABC):
                  input_file: str,
                  output_file: Optional[str] = None,
                  timeout: Optional[float] = None,
-                 mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
+                 mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.CLASSIFICATION, mode=mode),
                                 input_arg=os.path.basename(input_file))
         task = self._run(args=args, timeout=timeout, mode=mode)
@@ -44,7 +44,7 @@ class MobileReasoner(Reasoner, ABC):
     def consistency(self,
                     input_file: str,
                     timeout: Optional[float] = None,
-                    mode: str = TestMode.CORRECTNESS) -> ReasoningResults:
+                    mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.CONSISTENCY, mode=mode),
                                 input_arg=os.path.basename(input_file))
         task = self._run(args, timeout=timeout, mode=mode)
@@ -55,7 +55,7 @@ class MobileReasoner(Reasoner, ABC):
                     request_file: str,
                     output_file: Optional[str] = None,
                     timeout: Optional[float] = None,
-                    mode: str = TestMode.CORRECTNESS) -> MatchmakingResults:
+                    mode: str = EvaluationMode.CORRECTNESS) -> MatchmakingResults:
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.MATCHMAKING, mode=mode),
                                 input_arg=os.path.basename(resource_file),
                                 request_arg=os.path.basename(request_file))

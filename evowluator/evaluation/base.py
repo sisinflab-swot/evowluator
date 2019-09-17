@@ -18,36 +18,35 @@ from evowluator.data.dataset import Dataset
 from evowluator.reasoner.base import Reasoner
 from evowluator.reasoner.loader import Loader
 from evowluator.reasoner.results import ReasoningResults
+from .mode import EvaluationMode
 
-from .test_mode import TestMode
 
-
-class Test(ABC):
-    """Abstract test class."""
+class Evaluator(ABC):
+    """Abstract evaluator class."""
 
     # Override
 
     @property
     @abstractmethod
     def name(self) -> str:
-        """Name of this test."""
+        """Name of this evaluator."""
         pass
 
     @abstractmethod
     def setup(self) -> None:
-        """Called before the test starts iterating on ontologies."""
+        """Called before the evaluator starts iterating on ontologies."""
         pass
 
     @abstractmethod
     def run(self, entry: Dataset.Entry) -> None:
-        """Runs test over a single ontology."""
+        """Runs the evaluator over a single ontology."""
         pass
 
     # Public
 
     @cached_property
     def work_dir(self) -> str:
-        """Work directory for this test."""
+        """Work directory."""
         name = re.sub(r"[^\w\s]", '', self.name)
         name = re.sub(r"\s+", '_', name)
         prefix = time.strftime('{}_%Y%m%d_%H%M%S_'.format(name))
@@ -56,7 +55,7 @@ class Test(ABC):
 
     @cached_property
     def temp_dir(self) -> str:
-        """Temp directory for this test."""
+        """Directory for temporary files."""
         new_dir = path.join(self.work_dir, 'temp')
         fileutils.create_dir(new_dir)
         return new_dir
@@ -99,7 +98,7 @@ class Test(ABC):
         fileutils.remove_dir_contents(self.temp_dir)
 
     def start(self, resume_ontology: Optional[str] = None) -> None:
-        """Starts the test."""
+        """Starts the evaluation."""
         self._logger = Logger(path.join(self.work_dir, config.Paths.LOG_FILE_NAME))
         self._csv_writer = CSVWriter(path.join(self.work_dir, config.Paths.RESULTS_FILE_NAME))
         self.__save_config()
@@ -108,7 +107,7 @@ class Test(ABC):
             self._logger.clear()
             self.__log_config()
             self.setup()
-            self._start_test(resume_ontology)
+            self._start(resume_ontology)
 
         fileutils.chmod(self.work_dir, 0o666, recursive=True, dir_mode=0o777)
 
@@ -134,7 +133,7 @@ class Test(ABC):
     def _usable_reasoners(self) -> List[Reasoner]:
         return [r for r in self._reasoners if self._syntaxes_for_reasoner(r)]
 
-    def _start_test(self, resume_ontology: Optional[str] = None) -> None:
+    def _start(self, resume_ontology: Optional[str] = None) -> None:
         for entry in self._dataset.get_entries(resume_after=resume_ontology):
             sizes = ('{}: {}'.format(o.syntax, o.readable_size) for o in entry.ontologies())
             size_str = ' | '.join(sizes)
@@ -160,16 +159,16 @@ class Test(ABC):
     def __log_config(self) -> None:
         self._logger.log('Selected reasoners and serializations:', color=echo.Color.GREEN)
         self._logger.indent_level += 1
-
         for reasoner in self._reasoners:
             self.__log_syntaxes(reasoner)
-
         self._logger.indent_level -= 1
 
-        msg = '\nStarting {} test on "{}" dataset ({} ontologies)...\n'.format(self.name,
-                                                                               self._dataset.name,
-                                                                               self._dataset.size)
-        self._logger.log(msg, color=echo.Color.GREEN)
+        self._logger.log('\nSelected dataset: ', color=echo.Color.GREEN)
+        self._logger.indent_level += 1
+        self._logger.log('{}: {} ontologies'.format(self._dataset.name, self._dataset.size))
+        self._logger.indent_level -= 1
+
+        self._logger.log('\nStarting {} evaluation...\n'.format(self.name), color=echo.Color.GREEN)
 
     def __log_syntaxes(self, reasoner: Reasoner) -> None:
         syntaxes = self._syntaxes_for_reasoner(reasoner)
@@ -197,13 +196,13 @@ class Test(ABC):
         json.save(cfg, path.join(self.work_dir, config.Paths.CONFIG_FILE_NAME))
 
 
-class ReasoningTest(Test):
-    """Abstract reasoning test class."""
+class ReasoningEvaluator(Evaluator):
+    """Abstract reasoning evaluator class."""
 
     @property
     @abstractmethod
     def mode(self) -> str:
-        """Test mode."""
+        """Evaluation mode."""
         pass
 
     # Overrides
@@ -224,12 +223,12 @@ class ReasoningTest(Test):
             self._reasoners = self._loader.reasoners_supporting_task(task)
 
 
-class ReasoningEnergyTest(ReasoningTest, ABC):
-    """Abstract reasoning energy test class."""
+class ReasoningEnergyEvaluator(ReasoningEvaluator, ABC):
+    """Abstract reasoning energy evaluator class."""
 
     @property
     def mode(self) -> str:
-        return TestMode.ENERGY
+        return EvaluationMode.ENERGY
 
     @property
     def result_fields(self) -> List[str]:
@@ -264,8 +263,8 @@ class ReasoningEnergyTest(ReasoningTest, ABC):
             reasoner.energy_probe = probe
 
 
-class NotImplementedTest:
-    """Not implemented test."""
+class NotImplementedEvaluator:
+    """Not implemented evaluator."""
 
     def start(self, resume_ontology: Optional[str] = None):
         raise NotImplementedError('Not implemented.')

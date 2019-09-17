@@ -1,5 +1,5 @@
-class TestMode:
-    """Namespace for test modes."""
+class EvaluationMode:
+    """Namespace for evaluation modes."""
     CORRECTNESS = 'correctness'
     PERFORMANCE = 'performance'
     ENERGY = 'energy'

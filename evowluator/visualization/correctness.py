@@ -18,8 +18,8 @@ class CorrectnessVisualizer(Visualizer):
     def plotters(self):
         return super().plotters + [self._histogram_plotter]
 
-    def __init__(self, test_dir: str, cfg, index_columns: List[str] = None) -> None:
-        super().__init__(test_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
+    def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
+        super().__init__(results_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
         self.reasoners = self.reasoners[1:]
         self._global_stats: Optional[pd.DataFrame] = None
 

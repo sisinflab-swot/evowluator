@@ -6,20 +6,20 @@ from typing import List, Optional
 from pyutils.io import echo, fileutils
 
 from evowluator import config
-from evowluator.config import Test as TestConfig
+from evowluator.config import Evaluation as EvaluationConfig
 from evowluator.data.dataset import Dataset
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import MatchmakingResults
-from .base import ReasoningTest, ReasoningEnergyTest
-from .test_mode import TestMode
+from .base import ReasoningEnergyEvaluator, ReasoningEvaluator
+from .mode import EvaluationMode
 
 
-class MatchmakingCorrectnessTest(ReasoningTest):
-    """Test class for checking the correctness of non-standard reasoning."""
+class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
+    """Evaluates the correctness of non-standard reasoning tasks."""
 
     @property
     def mode(self) -> str:
-        return TestMode.CORRECTNESS
+        return EvaluationMode.CORRECTNESS
 
     def __init__(self,
                  dataset: Optional[str] = None,
@@ -59,7 +59,8 @@ class MatchmakingCorrectnessTest(ReasoningTest):
             try:
                 ref_resource, ref_request = entry.ontology(ref_syntax), request.ontology(ref_syntax)
                 ref_result = reference.matchmaking(ref_resource.path, ref_request.path,
-                                                   output_file=ref_out, timeout=TestConfig.TIMEOUT,
+                                                   output_file=ref_out,
+                                                   timeout=EvaluationConfig.TIMEOUT,
                                                    mode=self.mode)
             except Exception as e:
                 if config.DEBUG:
@@ -80,7 +81,7 @@ class MatchmakingCorrectnessTest(ReasoningTest):
                     try:
                         r_result = reasoner.matchmaking(resource_onto.path, request_onto.path,
                                                         output_file=r_out,
-                                                        timeout=TestConfig.TIMEOUT,
+                                                        timeout=EvaluationConfig.TIMEOUT,
                                                         mode=self.mode)
                     except TimeoutExpired:
                         result = 'timeout'
@@ -109,8 +110,8 @@ class MatchmakingCorrectnessTest(ReasoningTest):
         self._logger.log('')
 
 
-class MatchmakingMeasurementTest(ReasoningTest, ABC):
-    """Abstract test class for measuring stats of matchmaking tasks."""
+class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
+    """Measures stats of matchmaking tasks."""
 
     # Override
 
@@ -170,7 +171,7 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
 
                     try:
                         stats = reasoner.matchmaking(resource_onto.path, request_onto.path,
-                                                     timeout=TestConfig.TIMEOUT,
+                                                     timeout=EvaluationConfig.TIMEOUT,
                                                      mode=self.mode)
                         csv_row.extend(self.extract_results(stats))
                     except TimeoutExpired:
@@ -190,13 +191,14 @@ class MatchmakingMeasurementTest(ReasoningTest, ABC):
             self._logger.log('')
 
 
-class MatchmakingPerformanceTest(MatchmakingMeasurementTest):
+class MatchmakingPerformanceEvaluator(MatchmakingMeasurementEvaluator):
+    """Evaluates the performance of non-standard reasoning tasks."""
 
     # Overrides
 
     @property
     def mode(self) -> str:
-        return TestMode.PERFORMANCE
+        return EvaluationMode.PERFORMANCE
 
     @property
     def result_fields(self) -> List[str]:
@@ -218,7 +220,8 @@ class MatchmakingPerformanceTest(MatchmakingMeasurementTest):
         return [results.parsing_ms, results.init_ms, results.matchmaking_ms, results.max_memory]
 
 
-class MatchmakingEnergyTest(ReasoningEnergyTest, MatchmakingMeasurementTest):
+class MatchmakingEnergyEvaluator(ReasoningEnergyEvaluator, MatchmakingMeasurementEvaluator):
+    """Evaluates the energy usage of non-standard reasoning tasks."""
 
     def __init__(self,
                  probe: str,

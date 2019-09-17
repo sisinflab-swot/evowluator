@@ -1,10 +1,10 @@
 from evowluator.data.ontology import Ontology
 
-from .base import Test
+from .base import Evaluator
 
 
-class InfoTest(Test):
-    """Dataset and reasoner info test."""
+class InfoEvaluator(Evaluator):
+    """Dataset and reasoner info evaluator."""
 
     @property
     def name(self):

@@ -13,7 +13,7 @@ from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
 from evowluator.data.dataset import Dataset
 from evowluator.reasoner.base import ReasoningTask
-from evowluator.test.test_mode import TestMode
+from evowluator.evaluation.mode import EvaluationMode
 from . import plotutils
 from .metric import Metric
 
@@ -34,39 +34,39 @@ class Visualizer:
     # Public
 
     @classmethod
-    def from_dir(cls, test_dir: str) -> 'Visualizer':
+    def from_dir(cls, results_dir: str) -> 'Visualizer':
         from .correctness import CorrectnessVisualizer
         from .performance import EnergyVisualizer, PerformanceVisualizer
 
-        cfg = json.load(os.path.join(test_dir, Paths.CONFIG_FILE_NAME))
-        test_name = cfg[ConfigKey.NAME]
+        cfg = json.load(os.path.join(results_dir, Paths.CONFIG_FILE_NAME))
+        eval_name = cfg[ConfigKey.NAME]
 
-        cols = ['Resource', 'Request'] if ReasoningTask.MATCHMAKING in test_name else ['Ontology']
+        cols = ['Resource', 'Request'] if ReasoningTask.MATCHMAKING in eval_name else ['Ontology']
 
-        if TestMode.CORRECTNESS in test_name:
-            return CorrectnessVisualizer(test_dir, cfg, index_columns=cols)
-        elif TestMode.PERFORMANCE in test_name:
-            return PerformanceVisualizer(test_dir, cfg, index_columns=cols)
-        elif TestMode.ENERGY in test_name:
-            return EnergyVisualizer(test_dir, cfg, index_columns=cols)
+        if EvaluationMode.CORRECTNESS in eval_name:
+            return CorrectnessVisualizer(results_dir, cfg, index_columns=cols)
+        elif EvaluationMode.PERFORMANCE in eval_name:
+            return PerformanceVisualizer(results_dir, cfg, index_columns=cols)
+        elif EvaluationMode.ENERGY in eval_name:
+            return EnergyVisualizer(results_dir, cfg, index_columns=cols)
         else:
-            raise NotImplementedError('Visualizer not implemented for test "{}"'.format(test_name))
+            raise NotImplementedError('Visualizer not implemented for "{}"'.format(eval_name))
 
     @property
     def results_path(self) -> str:
-        return os.path.join(self.test_dir, Paths.RESULTS_FILE_NAME)
+        return os.path.join(self.results_dir, Paths.RESULTS_FILE_NAME)
 
     @property
     def output_dir(self) -> str:
-        return path.join(self.test_dir, 'visualization')
+        return path.join(self.results_dir, 'visualization')
 
     @property
     def config_path(self) -> str:
-        return os.path.join(self.test_dir, Paths.CONFIG_FILE_NAME)
+        return os.path.join(self.results_dir, Paths.CONFIG_FILE_NAME)
 
-    def __init__(self, test_dir: str, cfg, index_columns: List[str] = None,
+    def __init__(self, results_dir: str, cfg, index_columns: List[str] = None,
                  non_numeric_columns: Union[bool, List[str]] = False) -> None:
-        self.test_dir = test_dir
+        self.results_dir = results_dir
         self.index_columns = index_columns if index_columns else ['Ontology']
         self.dataset_name = cfg[ConfigKey.DATASET]
 

@@ -31,14 +31,14 @@ class OWLTool:
 
 
 class ConfigKey:
-    """Test config dictionary keys."""
+    """Evaluation config dictionary keys."""
     DATASET = 'dataset'
     REASONERS = 'reasoners'
     NAME = 'name'
     SYNTAX = 'syntax'
 
 
-class Test:
-    """Test config namespace."""
+class Evaluation:
+    """Evaluation config namespace."""
     TIMEOUT = 1200.0
     DEFAULT_ITERATIONS = 5

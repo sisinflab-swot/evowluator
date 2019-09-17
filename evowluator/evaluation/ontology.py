@@ -8,16 +8,16 @@ from pyutils.io import echo, fileutils
 from evowluator import config
 from evowluator.data.dataset import Dataset
 from evowluator.reasoner.results import ReasoningResults
-from .base import ReasoningTest, ReasoningEnergyTest
-from .test_mode import TestMode
+from .base import ReasoningEnergyEvaluator, ReasoningEvaluator
+from .mode import EvaluationMode
 
 
-class OntologyReasoningCorrectnessTest(ReasoningTest):
-    """Test class for checking the correctness of reasoning tasks over ontologies."""
+class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
+    """Evaluates the correctness of reasoning tasks over ontologies."""
 
     @property
     def mode(self) -> str:
-        return TestMode.CORRECTNESS
+        return EvaluationMode.CORRECTNESS
 
     def setup(self):
         reasoners = self._usable_reasoners()
@@ -44,7 +44,7 @@ class OntologyReasoningCorrectnessTest(ReasoningTest):
             ref_ontology = entry.ontology(self._syntax_for_reasoner(reference))
             ref_result = reference.perform_task(self.task, ref_ontology.path,
                                                 output_file=reference_out,
-                                                timeout=config.Test.TIMEOUT, mode=self.mode)
+                                                timeout=config.Evaluation.TIMEOUT, mode=self.mode)
         except Exception as e:
             if config.DEBUG:
                 raise e
@@ -61,7 +61,7 @@ class OntologyReasoningCorrectnessTest(ReasoningTest):
                     r_ontology = entry.ontology(self._syntax_for_reasoner(reasoner))
                     r_result = reasoner.perform_task(self.task, r_ontology.path,
                                                      output_file=reasoner_out,
-                                                     timeout=config.Test.TIMEOUT,
+                                                     timeout=config.Evaluation.TIMEOUT,
                                                      mode=self.mode)
                 except TimeoutExpired:
                     result = 'timeout'
@@ -86,8 +86,8 @@ class OntologyReasoningCorrectnessTest(ReasoningTest):
         self._csv_writer.write_row(csv_row)
 
 
-class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
-    """Abstract test class for measuring stats of reasoning tasks over ontologies."""
+class OntologyReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
+    """Evaluates stats of reasoning tasks over ontologies."""
 
     # Override
 
@@ -99,7 +99,7 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
 
     @abstractmethod
     def extract_results(self, results: ReasoningResults) -> List:
-        """Extract and log relevant results."""
+        """Extracts and logs relevant results."""
         pass
 
     # Overrides
@@ -143,7 +143,7 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
 
                 try:
                     results = reasoner.perform_task(self.task, ontology.path,
-                                                    timeout=config.Test.TIMEOUT, mode=self.mode)
+                                                    timeout=config.Evaluation.TIMEOUT, mode=self.mode)
                     csv_row.extend(self.extract_results(results))
                 except TimeoutExpired:
                     csv_row.extend(['timeout'] * len(self.result_fields))
@@ -161,14 +161,14 @@ class OntologyReasoningMeasurementTest(ReasoningTest, ABC):
             self._csv_writer.write_row(csv_row)
 
 
-class OntologyReasoningPerformanceTest(OntologyReasoningMeasurementTest):
-    """Test class for measuring the performance of reasoning tasks over ontologies."""
+class OntologyReasoningPerformanceEvaluator(OntologyReasoningMeasurementEvaluator):
+    """Evaluates the performance of reasoning tasks over ontologies."""
 
     # Overrides
 
     @property
     def mode(self) -> str:
-        return TestMode.PERFORMANCE
+        return EvaluationMode.PERFORMANCE
 
     @property
     def result_fields(self) -> List[str]:
@@ -189,8 +189,9 @@ class OntologyReasoningPerformanceTest(OntologyReasoningMeasurementTest):
         return [results.parsing_ms, results.reasoning_ms, results.max_memory]
 
 
-class OntologyReasoningEnergyTest(ReasoningEnergyTest, OntologyReasoningMeasurementTest):
-    """Abstract test class for measuring energy used by reasoning tasks over ontologies."""
+class OntologyReasoningEnergyEvaluator(ReasoningEnergyEvaluator,
+                                       OntologyReasoningMeasurementEvaluator):
+    """Evaluates the energy usage of reasoning tasks over ontologies."""
 
     def __init__(self, task: str, probe: str,
                  dataset: Optional[str] = None,

@@ -7,7 +7,7 @@ from pyutils import exc
 from pyutils.proc.bench import Benchmark, EnergyProfiler
 from pyutils.proc.task import Task
 
-TestTask = Union[Task, Benchmark, EnergyProfiler]
+EvaluationTask = Union[Task, Benchmark, EnergyProfiler]
 
 
 class EnergyStats(NamedTuple):
@@ -231,11 +231,11 @@ class ResultsParser:
 
     # Public methods
 
-    def parse_classification_results(self, task: TestTask) -> StandardReasoningResults:
+    def parse_classification_results(self, task: EvaluationTask) -> StandardReasoningResults:
         """Parses the results of the classification task."""
         return self._parse_reasoning_stats(task)
 
-    def parse_consistency_results(self, task: TestTask) -> StandardReasoningResults:
+    def parse_consistency_results(self, task: EvaluationTask) -> StandardReasoningResults:
         """Parses the results of the consistency task."""
         results = self._parse_reasoning_stats(task)
 
@@ -248,7 +248,7 @@ class ResultsParser:
 
         return results.with_output(res, is_file=False)
 
-    def parse_matchmaking_results(self, task: TestTask) -> MatchmakingResults:
+    def parse_matchmaking_results(self, task: EvaluationTask) -> MatchmakingResults:
         """Parses the result of the matchmaking task by parsing stdout."""
         stdout = task.stdout
         exc.raise_if_falsy(stdout=stdout)
@@ -275,7 +275,7 @@ class ResultsParser:
 
     # Protected methods
 
-    def _parse_reasoning_stats(self, task: TestTask) -> StandardReasoningResults:
+    def _parse_reasoning_stats(self, task: EvaluationTask) -> StandardReasoningResults:
         """Parses stats for a reasoning task."""
         stdout = task.stdout
         exc.raise_if_falsy(stdout=stdout)
@@ -292,7 +292,7 @@ class ResultsParser:
                                         max_memory=self._parse_memory(task),
                                         energy_stats=self._parse_energy(task))
 
-    def _parse_memory(self, task: TestTask) -> int:
+    def _parse_memory(self, task: EvaluationTask) -> int:
         """Parses the peak memory for a reasoning task."""
         if isinstance(task, Benchmark):
             return task.max_memory
@@ -300,7 +300,7 @@ class ResultsParser:
         res = re.search(r'Memory: (.*) B', task.stdout)
         return int(res.group(1)) if res else 0
 
-    def _parse_energy(self, task: TestTask) -> EnergyStats:
+    def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
         """Parses the energy score for a reasoning task."""
         if isinstance(task, EnergyProfiler):
             return EnergyStats(task.samples, task.sampling_interval)
