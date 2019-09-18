@@ -5,7 +5,7 @@ from typing import List, Optional
 from pyutils.proc.bench import EnergyProbe
 
 from evowluator.config import Paths
-from .base import Reasoner
+from evowluator.reasoner.base import Reasoner
 
 
 class Loader:

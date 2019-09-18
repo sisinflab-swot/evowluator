@@ -16,8 +16,8 @@ from evowluator.data import json
 from evowluator.data.csv import CSVWriter
 from evowluator.data.dataset import Dataset
 from evowluator.reasoner.base import Reasoner
-from evowluator.reasoner.loader import Loader
 from evowluator.reasoner.results import ReasoningResults
+from evowluator.user.loader import Loader
 from .mode import EvaluationMode
 
 
