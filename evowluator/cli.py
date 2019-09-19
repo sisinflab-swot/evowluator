@@ -56,11 +56,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Mode parser
     mode_parser = argparse.ArgumentParser(add_help=False)
+    modes = [m for m in EvaluationMode]
 
     group = mode_parser.add_argument_group('Mode')
     group.add_argument('-m', '--mode',
-                       choices=EvaluationMode.ALL,
-                       default=EvaluationMode.ALL[0],
+                       type=EvaluationMode,
+                       choices=modes,
+                       default=modes[0],
                        help='Evaluation mode.')
     group.add_argument('-e', '--energy-probe',
                        help='Probe to use for energy measurements.')
@@ -79,7 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
                        default=EvaluationConfig.DEFAULT_ITERATIONS,
                        help='Number of iterations.')
     group.add_argument('-s', '--syntax',
-                       choices=Ontology.Syntax.ALL,
+                       type=Ontology.Syntax,
+                       choices=Ontology.Syntax.all(),
                        help='Use the specified OWL syntax whenever possible.')
     group.add_argument('--resume-after',
                        help='Resume the evaluation after the specified ontology.')
@@ -163,7 +166,8 @@ def build_parser() -> argparse.ArgumentParser:
                         required=True,
                         help='Dataset to convert.')
     parser.add_argument('-s', '--syntax',
-                        choices=Ontology.Syntax.ALL,
+                        type=Ontology.Syntax,
+                        choices=Ontology.Syntax.all(),
                         required=True,
                         help='Desired syntax.')
 
@@ -197,7 +201,7 @@ def matchmaking_sub(args) -> int:
     return 0
 
 
-def ontology_reasoning_sub(args, task: str) -> int:
+def ontology_reasoning_sub(args, task: ReasoningTask) -> int:
     evaluator = None
 
     if args.mode == EvaluationMode.CORRECTNESS:

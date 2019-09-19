@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
@@ -11,21 +13,23 @@ from evowluator.config import Paths
 from evowluator.data.ontology import Ontology
 from evowluator.evaluation.mode import EvaluationMode
 from evowluator.util import owltool
+from evowluator.util.strenum import StrEnum
 from .results import MatchmakingResults, ReasoningResults, ResultsParser
 
 
-class ReasoningTask:
-    """Reasoning tasks namespace."""
+class ReasoningTask(StrEnum):
+    """Reasoning tasks."""
     CLASSIFICATION = 'classification'
     CONSISTENCY = 'consistency'
     MATCHMAKING = 'matchmaking'
 
-    STANDARD = [CLASSIFICATION, CONSISTENCY]
-    ALL = [CLASSIFICATION, CONSISTENCY, MATCHMAKING]
+    @classmethod
+    def standard(cls) -> List[ReasoningTask]:
+        return [cls.CLASSIFICATION, cls.CONSISTENCY]
 
 
 class MetaArgs:
-    """Meta-arguments namespace."""
+    """Meta-arguments."""
     INPUT = '<input_meta_arg>'
     OUTPUT = '<output_meta_arg>'
     REQUEST = '<request_meta_arg>'
@@ -47,8 +51,8 @@ class MetaArgs:
         return args
 
 
-class ClassificationOutputFormat:
-    """Classification output format namespace."""
+class OutputFormat(StrEnum):
+    """Output format."""
     TEXT = 'text'
     ONTOLOGY = 'ontology'
 
@@ -79,24 +83,24 @@ class Reasoner(ABC):
         pass
 
     @property
-    def supported_syntaxes(self) -> List[str]:
+    def supported_syntaxes(self) -> List[Ontology.Syntax]:
         """OWL syntaxes supported by the reasoner."""
-        return Ontology.Syntax.ALL
+        return Ontology.Syntax.all()
 
     @property
-    def supported_tasks(self) -> List[str]:
+    def supported_tasks(self) -> List[ReasoningTask]:
         """Reasoning tasks supported by the reasoner."""
-        return ReasoningTask.STANDARD
+        return ReasoningTask.standard()
 
     @property
-    def preferred_syntax(self) -> str:
+    def preferred_syntax(self) -> Ontology.Syntax:
         """Default syntax used by the reasoner."""
         return self.supported_syntaxes[0]
 
     @property
-    def classification_output_format(self) -> str:
+    def classification_output_format(self) -> OutputFormat:
         """Output format of the classification task."""
-        return ClassificationOutputFormat.TEXT
+        return OutputFormat.TEXT
 
     @property
     def results_parser(self) -> ResultsParser:
@@ -104,7 +108,7 @@ class Reasoner(ABC):
         return ResultsParser()
 
     @abstractmethod
-    def args(self, task: str, mode: str) -> List[str]:
+    def args(self, task: ReasoningTask, mode: EvaluationMode) -> List[str]:
         """Args to be passed to the reasoner executable for each task and evaluation mode."""
         pass
 
@@ -113,9 +117,9 @@ class Reasoner(ABC):
     def __init__(self) -> None:
         self.energy_probe: Optional[EnergyProbe] = None
 
-    def perform_task(self, task: str, input_file: Union[str, Tuple[str, str]],
+    def perform_task(self, task: ReasoningTask, input_file: Union[str, Tuple[str, str]],
                      output_file: Optional[str] = None, timeout: Optional[float] = None,
-                     mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
+                     mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         """Performs the specified reasoning task."""
         if task == ReasoningTask.CLASSIFICATION:
             return self.classify(input_file, output_file=output_file, timeout=timeout, mode=mode)
@@ -128,12 +132,12 @@ class Reasoner(ABC):
                  input_file: str,
                  output_file: Optional[str] = None,
                  timeout: Optional[float] = None,
-                 mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
+                 mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         """Runs the classification reasoning task."""
         exc.raise_if_not_found(input_file, file_type=exc.FileType.FILE)
 
         classification_out = None
-        use_owl_tool = self.classification_output_format == ClassificationOutputFormat.ONTOLOGY
+        use_owl_tool = self.classification_output_format == OutputFormat.ONTOLOGY
 
         if output_file:
             if use_owl_tool:
@@ -158,7 +162,7 @@ class Reasoner(ABC):
     def consistency(self,
                     input_file: str,
                     timeout: Optional[float] = None,
-                    mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
+                    mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         """Checks if the given ontology is consistent."""
         exc.raise_if_not_found(input_file, file_type=exc.FileType.FILE)
 
@@ -173,7 +177,7 @@ class Reasoner(ABC):
                     request_file: str,
                     output_file: Optional[str] = None,
                     timeout: Optional[float] = None,
-                    mode: str = EvaluationMode.CORRECTNESS) -> MatchmakingResults:
+                    mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> MatchmakingResults:
         """Runs abductions or contractions between all resource and request individuals."""
         exc.raise_if_not_found(resource_file, file_type=exc.FileType.FILE)
         exc.raise_if_not_found(request_file, file_type=exc.FileType.FILE)
@@ -200,7 +204,7 @@ class Reasoner(ABC):
     def _task(self, args: List[str]) -> Task:
         return Task(self._absolute_path(self.path), args=args)
 
-    def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
+    def _run(self, args: List[str], timeout: Optional[float], mode: EvaluationMode) -> Task:
         """Runs the reasoner."""
         exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
         task = self._task(args)

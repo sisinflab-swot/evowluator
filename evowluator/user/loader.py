@@ -5,7 +5,7 @@ from typing import List, Optional
 from pyutils.proc.bench import EnergyProbe
 
 from evowluator.config import Paths
-from evowluator.reasoner.base import Reasoner
+from evowluator.reasoner.base import Reasoner, ReasoningTask
 
 
 class Loader:
@@ -27,7 +27,7 @@ class Loader:
         lower_name = name.lower()
         return next((r for r in self.reasoners if r.name.lower() == lower_name), None)
 
-    def reasoners_supporting_task(self, task: str) -> List[Reasoner]:
+    def reasoners_supporting_task(self, task: ReasoningTask) -> List[Reasoner]:
         """Returns the reasoners that support the specified reasoning task."""
         return [r for r in self.reasoners if task in r.supported_tasks]
 

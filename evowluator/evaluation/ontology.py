@@ -7,6 +7,8 @@ from pyutils.io import echo, fileutils
 
 from evowluator import config
 from evowluator.data.dataset import Dataset
+from evowluator.data.ontology import Ontology
+from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import ReasoningResults
 from .base import ReasoningEnergyEvaluator, ReasoningEvaluator
 from .mode import EvaluationMode
@@ -16,7 +18,7 @@ class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
     """Evaluates the correctness of reasoning tasks over ontologies."""
 
     @property
-    def mode(self) -> str:
+    def mode(self) -> EvaluationMode:
         return EvaluationMode.CORRECTNESS
 
     def setup(self):
@@ -104,10 +106,10 @@ class OntologyReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
 
     # Overrides
 
-    def __init__(self, task: str,
+    def __init__(self, task: ReasoningTask,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None,
+                 syntax: Optional[Ontology.Syntax] = None,
                  iterations: int = 1):
         super().__init__(task=task, dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.iterations = iterations
@@ -143,7 +145,8 @@ class OntologyReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
 
                 try:
                     results = reasoner.perform_task(self.task, ontology.path,
-                                                    timeout=config.Evaluation.TIMEOUT, mode=self.mode)
+                                                    timeout=config.Evaluation.TIMEOUT,
+                                                    mode=self.mode)
                     csv_row.extend(self.extract_results(results))
                 except TimeoutExpired:
                     csv_row.extend(['timeout'] * len(self.result_fields))
@@ -167,7 +170,7 @@ class OntologyReasoningPerformanceEvaluator(OntologyReasoningMeasurementEvaluato
     # Overrides
 
     @property
-    def mode(self) -> str:
+    def mode(self) -> EvaluationMode:
         return EvaluationMode.PERFORMANCE
 
     @property
@@ -193,10 +196,10 @@ class OntologyReasoningEnergyEvaluator(ReasoningEnergyEvaluator,
                                        OntologyReasoningMeasurementEvaluator):
     """Evaluates the energy usage of reasoning tasks over ontologies."""
 
-    def __init__(self, task: str, probe: str,
+    def __init__(self, task: ReasoningTask, probe: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None,
+                 syntax: Optional[Ontology.Syntax] = None,
                  iterations: int = 1):
         super().__init__(task=task, probe=probe, dataset=dataset, reasoners=reasoners,
                          syntax=syntax, iterations=iterations)

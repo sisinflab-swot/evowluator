@@ -9,7 +9,7 @@ from pyutils.proc.util import find_executable
 
 from evowluator.evaluation.mode import EvaluationMode
 from .base import (
-    ClassificationOutputFormat,
+    OutputFormat,
     MatchmakingResults,
     MetaArgs,
     Reasoner,
@@ -28,14 +28,14 @@ class MobileReasoner(Reasoner, ABC):
         return cls == MobileReasoner
 
     @property
-    def classification_output_format(self):
-        return ClassificationOutputFormat.TEXT
+    def classification_output_format(self) -> OutputFormat:
+        return OutputFormat.TEXT
 
     def classify(self,
                  input_file: str,
                  output_file: Optional[str] = None,
                  timeout: Optional[float] = None,
-                 mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
+                 mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.CLASSIFICATION, mode=mode),
                                 input_arg=os.path.basename(input_file))
         task = self._run(args=args, timeout=timeout, mode=mode)
@@ -44,7 +44,7 @@ class MobileReasoner(Reasoner, ABC):
     def consistency(self,
                     input_file: str,
                     timeout: Optional[float] = None,
-                    mode: str = EvaluationMode.CORRECTNESS) -> ReasoningResults:
+                    mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> ReasoningResults:
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.CONSISTENCY, mode=mode),
                                 input_arg=os.path.basename(input_file))
         task = self._run(args, timeout=timeout, mode=mode)
@@ -55,14 +55,14 @@ class MobileReasoner(Reasoner, ABC):
                     request_file: str,
                     output_file: Optional[str] = None,
                     timeout: Optional[float] = None,
-                    mode: str = EvaluationMode.CORRECTNESS) -> MatchmakingResults:
+                    mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> MatchmakingResults:
         args = MetaArgs.replace(args=self.args(task=ReasoningTask.MATCHMAKING, mode=mode),
                                 input_arg=os.path.basename(resource_file),
                                 request_arg=os.path.basename(request_file))
         task = self._run(args, timeout=timeout, mode=mode)
         return self.results_parser.parse_matchmaking_results(task)
 
-    def _run(self, args: List[str], timeout: Optional[float], mode: str) -> Task:
+    def _run(self, args: List[str], timeout: Optional[float], mode: EvaluationMode) -> Task:
         exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
         task = Task(self._absolute_path(self.path), args=args)
         task.run(timeout=timeout)
@@ -95,11 +95,11 @@ class AndroidReasoner(MobileReasoner, ABC):
         return cls == AndroidReasoner
 
     @property
-    def path(self):
+    def path(self) -> str:
         return find_executable('adb')
 
-    def args(self, task: str, mode: str) -> List[str]:
-        instrument_env = [('task', task), ('resource', MetaArgs.INPUT)]
+    def args(self, task: ReasoningTask, mode: EvaluationMode) -> List[str]:
+        instrument_env = [('task', task.value), ('resource', MetaArgs.INPUT)]
 
         if task == ReasoningTask.MATCHMAKING:
             instrument_env.append(('request', MetaArgs.REQUEST))
@@ -136,7 +136,7 @@ class IOSReasoner(MobileReasoner, ABC):
         pass
 
     @abstractmethod
-    def test_name_for_task(self, task: str) -> str:
+    def test_name_for_task(self, task: ReasoningTask) -> str:
         """
         Override this method by returning the Xcode test name for the specified reasoning task.
         """
@@ -149,10 +149,10 @@ class IOSReasoner(MobileReasoner, ABC):
         return cls == IOSReasoner
 
     @property
-    def path(self):
+    def path(self) -> str:
         return find_executable('xcodebuild')
 
-    def args(self, task: str, mode: str) -> List[str]:
+    def args(self, task: ReasoningTask, mode: EvaluationMode) -> List[str]:
         args = ['-project', self._absolute_path(self.project),
                 '-scheme', self.scheme,
                 '-destination', 'platform=iOS,name={}'.format(self._detect_connected_device()),

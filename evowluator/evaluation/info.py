@@ -11,7 +11,7 @@ class InfoEvaluator(Evaluator):
         return 'info'
 
     def setup(self):
-        row = ['Ontology'] + ['Size ({})'.format(s) for s in Ontology.Syntax.ALL]
+        row = ['Ontology'] + ['Size ({})'.format(s.value) for s in Ontology.Syntax]
         self._csv_writer.write_row(row)
 
     def run(self, entry):

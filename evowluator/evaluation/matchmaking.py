@@ -8,6 +8,7 @@ from pyutils.io import echo, fileutils
 from evowluator import config
 from evowluator.config import Evaluation as EvaluationConfig
 from evowluator.data.dataset import Dataset
+from evowluator.data.ontology import Ontology
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import MatchmakingResults
 from .base import ReasoningEnergyEvaluator, ReasoningEvaluator
@@ -18,13 +19,13 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
     """Evaluates the correctness of non-standard reasoning tasks."""
 
     @property
-    def mode(self) -> str:
+    def mode(self) -> EvaluationMode:
         return EvaluationMode.CORRECTNESS
 
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None):
+                 syntax: Optional[Ontology.Syntax] = None):
         super().__init__(ReasoningTask.MATCHMAKING, dataset, reasoners, syntax)
 
     def setup(self):
@@ -131,7 +132,7 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None,
+                 syntax: Optional[Ontology.Syntax] = None,
                  iterations: int = 1):
         super().__init__(ReasoningTask.MATCHMAKING, dataset, reasoners, syntax)
         self._iterations = iterations
@@ -197,7 +198,7 @@ class MatchmakingPerformanceEvaluator(MatchmakingMeasurementEvaluator):
     # Overrides
 
     @property
-    def mode(self) -> str:
+    def mode(self) -> EvaluationMode:
         return EvaluationMode.PERFORMANCE
 
     @property
@@ -227,7 +228,7 @@ class MatchmakingEnergyEvaluator(ReasoningEnergyEvaluator, MatchmakingMeasuremen
                  probe: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None,
+                 syntax: Optional[Ontology.Syntax] = None,
                  iterations: int = 1):
         super().__init__(task=ReasoningTask.MATCHMAKING, probe=probe,
                          dataset=dataset, reasoners=reasoners, syntax=syntax, iterations=iterations)

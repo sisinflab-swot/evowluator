@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from collections import OrderedDict
 from math import ceil
@@ -12,6 +14,7 @@ from pyutils.io import fileutils
 from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
 from evowluator.data.dataset import Dataset
+from evowluator.data.ontology import Ontology
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.evaluation.mode import EvaluationMode
 from . import plotutils
@@ -34,20 +37,23 @@ class Visualizer:
     # Public
 
     @classmethod
-    def from_dir(cls, results_dir: str) -> 'Visualizer':
+    def from_dir(cls, results_dir: str) -> Visualizer:
         from .correctness import CorrectnessVisualizer
         from .performance import EnergyVisualizer, PerformanceVisualizer
 
         cfg = json.load(os.path.join(results_dir, Paths.CONFIG_FILE_NAME))
         eval_name = cfg[ConfigKey.NAME]
 
-        cols = ['Resource', 'Request'] if ReasoningTask.MATCHMAKING in eval_name else ['Ontology']
+        if ReasoningTask.MATCHMAKING.value in eval_name:
+            cols = ['Resource', 'Request']
+        else:
+            cols = ['Ontology']
 
-        if EvaluationMode.CORRECTNESS in eval_name:
+        if EvaluationMode.CORRECTNESS.value in eval_name:
             return CorrectnessVisualizer(results_dir, cfg, index_columns=cols)
-        elif EvaluationMode.PERFORMANCE in eval_name:
+        elif EvaluationMode.PERFORMANCE.value in eval_name:
             return PerformanceVisualizer(results_dir, cfg, index_columns=cols)
-        elif EvaluationMode.ENERGY in eval_name:
+        elif EvaluationMode.ENERGY.value in eval_name:
             return EnergyVisualizer(results_dir, cfg, index_columns=cols)
         else:
             raise NotImplementedError('Visualizer not implemented for "{}"'.format(eval_name))
@@ -70,8 +76,9 @@ class Visualizer:
         self.index_columns = index_columns if index_columns else ['Ontology']
         self.dataset_name = cfg[ConfigKey.DATASET]
 
-        self._syntaxes_by_reasoner: 'OrderedDict[str, str]' = OrderedDict(
-            (r[ConfigKey.NAME], r[ConfigKey.SYNTAX]) for r in cfg[ConfigKey.REASONERS]
+        self._syntaxes_by_reasoner: 'OrderedDict[str, Ontology.Syntax]' = OrderedDict(
+            (r[ConfigKey.NAME], Ontology.Syntax(r[ConfigKey.SYNTAX]))
+            for r in cfg[ConfigKey.REASONERS]
         )
 
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)

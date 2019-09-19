@@ -15,7 +15,8 @@ from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
 from evowluator.data.csv import CSVWriter
 from evowluator.data.dataset import Dataset
-from evowluator.reasoner.base import Reasoner
+from evowluator.data.ontology import Ontology
+from evowluator.reasoner.base import Reasoner, ReasoningTask
 from evowluator.reasoner.results import ReasoningResults
 from evowluator.user.loader import Loader
 from .mode import EvaluationMode
@@ -73,11 +74,11 @@ class Evaluator(ABC):
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None) -> None:
+                 syntax: Optional[Ontology.Syntax] = None) -> None:
         self._dataset = Dataset.with_name(dataset) if dataset else Dataset.first()
 
         if syntax and syntax not in self._dataset.syntaxes:
-            msg = '"{}" syntax not available in "{}" dataset.'.format(syntax, self._dataset.name)
+            msg = '"{}" syntax not available for "{}" dataset.'.format(syntax, self._dataset.name)
             raise ValueError(msg)
 
         self._loader = Loader()
@@ -113,11 +114,11 @@ class Evaluator(ABC):
 
     # Protected
 
-    def _syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[str]:
+    def _syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[Ontology.Syntax]:
         available = self._dataset.syntaxes
         return [s for s in reasoner.supported_syntaxes if s in available]
 
-    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Optional[str]:
+    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Optional[Ontology.Syntax]:
         supported = reasoner.supported_syntaxes
 
         if self._syntax in supported:
@@ -135,7 +136,7 @@ class Evaluator(ABC):
 
     def _start(self, resume_ontology: Optional[str] = None) -> None:
         for entry in self._dataset.get_entries(resume_after=resume_ontology):
-            sizes = ('{}: {}'.format(o.syntax, o.readable_size) for o in entry.ontologies())
+            sizes = sorted('{}: {}'.format(o.syntax, o.readable_size) for o in entry.ontologies())
             size_str = ' | '.join(sizes)
 
             self._logger.log('{}'.format(entry.name), color=echo.Color.YELLOW, endl=False)
@@ -171,15 +172,14 @@ class Evaluator(ABC):
         self._logger.log('\nStarting {} evaluation...\n'.format(self.name), color=echo.Color.GREEN)
 
     def __log_syntaxes(self, reasoner: Reasoner) -> None:
-        syntaxes = self._syntaxes_for_reasoner(reasoner)
-        syntaxes.sort()
+        syntaxes = sorted(self._syntaxes_for_reasoner(reasoner), key=lambda s: s.value)
 
         if not syntaxes:
             self._logger.log('{}: no syntaxes'.format(reasoner.name))
             return
 
         syntax = self._syntax_for_reasoner(reasoner)
-        syntaxes = ['[{}]'.format(s) if s == syntax else s for s in syntaxes]
+        syntaxes = ['[{}]'.format(s) if s == syntax else s.value for s in syntaxes]
         self._logger.log('{}: {}'.format(reasoner.name, ' '.join(syntaxes)))
 
     def __save_config(self) -> None:
@@ -189,7 +189,7 @@ class Evaluator(ABC):
             ConfigKey.DATASET: self._dataset.name,
             ConfigKey.REASONERS: [{
                 ConfigKey.NAME: r.name,
-                ConfigKey.SYNTAX: self._syntax_for_reasoner(r)
+                ConfigKey.SYNTAX: self._syntax_for_reasoner(r).value
             } for r in self._usable_reasoners()]
         }
 
@@ -201,7 +201,7 @@ class ReasoningEvaluator(Evaluator):
 
     @property
     @abstractmethod
-    def mode(self) -> str:
+    def mode(self) -> EvaluationMode:
         """Evaluation mode."""
         pass
 
@@ -212,10 +212,10 @@ class ReasoningEvaluator(Evaluator):
         return '{} {}'.format(self.task, self.mode)
 
     def __init__(self,
-                 task: str,
+                 task: ReasoningTask,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None) -> None:
+                 syntax: Optional[Ontology.Syntax] = None) -> None:
         super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.task = task
 
@@ -227,7 +227,7 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator, ABC):
     """Abstract reasoning energy evaluator class."""
 
     @property
-    def mode(self) -> str:
+    def mode(self) -> EvaluationMode:
         return EvaluationMode.ENERGY
 
     @property
@@ -235,10 +235,10 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator, ABC):
         return ['energy']
 
     def __init__(self,
-                 task: str, probe: str,
+                 task: ReasoningTask, probe: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[str] = None,
+                 syntax: Optional[Ontology.Syntax] = None,
                  iterations: int = 1):
         if not probe:
             raise ValueError('No probe specified.')

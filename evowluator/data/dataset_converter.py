@@ -6,12 +6,12 @@ from evowluator.data.ontology import Ontology
 from .dataset import Dataset
 
 
-def convert(dataset: Dataset, syntax: str) -> None:
+def convert(dataset: Dataset, syntax: Ontology.Syntax) -> None:
     echo.pretty(('Starting conversion of "{}" dataset '
                  '({} ontologies) in {} syntax...\n'.format(dataset.name, dataset.size, syntax)),
                 color=echo.Color.GREEN)
 
-    source_syntax = dataset.syntaxes[0]
+    source_syntax = next(s for s in dataset.syntaxes if s != syntax)
 
     for entry in dataset.get_entries():
         target_ontology = entry.ontology(syntax)
@@ -24,7 +24,7 @@ def convert(dataset: Dataset, syntax: str) -> None:
 
         _print_conversion_result(result)
 
-        for request in entry.requests():
+        for request in entry.requests(source_syntax):
             target_request = request.ontology(syntax)
 
             echo.pretty('    {}: '.format(target_request.name),

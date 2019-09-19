@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import filecmp
 import re
 from abc import ABC, abstractmethod
@@ -125,7 +127,7 @@ class ReasoningResults(ABC):
     def has_energy_stats(self) -> bool:
         return True if self.energy_stats else False
 
-    def output_matches(self, results: 'ReasoningResults') -> bool:
+    def output_matches(self, results: ReasoningResults) -> bool:
         if self.output_is_file != results.output_is_file:
             return False
 
@@ -174,7 +176,7 @@ class StandardReasoningResults(ReasoningResults):
         self._max_memory = max_memory
         self._energy_stats = energy_stats
 
-    def with_output(self, output: str, is_file: bool) -> 'StandardReasoningResults':
+    def with_output(self, output: str, is_file: bool) -> StandardReasoningResults:
         return StandardReasoningResults(output=output, output_is_file=is_file,
                                         parsing_ms=self.parsing_ms, reasoning_ms=self.reasoning_ms,
                                         max_memory=self.max_memory, energy_stats=self.energy_stats)
@@ -217,7 +219,7 @@ class MatchmakingResults(ReasoningResults):
         self._max_memory = max_memory
         self._energy_stats = energy_stats
 
-    def with_output(self, output: str, is_file: bool) -> 'MatchmakingResults':
+    def with_output(self, output: str, is_file: bool) -> MatchmakingResults:
         return MatchmakingResults(output=output, output_is_file=is_file,
                                   parsing_ms=self.parsing_ms,
                                   init_ms=self.init_ms,

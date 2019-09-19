@@ -1,24 +1,24 @@
+from __future__ import annotations
+
 import os
-from enum import Enum
 
 from pyutils.io import fileutils
 
 from evowluator.util import owltool
+from evowluator.util.strenum import StrEnum
 
 
 class Ontology:
     """Models ontology files."""
 
-    class Syntax:
-        """OWL ontology syntax namespace."""
+    class Syntax(StrEnum):
+        """OWL ontology syntaxes."""
         FUNCTIONAL = 'functional'
         MANCHESTER = 'manchester'
         OWLXML = 'owlxml'
         RDFXML = 'rdfxml'
 
-        ALL = [FUNCTIONAL, MANCHESTER, OWLXML, RDFXML]
-
-    class ConversionResult(Enum):
+    class ConversionResult(StrEnum):
         """Ontology conversion result."""
         SUCCESS = 'done'
         ALREADY_CONVERTED = 'already converted'
@@ -39,16 +39,16 @@ class Ontology:
         """Human readable string for the ontology size."""
         return fileutils.human_readable_size(self.path)
 
-    def __init__(self, path: str, syntax: str):
+    def __init__(self, path: str, syntax: Syntax):
         self.path = path
         self.syntax = syntax
 
-    def convert(self, target: 'Ontology') -> ConversionResult:
+    def convert(self, target: Ontology) -> ConversionResult:
         """Converts the ontology into the specified target ontology."""
         if os.path.isfile(target.path):
             return Ontology.ConversionResult.ALREADY_CONVERTED
 
-        if owltool.convert(self.path, target.path, target.syntax):
+        if owltool.convert(self.path, target.path, target.syntax.value):
             return Ontology.ConversionResult.SUCCESS
         else:
             return Ontology.ConversionResult.ERROR
