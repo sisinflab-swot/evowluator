@@ -154,8 +154,10 @@ class PerformanceVisualizer(Visualizer):
         data = dict(zip(['Parsing', 'Reasoning'], list(values)))
 
         metric = Metric('time', self._time_unit, '.0f')
-        plotutils.draw_grouped_histograms(ax, data, metric, reasoners)
-        ax.set_title('Total parsing and reasoning time')
+        plotutils.draw_grouped_histograms(ax, data, metric, reasoners, draw_titles=self.draw_titles)
+
+        if self.draw_titles:
+            ax.set_title('Total parsing and reasoning time')
 
     def __memory_histogram_plotter(self, ax: plt.Axes) -> None:
         metric = Metric('memory peak', 'MiB', '.2f')

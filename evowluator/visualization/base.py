@@ -83,7 +83,9 @@ class Visualizer:
 
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)
         self.reasoners: List[str] = list(self._syntaxes_by_reasoner.keys())
+
         self.fig_size: Optional[Tuple[float, float]] = None
+        self.draw_titles = True
 
     def ontologies(self) -> Iterable[str]:
         return self._results.index.values
@@ -182,7 +184,8 @@ class Visualizer:
 
             data.append((x, y))
 
-        plotutils.draw_scatter_plot(ax, dict(zip(self.reasoners, data)), xmetric, metric)
+        plotutils.draw_scatter_plot(ax, dict(zip(self.reasoners, data)), xmetric, metric,
+                                    draw_titles=self.draw_titles)
 
     def draw_min_max_avg(self, ax: plt.Axes, data: pd.DataFrame, metric: Metric,
                          col_filter: Optional[Callable[[str], bool]] = None) -> None:
@@ -194,4 +197,4 @@ class Visualizer:
 
         data = [data.loc[r].values for r in reasoners]
         data = dict(zip(reasoners, data))
-        plotutils.draw_min_avg_max_histograms(ax, data, metric)
+        plotutils.draw_min_avg_max_histograms(ax, data, metric, draw_titles=self.draw_titles)

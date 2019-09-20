@@ -50,11 +50,12 @@ def set_scale(ax: plt.Axes, scale: str, axis: str = 'both') -> None:
 
 
 def draw_grouped_histograms(ax: plt.Axes, data: Dict[str, List[float]], metric: Metric,
-                            groups: List[str]) -> None:
+                            groups: List[str], draw_titles: bool = True) -> None:
     configure_histogram_plot(ax, data)
 
-    ax.set_ylabel(metric.to_string(capitalize=True))
-    ax.set_title(metric.capitalized_name)
+    if draw_titles:
+        ax.set_ylabel(metric.to_string(capitalize=True))
+        ax.set_title(metric.capitalized_name)
 
     labels = list(data.keys())
     labels.sort()
@@ -81,17 +82,21 @@ def draw_grouped_histograms(ax: plt.Axes, data: Dict[str, List[float]], metric: 
     legend.set_draggable(True)
 
 
-def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, List[float]], metric: Metric) -> None:
-    draw_grouped_histograms(ax, data, metric, ['Min', 'Avg', 'Max'])
-    ax.set_title('Minimum, average and maximum {}'.format(metric.name))
+def draw_min_avg_max_histograms(ax: plt.Axes, data: Dict[str, List[float]],
+                                metric: Metric, draw_titles: bool = True) -> None:
+    draw_grouped_histograms(ax, data, metric, ['Min', 'Avg', 'Max'], draw_titles=draw_titles)
+
+    if draw_titles:
+        ax.set_title('Minimum, average and maximum {}'.format(metric.name))
 
 
 def draw_stacked_histograms(ax: plt.Axes, data: Dict[str, List[float]], metric: Metric,
-                            labels: List[str]) -> None:
+                            labels: List[str], draw_titles: bool = True) -> None:
     configure_histogram_plot(ax, data, stacked=True)
 
-    ax.set_ylabel(metric.to_string(capitalize=True))
-    ax.set_title(metric.capitalized_name)
+    if draw_titles:
+        ax.set_ylabel(metric.to_string(capitalize=True))
+        ax.set_title(metric.capitalized_name)
 
     group_labels = list(data.keys())
     group_labels.sort()
@@ -141,10 +146,12 @@ def configure_histogram_plot(ax: plt.Axes, data: Dict[str, List[float]],
 
 
 def draw_scatter_plot(ax: plt.Axes, data: Dict[str, Tuple[List[float], List[float]]],
-                      xmetric: Metric, ymetric: Metric) -> None:
-    ax.set_title('{} by {}'.format(ymetric.capitalized_name, xmetric.name))
-    ax.set_xlabel(xmetric.to_string(capitalize=True))
-    ax.set_ylabel(ymetric.to_string(capitalize=True))
+                      xmetric: Metric, ymetric: Metric, draw_titles: bool = True) -> None:
+
+    if draw_titles:
+        ax.set_title('{} by {}'.format(ymetric.capitalized_name, xmetric.name))
+        ax.set_xlabel(xmetric.to_string(capitalize=True))
+        ax.set_ylabel(ymetric.to_string(capitalize=True))
 
     labels = list(data.keys())
     labels.sort()

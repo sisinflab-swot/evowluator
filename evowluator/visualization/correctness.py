@@ -56,5 +56,8 @@ class CorrectnessVisualizer(Visualizer):
         data = [stats.loc[r].values for r in reasoners]
 
         metric = Metric('occurrences', fmt='.0f')
-        plotutils.draw_grouped_histograms(ax, dict(zip(reasoners, data)), metric, cols)
-        ax.set_title('Correctness results')
+        plotutils.draw_grouped_histograms(ax, dict(zip(reasoners, data)), metric, cols,
+                                          draw_titles=self.draw_titles)
+
+        if self.draw_titles:
+            ax.set_title('Correctness results')
