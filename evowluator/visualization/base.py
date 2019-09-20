@@ -4,7 +4,7 @@ import os
 from collections import OrderedDict
 from math import ceil
 from os import path
-from typing import Callable, Iterable, List, Optional, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -83,6 +83,7 @@ class Visualizer:
 
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)
         self.reasoners: List[str] = list(self._syntaxes_by_reasoner.keys())
+        self.fig_size: Optional[Tuple[float, float]] = None
 
     def ontologies(self) -> Iterable[str]:
         return self._results.index.values
@@ -123,7 +124,7 @@ class Visualizer:
         nrows = 2 if n_plotters > 1 else 1
         ncols = ceil(n_plotters / nrows)
 
-        fig, ax = plotutils.setup_plot(nrows=nrows, ncols=ncols)
+        fig, ax = plotutils.setup_plot(figsize=self.fig_size, nrows=nrows, ncols=ncols)
         axes = ax.flatten()
 
         for i, plotter in enumerate(plotters):

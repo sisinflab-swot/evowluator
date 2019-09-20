@@ -10,7 +10,7 @@ from .metric import Metric
 def setup_plot(**kwargs) -> (plt.Figure, Union[plt.Axes, List[plt.Axes]]):
     n_figures = kwargs.get('nrows', 0) * kwargs.get('ncols', 0)
 
-    if 'figsize' not in kwargs:
+    if 'figsize' not in kwargs or not kwargs['figsize']:
         height = 5 if n_figures == 1 else 9
         width = 10 if n_figures <= 2 else 16
         kwargs['figsize'] = (width, height)
@@ -133,7 +133,7 @@ def configure_histogram_plot(ax: plt.Axes, data: Dict[str, List[float]],
     else:
         data_max = max(p for l in data.values() for p in l)
 
-    if data_max / data_min > 50.0:
+    if data_max / data_min > 25.0:
         set_scale(ax, 'log' if data_min > 1.0 else 'symlog', axis='y')
         data_min = 10.0 ** np.floor(np.log10(data_min))
         data_max = 10.0 ** np.ceil(np.log10(data_max))

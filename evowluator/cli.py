@@ -144,6 +144,10 @@ def build_parser() -> argparse.ArgumentParser:
                                    add_help=False)
 
     parser.add_argument('path', help='Path of the dir containing the results to visualize.')
+    parser.add_argument('-s', '--size',
+                        nargs=2,
+                        type=positive_float,
+                        help='Width and height of the figure in inches, separated by space.')
     parser.add_argument('-p', '--plots',
                         nargs='+',
                         type=positive_int,
@@ -247,6 +251,9 @@ def visualize_sub(args) -> int:
     if args.reasoners:
         visualizer.reasoners = args.reasoners
 
+    if args.size:
+        visualizer.fig_size = (args.size[0], args.size[1])
+
     visualizer.write_results()
 
     plots = [p - 1 for p in args.plots] if args.plots else None
@@ -268,3 +275,10 @@ def positive_int(value: str) -> int:
     if ivalue <= 0:
         raise argparse.ArgumentTypeError('{} is not a positive int.'.format(value))
     return ivalue
+
+
+def positive_float(value: str) -> float:
+    fvalue = float(value)
+    if fvalue <= 0.0:
+        raise argparse.ArgumentTypeError('{} is not a positive float.'.format(value))
+    return fvalue
