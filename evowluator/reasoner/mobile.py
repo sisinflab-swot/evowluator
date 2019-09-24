@@ -9,7 +9,6 @@ from pyutils.proc.util import find_executable
 
 from evowluator.evaluation.mode import EvaluationMode
 from .base import (
-    OutputFormat,
     MatchmakingResults,
     MetaArgs,
     Reasoner,
@@ -26,10 +25,6 @@ class MobileReasoner(Reasoner, ABC):
     @classmethod
     def is_template(cls) -> bool:
         return cls == MobileReasoner
-
-    @property
-    def classification_output_format(self) -> OutputFormat:
-        return OutputFormat.TEXT
 
     def classify(self,
                  input_file: str,
@@ -85,7 +80,7 @@ class AndroidReasoner(MobileReasoner, ABC):
     @property
     @abstractmethod
     def log_prefix(self) -> str:
-        """Prefix appended to log messages, used to filter logcat output."""
+        """Prefix prepended to log messages, used to filter logcat output."""
         pass
 
     # Overrides

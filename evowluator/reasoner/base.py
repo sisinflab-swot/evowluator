@@ -100,7 +100,7 @@ class Reasoner(ABC):
     @property
     def classification_output_format(self) -> OutputFormat:
         """Output format of the classification task."""
-        return OutputFormat.TEXT
+        return OutputFormat.ONTOLOGY
 
     @property
     def results_parser(self) -> ResultsParser:
