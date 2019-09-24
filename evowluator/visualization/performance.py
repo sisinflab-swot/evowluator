@@ -28,29 +28,29 @@ class SingleValueVisualizer(Visualizer, ABC):
 
     def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(results_dir, cfg, index_columns)
-        self._global_stats: Optional[pd.DataFrame] = None
+        self._summary: Optional[pd.DataFrame] = None
 
     def write_results(self):
         super().write_results()
-        self._write_global_stats(path.join(self.output_dir, 'global_stats.csv'))
+        self._write_summary(path.join(self.output_dir, 'summary.csv'))
 
     # Private
 
-    def _write_global_stats(self, file_path: str) -> None:
+    def _write_summary(self, file_path: str) -> None:
         results = np.asarray([self.results_for_reasoner(r).values for r in self.reasoners])
         metric_str = self.metric.to_string()
 
-        self._global_stats = pd.DataFrame({
+        self._summary = pd.DataFrame({
             'Reasoner': self.reasoners,
             'Min ' + metric_str: results.min(axis=1).flatten(),
             'Avg ' + metric_str: results.mean(axis=1).flatten(),
             'Max ' + metric_str: results.max(axis=1).flatten()
         }).set_index('Reasoner')
 
-        self._global_stats.to_csv(file_path, float_format='%.2f')
+        self._summary.to_csv(file_path, float_format='%.2f')
 
     def _histogram_plotter(self, ax: plt.Axes) -> None:
-        self.draw_min_max_avg(ax, self._global_stats, self.metric)
+        self.draw_min_max_avg(ax, self._summary, self.metric)
 
     def _scatter_plotter(self, ax: plt.Axes) -> None:
         self.draw_scatter(ax, self.metric)
@@ -75,14 +75,14 @@ class PerformanceVisualizer(Visualizer):
     def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(results_dir, cfg, index_columns)
         self._results[self.__memory_cols()] /= (1024 * 1024)
-        self._global_stats: Optional[pd.DataFrame] = None
+        self._summary: Optional[pd.DataFrame] = None
         self._time_unit: str = 'ms'
 
     def write_results(self):
         super().write_results()
         self.__write_total_times(path.join(self.output_dir, 'total_times.csv'))
         self.__write_memory(path.join(self.output_dir, 'memory.csv'))
-        self.__write_global_stats(path.join(self.output_dir, 'global_stats.csv'))
+        self.__write_summary(path.join(self.output_dir, 'summary.csv'))
 
     # Private
 
@@ -106,7 +106,7 @@ class PerformanceVisualizer(Visualizer):
         totals = self.results_grouped_by_reasoner(self.__memory_cols()).sum()
         totals.to_csv(file_path, float_format='%.2f')
 
-    def __write_global_stats(self, file_path: str) -> None:
+    def __write_summary(self, file_path: str) -> None:
         reasoners = self.reasoners
         parsing_cols = self.__parsing_cols()
         reasoning_cols = self.__reasoning_cols()
@@ -143,11 +143,11 @@ class PerformanceVisualizer(Visualizer):
 
         data.to_csv(file_path, float_format='%.2f')
 
-        self._global_stats = data
+        self._summary = data
         self._time_unit = time_unit
 
     def __time_histogram_plotter(self, ax: plt.Axes) -> None:
-        data = self._global_stats.iloc[:, :2]
+        data = self._summary.iloc[:, :2]
         reasoners = list(data.index.values)
 
         values = data.values.transpose()
@@ -161,7 +161,7 @@ class PerformanceVisualizer(Visualizer):
 
     def __memory_histogram_plotter(self, ax: plt.Axes) -> None:
         metric = Metric('memory peak', 'MiB', '.2f')
-        self.draw_min_max_avg(ax, self._global_stats, metric,
+        self.draw_min_max_avg(ax, self._summary, metric,
                               col_filter=lambda c: metric.name in c)
 
     def __time_scatter_plotter(self, ax: plt.Axes) -> None:
