@@ -3,6 +3,7 @@ from typing import List, Optional
 
 import numpy as np
 import pandas as pd
+from pyutils.io import fileutils
 
 from .base import Visualizer
 from .metric import Metric
@@ -32,6 +33,8 @@ class CorrectnessVisualizer(Visualizer):
                                 groups=cols)
 
     def write_results(self) -> None:
+        fileutils.create_dir(self.output_dir)
+
         reasoners = self.reasoners
         results = [self.results_for_reasoner(r)['match'].value_counts(sort=False)
                    for r in reasoners]
