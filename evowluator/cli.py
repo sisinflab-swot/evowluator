@@ -158,6 +158,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--no-titles',
                         action='store_true',
                         help='Omit titles for figures and axes.')
+    parser.add_argument('--no-labels',
+                        action='store_true',
+                        help='Omit value labels when plotting.')
+    parser.add_argument('--label-fmt',
+                        help='Float format of value labels.')
 
     parser.set_defaults(func=visualize_sub)
 
@@ -255,10 +260,16 @@ def visualize_sub(args) -> int:
         visualizer.reasoners = args.reasoners
 
     if args.size:
-        visualizer.fig_size = (args.size[0], args.size[1])
+        visualizer.figure.size = (args.size[0], args.size[1])
+
+    if args.no_labels:
+        visualizer.figure.show_labels = False
 
     if args.no_titles:
-        visualizer.draw_titles = False
+        visualizer.figure.show_titles = False
+
+    if args.label_fmt:
+        visualizer.figure.label_fmt = args.label_fmt
 
     visualizer.write_results()
 

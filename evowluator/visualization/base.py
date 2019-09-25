@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import os
 from collections import OrderedDict
-from math import ceil
 from os import path
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pyutils.io import fileutils
@@ -17,22 +15,22 @@ from evowluator.data.dataset import Dataset
 from evowluator.data.ontology import Ontology
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.evaluation.mode import EvaluationMode
-from . import plotutils
+
 from .metric import Metric
+from .plot import Figure, MinMaxAvgHistogramPlot, ScatterPlot
 
 
 class Visualizer:
 
     # Override
 
+    def configure_plotters(self) -> None:
+        pass
+
     def write_results(self) -> None:
         fileutils.create_dir(self.output_dir)
         avg_res_path = path.join(self.output_dir, 'avg_results.csv')
         self._results.to_csv(avg_res_path, float_format='%.2f')
-
-    @property
-    def plotters(self) -> List[Callable[[plt.Axes], None]]:
-        return []
 
     # Public
 
@@ -83,9 +81,7 @@ class Visualizer:
 
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)
         self.reasoners: List[str] = list(self._syntaxes_by_reasoner.keys())
-
-        self.fig_size: Optional[Tuple[float, float]] = None
-        self.draw_titles = True
+        self.figure = Figure()
 
     def ontologies(self) -> Iterable[str]:
         return self._results.index.values
@@ -113,27 +109,8 @@ class Visualizer:
         return results.groupby(lambda x: x.split(':', maxsplit=1)[0], axis=1)
 
     def plot_results(self, plots: Optional[List[int]] = None) -> None:
-        plotters = self.plotters
-
-        if plots:
-            plotters = [plotters[i] for i in plots]
-
-        n_plotters = len(plotters)
-
-        if n_plotters == 0:
-            return
-
-        nrows = 2 if n_plotters > 1 else 1
-        ncols = ceil(n_plotters / nrows)
-
-        fig, ax = plotutils.setup_plot(figsize=self.fig_size, nrows=nrows, ncols=ncols)
-        axes = ax.flatten()
-
-        for i, plotter in enumerate(plotters):
-            plotter(axes[i])
-
-        fig.tight_layout()
-        plt.show()
+        self.configure_plotters()
+        self.figure.show(plots=plots)
 
     def load_results(self, non_numeric_columns: Union[bool, List[str]] = False) -> pd.DataFrame:
         results = pd.read_csv(self.results_path, index_col=self.index_columns)
@@ -160,8 +137,8 @@ class Visualizer:
 
         return results
 
-    def draw_scatter(self, ax: plt.Axes, metric: Metric,
-                     col_filter: Optional[Callable[[str], bool]] = None) -> None:
+    def add_scatter_plotter(self, metric: Metric,
+                            col_filter: Optional[Callable[[str], bool]] = None) -> None:
         dataset = Dataset(os.path.join(Paths.DATA_DIR, self.dataset_name))
 
         xscale, xunit = fileutils.human_readable_scale_and_unit(dataset.get_max_ontology_size())
@@ -184,11 +161,11 @@ class Visualizer:
 
             data.append((x, y))
 
-        plotutils.draw_scatter_plot(ax, dict(zip(self.reasoners, data)), xmetric, metric,
-                                    draw_titles=self.draw_titles)
+        data = dict(zip(self.reasoners, data))
+        self.figure.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric)
 
-    def draw_min_max_avg(self, ax: plt.Axes, data: pd.DataFrame, metric: Metric,
-                         col_filter: Optional[Callable[[str], bool]] = None) -> None:
+    def add_min_max_avg_plotter(self, data: pd.DataFrame, metric: Metric,
+                                col_filter: Optional[Callable[[str], bool]] = None) -> None:
         if col_filter:
             cols = [c for c in data.columns if col_filter(c)]
             data = data[cols]
@@ -197,4 +174,4 @@ class Visualizer:
 
         data = [data.loc[r].values for r in reasoners]
         data = dict(zip(reasoners, data))
-        plotutils.draw_min_avg_max_histograms(ax, data, metric, draw_titles=self.draw_titles)
+        self.figure.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric)
