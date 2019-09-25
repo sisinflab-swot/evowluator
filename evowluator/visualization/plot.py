@@ -246,12 +246,12 @@ class ScatterPlot(Plot):
         super().draw()
 
     def draw_polyline(self, x: List[float], y: List[float]) -> None:
-        data_point_count = len(x)
-        weights = [1.0] * data_point_count
+        count = len(x)
+        weights = [1.0] * count
 
         # Force start from first data points
-        data_point_count = max(data_point_count // 100, 1)
-        y[0] = sum(y[:data_point_count]) / data_point_count
+        count = max(count // (100 if count > 100 else 5), 1)
+        y[0] = sum(y[:count]) / count
         weights[0] = max(y) * 10.0
 
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x))
