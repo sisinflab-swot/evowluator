@@ -138,9 +138,36 @@ class HistogramPlot(Plot):
 
         if data_max / data_min > 25.0:
             self.set_scale('log' if data_min > 1.0 else 'symlog', axis='y')
-            data_min = 10.0 ** np.floor(np.log10(data_min))
-            data_max = 10.0 ** np.ceil(np.log10(data_max))
-            self._ax.set_ylim(bottom=data_min, top=data_max)
+            bottom, top = self.ylim_log_scale(data_min, data_max)
+        else:
+            bottom, top = self.ylim_linear_scale(data_min, data_max)
+
+        self._ax.set_ylim(bottom=bottom, top=top)
+
+    def ylim_log_scale(self, data_min: float, data_max: float) -> (float, float):
+        bottom = 10.0 ** np.floor(np.log10(data_min))
+        top = 10.0 ** np.ceil(np.log10(data_max))
+
+        if data_max / top > 0.65:
+            top *= 2.0
+        elif data_max / top < 0.2:
+            top *= 0.3
+
+        return bottom, top
+
+    def ylim_linear_scale(self, data_min: float, data_max: float) -> (float, float):
+        mult = 10.0 ** np.floor(np.log10(data_max))
+
+        bottom = (data_min // mult) * mult
+        top = (data_max // mult + 1.0) * mult
+
+        if top - data_max < mult * 0.4:
+            top += mult * 0.5
+
+        if data_min - bottom < mult * 0.4:
+            bottom = max(bottom - mult, 0.0)
+
+        return bottom, top
 
 
 class GroupedHistogramPlot(HistogramPlot):
