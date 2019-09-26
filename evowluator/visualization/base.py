@@ -108,9 +108,13 @@ class Visualizer:
 
         return results.groupby(lambda x: x.split(':', maxsplit=1)[0], axis=1)
 
-    def plot_results(self, plots: Optional[List[int]] = None) -> None:
+    def plot_results(self, gui: bool = True, plots: Optional[List[int]] = None) -> None:
         self.configure_plotters()
-        self.figure.show(plots=plots)
+        self.figure.draw(plots=plots)
+        self.figure.save(path.join(self.output_dir, 'figure.pdf'))
+
+        if gui:
+            self.figure.show()
 
     def load_results(self, non_numeric_columns: Union[bool, List[str]] = False) -> pd.DataFrame:
         results = pd.read_csv(self.results_path, index_col=self.index_columns)

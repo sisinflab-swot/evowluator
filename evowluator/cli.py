@@ -155,6 +155,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('-r', '--reasoners',
                         nargs='+',
                         help='Reasoners to show.')
+    parser.add_argument('--no-gui',
+                        action='store_true',
+                        help='Do not show the interactive GUI.')
     parser.add_argument('--no-titles',
                         action='store_true',
                         help='Omit titles for figures and axes.')
@@ -274,7 +277,8 @@ def visualize_sub(args) -> int:
     visualizer.write_results()
 
     plots = [p - 1 for p in args.plots] if args.plots else None
-    visualizer.plot_results(plots)
+    show_gui = not args.no_gui
+    visualizer.plot_results(gui=show_gui, plots=plots)
     return 0
 
 

@@ -314,6 +314,7 @@ class Figure:
         self.show_labels = True
         self.label_fmt: Optional[str] = None
         self._plotters: List[Plotter] = []
+        self._is_drawn = False
 
     def add_plotter(self, plot_type: type, **kwargs) -> None:
         if self.label_fmt:
@@ -324,7 +325,10 @@ class Figure:
 
         self._plotters.append(Plotter(plot_type, **kwargs))
 
-    def show(self, plots: Optional[List[int]] = None) -> None:
+    def draw(self, plots: Optional[List[int]] = None) -> None:
+        if self._is_drawn:
+            return
+
         plotters = [self._plotters[i] for i in plots] if plots else self._plotters
 
         n_plots = len(plotters)
@@ -345,4 +349,12 @@ class Figure:
             plotter.draw_plot(axes[i])
 
         fig.tight_layout()
-        plt.show()
+        self._is_drawn = True
+
+    def show(self) -> None:
+        if self._is_drawn:
+            plt.show()
+
+    def save(self, path: str) -> None:
+        if self._is_drawn:
+            plt.savefig(path, bbox_inches='tight', pad_inches=0.0)
