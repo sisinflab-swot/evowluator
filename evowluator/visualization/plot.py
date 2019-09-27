@@ -254,12 +254,19 @@ class ScatterPlot(Plot):
         self.xmetric: Optional[Metric] = None
         self.ymetric: Optional[Metric] = None
 
-    def draw(self, **kwargs) -> None:
+    def draw(self) -> None:
         labels = list(self.data.keys())
         labels.sort()
 
         dataset_size = len(next(iter(self.data.values()))[0])
-        point_size = self.configure(dataset_size)
+        point_size = 10.0 if dataset_size > 100 else 50.0
+
+        xmin = min(p for t in self.data.values() for p in t[0])
+        xmax = max(p for t in self.data.values() for p in t[0])
+        ymin = min(p for t in self.data.values() for p in t[1])
+        ymax = max(p for t in self.data.values() for p in t[1])
+
+        self.configure_scale(xmin, xmax, ymin, ymax)
 
         for label in labels:
             x, y = self.data[label]
@@ -283,14 +290,21 @@ class ScatterPlot(Plot):
 
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x))
 
-    def configure(self, dataset_size: int) -> float:
-        if dataset_size > 100:
-            self.set_scale('log')
-            point_size = 10.0
-        else:
-            point_size = 50.0
+    def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
+        xlog = xmax / xmin > 25.0
+        ylog = ymax / ymin > 25.0
 
-        return point_size
+        if xlog and ylog:
+            axis = 'both'
+        elif xlog:
+            axis = 'x'
+        elif ylog:
+            axis = 'y'
+        else:
+            axis = None
+
+        if axis:
+            self.set_scale('log', axis=axis)
 
 
 class Plotter:
