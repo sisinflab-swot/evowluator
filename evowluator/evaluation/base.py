@@ -238,13 +238,11 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator, ABC):
                  task: ReasoningTask, probe: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None,
-                 iterations: int = 1):
+                 syntax: Optional[Ontology.Syntax] = None):
         if not probe:
             raise ValueError('No probe specified.')
 
-        super().__init__(task=task, dataset=dataset, reasoners=reasoners,
-                         syntax=syntax, iterations=iterations)
+        super().__init__(task=task, dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.__configure_reasoners(probe)
 
     def extract_results(self, results: ReasoningResults) -> List:

@@ -1,14 +1,12 @@
 import os
 from abc import ABC, abstractmethod
 from subprocess import TimeoutExpired
-from typing import List, Optional
+from typing import List
 
 from pyutils.io import echo, fileutils
 
 from evowluator import config
 from evowluator.data.dataset import Dataset
-from evowluator.data.ontology import Ontology
-from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import ReasoningResults
 from .base import ReasoningEnergyEvaluator, ReasoningEvaluator
 from .mode import EvaluationMode
@@ -33,8 +31,8 @@ class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
         reference = reasoners[0]
         reasoners = reasoners[1:]
 
-        reference_out = os.path.join(self.temp_dir, 'reference.txt')
-        reasoner_out = os.path.join(self.temp_dir, 'reasoner.txt')
+        out = os.path.join(self.temp_dir, 'reasoner.txt')
+        ref_out = os.path.join(self.temp_dir, 'reference.txt')
 
         csv_row = [entry.name]
 
@@ -44,8 +42,7 @@ class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
         try:
             ref_ontology = entry.ontology(self._syntax_for_reasoner(reference))
-            ref_result = reference.perform_task(self.task, ref_ontology.path,
-                                                output_file=reference_out,
+            ref_result = reference.perform_task(self.task, ref_ontology.path, output_file=ref_out,
                                                 timeout=config.Evaluation.TIMEOUT, mode=self.mode)
         except Exception as e:
             if config.DEBUG:
@@ -62,7 +59,7 @@ class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
                 try:
                     r_ontology = entry.ontology(self._syntax_for_reasoner(reasoner))
                     r_result = reasoner.perform_task(self.task, r_ontology.path,
-                                                     output_file=reasoner_out,
+                                                     output_file=out,
                                                      timeout=config.Evaluation.TIMEOUT,
                                                      mode=self.mode)
                 except TimeoutExpired:
@@ -106,14 +103,6 @@ class OntologyReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
 
     # Overrides
 
-    def __init__(self, task: ReasoningTask,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None,
-                 iterations: int = 1):
-        super().__init__(task=task, dataset=dataset, reasoners=reasoners, syntax=syntax)
-        self.iterations = iterations
-
     def setup(self):
         csv_header = ['Ontology']
 
@@ -127,7 +116,7 @@ class OntologyReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
 
         fail: List[str] = []
 
-        for iteration in range(self.iterations):
+        for iteration in range(config.Evaluation.ITERATIONS):
             self._logger.log('Run {}:'.format(iteration + 1), color=echo.Color.YELLOW)
             self._logger.indent_level += 1
 
@@ -195,11 +184,4 @@ class OntologyReasoningPerformanceEvaluator(OntologyReasoningMeasurementEvaluato
 class OntologyReasoningEnergyEvaluator(ReasoningEnergyEvaluator,
                                        OntologyReasoningMeasurementEvaluator):
     """Evaluates the energy usage of reasoning tasks over ontologies."""
-
-    def __init__(self, task: ReasoningTask, probe: str,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None,
-                 iterations: int = 1):
-        super().__init__(task=task, probe=probe, dataset=dataset, reasoners=reasoners,
-                         syntax=syntax, iterations=iterations)
+    pass

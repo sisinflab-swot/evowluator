@@ -41,4 +41,4 @@ class ConfigKey:
 class Evaluation:
     """Evaluation config namespace."""
     TIMEOUT = 1200.0
-    DEFAULT_ITERATIONS = 5
+    ITERATIONS = 5

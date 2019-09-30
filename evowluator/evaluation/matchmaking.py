@@ -6,7 +6,6 @@ from typing import List, Optional
 from pyutils.io import echo, fileutils
 
 from evowluator import config
-from evowluator.config import Evaluation as EvaluationConfig
 from evowluator.data.dataset import Dataset
 from evowluator.data.ontology import Ontology
 from evowluator.reasoner.base import ReasoningTask
@@ -26,7 +25,8 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
                  syntax: Optional[Ontology.Syntax] = None):
-        super().__init__(ReasoningTask.MATCHMAKING, dataset, reasoners, syntax)
+        super().__init__(ReasoningTask.MATCHMAKING,
+                         dataset=dataset, reasoners=reasoners, syntax=syntax)
 
     def setup(self):
         reasoners = self._usable_reasoners()
@@ -61,7 +61,7 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
                 ref_resource, ref_request = entry.ontology(ref_syntax), request.ontology(ref_syntax)
                 ref_result = reference.matchmaking(ref_resource.path, ref_request.path,
                                                    output_file=ref_out,
-                                                   timeout=EvaluationConfig.TIMEOUT,
+                                                   timeout=config.Evaluation.TIMEOUT,
                                                    mode=self.mode)
             except Exception as e:
                 if config.DEBUG:
@@ -82,7 +82,7 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
                     try:
                         r_result = reasoner.matchmaking(resource_onto.path, request_onto.path,
                                                         output_file=r_out,
-                                                        timeout=EvaluationConfig.TIMEOUT,
+                                                        timeout=config.Evaluation.TIMEOUT,
                                                         mode=self.mode)
                     except TimeoutExpired:
                         result = 'timeout'
@@ -132,10 +132,9 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None,
-                 iterations: int = 1):
-        super().__init__(ReasoningTask.MATCHMAKING, dataset, reasoners, syntax)
-        self._iterations = iterations
+                 syntax: Optional[Ontology.Syntax] = None):
+        super().__init__(ReasoningTask.MATCHMAKING,
+                         dataset=dataset, reasoners=reasoners, syntax=syntax)
 
     def setup(self):
         csv_header = ['Resource', 'Request']
@@ -152,7 +151,7 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
             self._logger.log('No available requests.\n', color=echo.Color.YELLOW)
             return
 
-        for iteration in range(self._iterations):
+        for iteration in range(config.Evaluation.ITERATIONS):
             self._logger.log('Run {}:'.format(iteration + 1), color=echo.Color.YELLOW)
             self._logger.indent_level += 1
 
@@ -172,7 +171,7 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
 
                     try:
                         stats = reasoner.matchmaking(resource_onto.path, request_onto.path,
-                                                     timeout=EvaluationConfig.TIMEOUT,
+                                                     timeout=config.Evaluation.TIMEOUT,
                                                      mode=self.mode)
                         csv_row.extend(self.extract_results(stats))
                     except TimeoutExpired:
@@ -228,7 +227,6 @@ class MatchmakingEnergyEvaluator(ReasoningEnergyEvaluator, MatchmakingMeasuremen
                  probe: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None,
-                 iterations: int = 1):
-        super().__init__(task=ReasoningTask.MATCHMAKING, probe=probe,
-                         dataset=dataset, reasoners=reasoners, syntax=syntax, iterations=iterations)
+                 syntax: Optional[Ontology.Syntax] = None):
+        super().__init__(ReasoningTask.MATCHMAKING,
+                         probe=probe, dataset=dataset, reasoners=reasoners, syntax=syntax)

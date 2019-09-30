@@ -2,7 +2,7 @@ import argparse
 import os
 
 from . import config
-from .config import EXE_NAME, Evaluation as EvaluationConfig
+from .config import EXE_NAME
 from .data import dataset_converter
 from .data.dataset import Dataset
 from .data.ontology import Ontology
@@ -25,6 +25,17 @@ from .visualization.base import Visualizer
 # CLI parser
 
 
+class SubCommands:
+    CLASSIFICATION = 'classification'
+    CONSISTENCY = 'consistency'
+    MATCHMAKING = 'matchmaking'
+    INFO = 'info'
+    VISUALIZE = 'visualize'
+    CONVERT = 'convert'
+
+    EVALUATION = [CLASSIFICATION, CONSISTENCY, MATCHMAKING]
+
+
 def process_args() -> int:
     """Runs actions based on CLI arguments."""
     args = build_parser().parse_args()
@@ -32,10 +43,12 @@ def process_args() -> int:
     if args.debug:
         config.DEBUG = True
 
-    if not hasattr(args, 'func'):
-        msg = ('Invalid argument(s). Please run "{0} -h" '
-               'or "{0} <subcommand> -h" for help.'.format(EXE_NAME))
-        raise ValueError(msg)
+    if args.subcommand in SubCommands.EVALUATION:
+        if args.num_iterations:
+            config.Evaluation.ITERATIONS = args.num_iterations
+
+        if args.timeout:
+            config.Evaluation.TIMEOUT = args.timeout
 
     return args.func(args)
 
@@ -78,8 +91,12 @@ def build_parser() -> argparse.ArgumentParser:
                        help='Desired reasoners.')
     group.add_argument('-n', '--num-iterations',
                        type=positive_int,
-                       default=EvaluationConfig.DEFAULT_ITERATIONS,
+                       default=config.Evaluation.ITERATIONS,
                        help='Number of iterations.')
+    group.add_argument('-t', '--timeout',
+                       type=positive_float,
+                       default=config.Evaluation.TIMEOUT,
+                       help='Timeout in seconds.')
     group.add_argument('-s', '--syntax',
                        type=Ontology.Syntax,
                        choices=Ontology.Syntax.all(),
@@ -93,11 +110,12 @@ def build_parser() -> argparse.ArgumentParser:
                                           parents=[help_parser],
                                           add_help=False)
 
-    subparsers = main_parser.add_subparsers(title='Available subcommands')
+    subparsers = main_parser.add_subparsers(title='Available subcommands',
+                                            dest='subcommand', required=True)
 
     # Classification subcommand
     desc = 'Evaluates the classification reasoning task.'
-    parser = subparsers.add_parser('classification',
+    parser = subparsers.add_parser(SubCommands.CLASSIFICATION,
                                    description=desc,
                                    help=desc,
                                    parents=[help_parser, mode_parser, config_parser],
@@ -107,7 +125,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Consistency subcommand
     desc = 'Evaluates the consistency reasoning task.'
-    parser = subparsers.add_parser('consistency',
+    parser = subparsers.add_parser(SubCommands.CONSISTENCY,
                                    description=desc,
                                    help=desc,
                                    parents=[help_parser, mode_parser, config_parser],
@@ -117,7 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Matchmaking subcommand
     desc = 'Evaluates the matchmaking task.'
-    parser = subparsers.add_parser('matchmaking',
+    parser = subparsers.add_parser(SubCommands.MATCHMAKING,
                                    description=desc,
                                    help=desc,
                                    parents=[help_parser, mode_parser, config_parser],
@@ -127,7 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Dataset info subcommand
     desc = 'Prints information about reasoners and datasets.'
-    parser = subparsers.add_parser('info',
+    parser = subparsers.add_parser(SubCommands.INFO,
                                    description=desc,
                                    help=desc,
                                    parents=[help_parser, config_parser],
@@ -137,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Visualize subcommand
     desc = 'Generates high level statistics and plots.'
-    parser = subparsers.add_parser('visualize',
+    parser = subparsers.add_parser(SubCommands.VISUALIZE,
                                    description=desc,
                                    help=desc,
                                    parents=[help_parser],
@@ -171,7 +189,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Convert subcommand
     desc = 'Converts the dataset into the specified syntax.'
-    parser = subparsers.add_parser('convert',
+    parser = subparsers.add_parser(SubCommands.CONVERT,
                                    description=desc,
                                    help=desc,
                                    parents=[help_parser],
@@ -204,14 +222,12 @@ def matchmaking_sub(args) -> int:
     elif args.mode == EvaluationMode.PERFORMANCE:
         evaluator = MatchmakingPerformanceEvaluator(dataset=args.dataset,
                                                     reasoners=args.reasoners,
-                                                    syntax=args.syntax,
-                                                    iterations=args.num_iterations)
+                                                    syntax=args.syntax)
     elif args.mode == EvaluationMode.ENERGY:
         evaluator = MatchmakingEnergyEvaluator(probe=args.energy_probe,
                                                dataset=args.dataset,
                                                reasoners=args.reasoners,
-                                               syntax=args.syntax,
-                                               iterations=args.num_iterations)
+                                               syntax=args.syntax)
     evaluator.start(args.resume_after)
     return 0
 
@@ -228,15 +244,13 @@ def ontology_reasoning_sub(args, task: ReasoningTask) -> int:
         evaluator = OntologyReasoningPerformanceEvaluator(task=task,
                                                           dataset=args.dataset,
                                                           reasoners=args.reasoners,
-                                                          syntax=args.syntax,
-                                                          iterations=args.num_iterations)
+                                                          syntax=args.syntax)
     elif args.mode == EvaluationMode.ENERGY:
         evaluator = OntologyReasoningEnergyEvaluator(task=task,
                                                      probe=args.energy_probe,
                                                      dataset=args.dataset,
                                                      reasoners=args.reasoners,
-                                                     syntax=args.syntax,
-                                                     iterations=args.num_iterations)
+                                                     syntax=args.syntax)
     evaluator.start(args.resume_after)
     return 0
 
