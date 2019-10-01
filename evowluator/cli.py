@@ -20,6 +20,7 @@ from .evaluation.ontology import (
 )
 from .evaluation.mode import EvaluationMode
 from .visualization.base import Visualizer
+from .visualization.plot import LegendLocation
 
 
 # CLI parser
@@ -184,6 +185,11 @@ def build_parser() -> argparse.ArgumentParser:
                         help='Omit value labels when plotting.')
     parser.add_argument('--label-fmt',
                         help='Float format of value labels.')
+    parser.add_argument('--legend-loc',
+                        type=LegendLocation,
+                        choices=LegendLocation.all(),
+                        default=LegendLocation.BEST,
+                        help='Location of the legend.')
 
     parser.set_defaults(func=visualize_sub)
 
@@ -279,15 +285,12 @@ def visualize_sub(args) -> int:
     if args.size:
         visualizer.figure.size = (args.size[0], args.size[1])
 
-    if args.no_labels:
-        visualizer.figure.show_labels = False
-
-    if args.no_titles:
-        visualizer.figure.show_titles = False
-
     if args.label_fmt:
         visualizer.figure.label_fmt = args.label_fmt
 
+    visualizer.figure.show_labels = not args.no_labels
+    visualizer.figure.show_titles = not args.no_titles
+    visualizer.figure.legend_loc = args.legend_loc
     visualizer.write_results()
 
     plots = [p - 1 for p in args.plots] if args.plots else None

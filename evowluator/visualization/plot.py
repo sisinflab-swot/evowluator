@@ -9,7 +9,22 @@ from matplotlib import pyplot as plt, ticker
 from matplotlib.patches import Rectangle
 from matplotlib.transforms import BboxBase
 
+from evowluator.util.strenum import StrEnum
 from .metric import Metric
+
+
+class LegendLocation(StrEnum):
+    NONE = 'none'
+    BEST = 'best'
+    UPPER_RIGHT = 'upper right'
+    UPPER_LEFT = 'upper left'
+    LOWER_LEFT = 'lower left'
+    LOWER_RIGHT = 'lower right'
+    CENTER_LEFT = 'center left'
+    CENTER_RIGHT = 'center right'
+    LOWER_CENTER = 'lower center'
+    UPPER_CENTER = 'upper center'
+    CENTER = 'center'
 
 
 class Plot:
@@ -26,6 +41,7 @@ class Plot:
     def __init__(self, ax: plt.Axes):
         self.data = None
         self.grid_axis = 'both'
+        self.legend_loc = LegendLocation.BEST
         self.show_titles = True
         self.title: Optional[str] = None
         self.xlabel: Optional[str] = None
@@ -66,7 +82,10 @@ class Plot:
         self._ax.grid(b=True, axis=self.grid_axis, which='minor', alpha=0.25)
 
     def draw_legend(self) -> None:
-        legend = self._ax.legend()
+        if self.legend_loc == LegendLocation.NONE:
+            return
+
+        legend = self._ax.legend(loc=self.legend_loc.value)
         legend.set_draggable(True)
 
     def draw_titles(self) -> None:
@@ -361,6 +380,7 @@ class Figure:
         self.show_titles = True
         self.show_labels = True
         self.label_fmt: Optional[str] = None
+        self.legend_loc = LegendLocation.BEST
         self._plotters: List[Plotter] = []
         self._is_drawn = False
 
@@ -370,6 +390,7 @@ class Figure:
 
         kwargs['show_titles'] = self.show_titles
         kwargs['show_labels'] = self.show_labels
+        kwargs['legend_loc'] = self.legend_loc
 
         self._plotters.append(Plotter(plot_type, **kwargs))
 
