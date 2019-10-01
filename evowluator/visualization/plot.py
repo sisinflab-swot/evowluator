@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from matplotlib import pyplot as plt, ticker
+from matplotlib.patches import Rectangle
+from matplotlib.transforms import BboxBase
 
 from .metric import Metric
 
@@ -108,29 +110,61 @@ class HistogramPlot(Plot):
         if not fmt:
             return
 
-        fig = self._ax.get_figure()
-        transform = fig.dpi_scale_trans.inverted()
+        boxes = []
 
-        x_mult = 0.5
+        for rect in sorted(self._ax.patches, key=lambda x: x.get_x()):
+            boxes.append(self.draw_label(rect, fmt, boxes))
 
-        for rect in self._ax.patches:
-            height_px = rect.get_bbox().transformed(transform).height * fig.dpi
+    def draw_label(self, bar: Rectangle, fmt: str, label_boxes: List[BboxBase]) -> BboxBase:
+        w = bar.get_width()
+        h = bar.get_height()
 
-            w = rect.get_width()
-            h = rect.get_height()
+        if self.center_labels:
+            y_mult = 0.5
+            va = 'center'
+        else:
+            y_mult = 1.0
+            va = 'bottom'
 
-            if self.center_labels and height_px > 20.0:
-                y_mult = 0.5
-                va = 'center'
-            else:
-                y_mult = 1.0
-                va = 'bottom'
+        x = bar.get_x() + w * 0.5
+        y = bar.get_y() + h * y_mult
 
-            x = rect.get_x() + w * x_mult
-            y = rect.get_y() + h * y_mult
+        label = self._ax.annotate(format(h, fmt), (x, y), ha='center', va=va)
+        label.draggable()
 
-            annotation = self._ax.annotate(format(h, fmt), (x, y), ha='center', va=va)
-            annotation.draggable()
+        return self.fix_label(label, label_boxes)
+
+    def fix_label(self, label: plt.Annotation, label_boxes: List[BboxBase]) -> BboxBase:
+        # Attempt to resolve obvious layout issues
+        renderer = self._ax.figure.canvas.get_renderer()
+        box = label.get_window_extent(renderer=renderer)
+        ymin, ymax = self._ax.bbox.ymin, self._ax.bbox.ymax
+        transform = self._ax.transData.inverted()
+
+        def set_ann_y(ann: plt.Annotation, ann_y: float) -> BboxBase:
+            ann.set_y(transform.transform_point((0.0, ann_y))[1])
+            return ann.get_window_extent(renderer=renderer)
+
+        # Very simple label overlap detection
+        for lbox in label_boxes:
+            if not lbox.overlaps(box):
+                continue
+
+            new_y = lbox.ymax + box.height * 0.05
+
+            if new_y + box.height > ymax:
+                new_y = lbox.ymin - box.height * 1.05
+
+            box = set_ann_y(label, new_y)
+
+        # Label out-of-bounds detection
+        if box.ymax > ymax:
+            box = set_ann_y(label, ymax - box.height * 1.05)
+
+        if box.ymin < ymin:
+            box = set_ann_y(label, ymin + box.height * 1.05)
+
+        return box
 
     def configure(self, data_min: float, data_max: float) -> None:
         if data_min == 0.0:
