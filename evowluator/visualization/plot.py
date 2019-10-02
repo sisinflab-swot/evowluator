@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from matplotlib import pyplot as plt, ticker
 from matplotlib.patches import Rectangle
-from matplotlib.transforms import BboxBase
 
 from evowluator.util.strenum import StrEnum
 from .metric import Metric
@@ -64,11 +63,13 @@ class Plot:
         y_maj = self._ax.yaxis.get_major_formatter()
         y_min = self._ax.yaxis.get_minor_formatter()
 
+        subticks = [2, 3, 4, 5, 6, 7, 8, 9]
+
         if axis != 'x':
-            self._ax.set_yscale(scale)
+            self._ax.set_yscale(scale, subsy=subticks)
 
         if axis != 'y':
-            self._ax.set_xscale(scale)
+            self._ax.set_xscale(scale, subsx=subticks)
 
         self._ax.xaxis.set_major_formatter(x_maj)
         self._ax.xaxis.set_minor_formatter(x_min)
@@ -119,6 +120,7 @@ class HistogramPlot(Plot):
         self.label_fmt: Optional[str] = None
         self.metric: Optional[Metric] = None
         self.show_labels = True
+        self._labels: List[plt.Annotation] = []
 
     def draw_labels(self) -> None:
         if not self.show_labels:
@@ -129,14 +131,13 @@ class HistogramPlot(Plot):
         if not fmt:
             return
 
-        boxes = []
+        for rect in (p for p in self._ax.patches if p.get_height() > 0.0):
+            self._labels.append(self.draw_label(rect, fmt))
 
-        for rect in sorted(self._ax.patches, key=lambda x: x.get_x()):
-            boxes.append(self.draw_label(rect, fmt, boxes))
+        self.fit_labels()
 
-    def draw_label(self, bar: Rectangle, fmt: str, label_boxes: List[BboxBase]) -> BboxBase:
-        w = bar.get_width()
-        h = bar.get_height()
+    def draw_label(self, bar: Rectangle, fmt: str) -> plt.Annotation:
+        w, h = bar.get_width(), bar.get_height()
 
         if self.center_labels:
             y_mult = 0.5
@@ -150,40 +151,57 @@ class HistogramPlot(Plot):
 
         label = self._ax.annotate(format(h, fmt), (x, y), ha='center', va=va)
         label.draggable()
+        self.fit_label(label)
 
-        return self.fix_label(label, label_boxes)
+        return label
 
-    def fix_label(self, label: plt.Annotation, label_boxes: List[BboxBase]) -> BboxBase:
+    def fit_label(self, label: plt.Annotation) -> None:
         # Attempt to resolve obvious layout issues
         renderer = self._ax.figure.canvas.get_renderer()
         box = label.get_window_extent(renderer=renderer)
-        ymin, ymax = self._ax.bbox.ymin, self._ax.bbox.ymax
         transform = self._ax.transData.inverted()
 
-        def set_ann_y(ann: plt.Annotation, ann_y: float) -> BboxBase:
+        def set_ann_y(ann: plt.Annotation, ann_y: float) -> None:
             ann.set_y(transform.transform_point((0.0, ann_y))[1])
-            return ann.get_window_extent(renderer=renderer)
 
         # Very simple label overlap detection
-        for lbox in label_boxes:
+        for olabel in self._labels:
+            lbox = olabel.get_window_extent(renderer=renderer)
+
             if not lbox.overlaps(box):
                 continue
 
-            new_y = lbox.ymax + box.height * 0.05
+            if box.ymin > lbox.ymin:
+                set_ann_y(label, lbox.ymax + box.height * 0.05)
+            else:
+                set_ann_y(olabel, box.ymax + lbox.height * 0.05)
 
-            if new_y + box.height > ymax:
-                new_y = lbox.ymin - box.height * 1.05
+    def fit_labels(self) -> None:
+        ymin, ymax = float('inf'), -float('inf')
+        renderer = self._ax.figure.canvas.get_renderer()
 
-            box = set_ann_y(label, new_y)
+        for box in (l.get_window_extent(renderer=renderer) for l in self._labels):
+            if box.ymin < ymin:
+                ymin = box.ymin
 
-        # Label out-of-bounds detection
-        if box.ymax > ymax:
-            box = set_ann_y(label, ymax - box.height * 1.05)
+            if box.ymax > ymax:
+                ymax = box.ymax
 
-        if box.ymin < ymin:
-            box = set_ann_y(label, ymin + box.height * 1.05)
+        transform = self._ax.transData.inverted()
+        ymin = transform.transform_point((0, ymin))[1]
+        ymax = transform.transform_point((0, ymax))[1]
 
-        return box
+        self.configure(ymin, ymax)
+
+    def artist_overlaps_labels(self, artist: plt.Artist) -> bool:
+        renderer = self._ax.figure.canvas.get_renderer()
+        artist_box = artist.get_window_extent(renderer)
+
+        for box in (l.get_window_extent(renderer) for l in self._labels):
+            if box.overlaps(artist_box):
+                return True
+
+        return False
 
     def configure(self, data_min: float, data_max: float) -> None:
         if data_min == 0.0:
@@ -201,10 +219,10 @@ class HistogramPlot(Plot):
         bottom = 10.0 ** np.floor(np.log10(data_min))
         top = 10.0 ** np.ceil(np.log10(data_max))
 
-        if data_max / top > 0.65:
+        if data_max / top > 0.9:
             top *= 2.0
         elif data_max / top < 0.2:
-            top *= 0.3
+            top *= 0.2
 
         return bottom, top
 
@@ -214,10 +232,10 @@ class HistogramPlot(Plot):
         bottom = (data_min // mult) * mult
         top = (data_max // mult + 1.0) * mult
 
-        if top - data_max < mult * 0.4:
-            top += mult * 0.5
+        if top - data_max < mult * 0.1:
+            top += mult * 0.1
 
-        if data_min - bottom < mult * 0.4:
+        if data_min - bottom < mult * 0.2:
             bottom = max(bottom - mult, 0.0)
 
         return bottom, top
