@@ -191,7 +191,11 @@ class HistogramPlot(Plot):
         ymin = transform.transform_point((0, ymin))[1]
         ymax = transform.transform_point((0, ymax))[1]
 
-        self.configure(ymin, ymax)
+        # Zero labels are not plotted, in which case ymin is larger than
+        # the actual required minimum (zero).
+        ymin = min(self._ax.get_ylim()[0], ymin)
+
+        self.configure_limits(ymin, ymax)
 
     def artist_overlaps_labels(self, artist: plt.Artist) -> bool:
         renderer = self._ax.figure.canvas.get_renderer()
@@ -203,19 +207,25 @@ class HistogramPlot(Plot):
 
         return False
 
-    def configure(self, data_min: float, data_max: float) -> None:
-        if data_min == 0.0:
-            data_min = sys.float_info.epsilon
-
-        if data_max / data_min > 25.0:
-            self.set_scale('log' if data_min > 1.0 else 'symlog', axis='y')
+    def configure_limits(self, data_min: float, data_max: float) -> None:
+        if 'log' in self._ax.get_yscale():
             bottom, top = self.ylim_log_scale(data_min, data_max)
         else:
             bottom, top = self.ylim_linear_scale(data_min, data_max)
 
         self._ax.set_ylim(bottom=bottom, top=top)
 
+    def configure_scale(self, data_min: float, data_max: float) -> None:
+        if data_min == 0.0 or data_max / data_min > 25.0:
+            self.set_scale('log' if data_min > 1.0 else 'symlog', axis='y')
+
     def ylim_log_scale(self, data_min: float, data_max: float) -> (float, float):
+        if data_min == 0.0:
+            data_min = sys.float_info.epsilon
+
+        if data_max == 0.0:
+            data_max = sys.float_info.epsilon
+
         bottom = 10.0 ** np.floor(np.log10(data_min))
         top = 10.0 ** np.ceil(np.log10(data_max))
 
@@ -227,7 +237,7 @@ class HistogramPlot(Plot):
         return bottom, top
 
     def ylim_linear_scale(self, data_min: float, data_max: float) -> (float, float):
-        mult = 10.0 ** np.floor(np.log10(data_max))
+        mult = 10.0 ** np.floor(np.log10(data_max - data_min))
 
         bottom = (data_min // mult) * mult
         top = (data_max // mult + 1.0) * mult
@@ -250,7 +260,8 @@ class GroupedHistogramPlot(HistogramPlot):
     def draw(self) -> None:
         data_min = min(p for l in self.data.values() for p in l)
         data_max = max(p for l in self.data.values() for p in l)
-        self.configure(data_min, data_max)
+        self.configure_scale(data_min, data_max)
+        self.configure_limits(data_min, data_max)
 
         labels = list(self.data.keys())
         labels.sort()
@@ -292,7 +303,8 @@ class StackedHistogramPlot(HistogramPlot):
     def draw(self) -> None:
         data_min = min(p for l in self.data.values() for p in l)
         data_max = max(sum(l) for l in self.data.values())
-        self.configure(data_min, data_max)
+        self.configure_scale(data_min, data_max)
+        self.configure_limits(data_min, data_max)
 
         group_labels = list(self.data.keys())
         group_labels.sort()
