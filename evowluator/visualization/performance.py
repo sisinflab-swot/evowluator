@@ -80,7 +80,7 @@ class PerformanceVisualizer(Visualizer):
                                 groups=reasoners)
 
         # Time scatter
-        metric = Metric('time', self._time_unit, '.0f')
+        metric = Metric('time', 'ms', '.0f')
         self.add_scatter_plotter(metric, col_filter=lambda c: 'memory' not in c)
 
         # Memory histogram
