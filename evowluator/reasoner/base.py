@@ -112,6 +112,14 @@ class Reasoner(ABC):
         """Args to be passed to the reasoner executable for each task and evaluation mode."""
         pass
 
+    def setup(self) -> None:
+        """Called at the beginning of the evaluation."""
+        pass
+
+    def teardown(self) -> None:
+        """Called at the end of the evaluation."""
+        pass
+
     # Public
 
     def __init__(self) -> None:

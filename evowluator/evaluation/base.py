@@ -102,15 +102,19 @@ class Evaluator(ABC):
         """Starts the evaluation."""
         self._logger = Logger(path.join(self.work_dir, config.Paths.LOG_FILE_NAME))
         self._csv_writer = CSVWriter(path.join(self.work_dir, config.Paths.RESULTS_FILE_NAME))
-        self.__save_config()
 
-        with self._logger, self._csv_writer:
-            self._logger.clear()
-            self.__log_config()
-            self.setup()
-            self._start(resume_ontology)
+        try:
+            self.__setup_reasoners()
+            self.__save_config()
 
-        fileutils.chmod(self.work_dir, 0o666, recursive=True, dir_mode=0o777)
+            with self._logger, self._csv_writer:
+                self._logger.clear()
+                self.__log_config()
+                self.setup()
+                self._start(resume_ontology)
+        finally:
+            fileutils.chmod(self.work_dir, 0o666, recursive=True, dir_mode=0o777)
+            self.__teardown_reasoners()
 
     # Protected
 
@@ -156,6 +160,14 @@ class Evaluator(ABC):
         self._logger.log('')
 
     # Private
+
+    def __setup_reasoners(self) -> None:
+        for r in self._usable_reasoners():
+            r.setup()
+
+    def __teardown_reasoners(self) -> None:
+        for r in self._usable_reasoners():
+            r.teardown()
 
     def __log_config(self) -> None:
         self._logger.log('Selected reasoners and serializations:', color=echo.Color.GREEN)

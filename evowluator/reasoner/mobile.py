@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from pyutils import exc
-from pyutils.proc.task import Task
+from pyutils.proc.task import OutputAction, Task
 from pyutils.proc.util import find_executable
 
 from evowluator.evaluation.mode import EvaluationMode
@@ -147,13 +147,16 @@ class IOSReasoner(MobileReasoner, ABC):
     def path(self) -> str:
         return find_executable('xcodebuild')
 
+    def setup(self) -> None:
+        args = self._common_args() + ['build-for-testing']
+        Task.spawn(self.path, args=args, output_action=OutputAction.DISCARD)
+
     def args(self, task: ReasoningTask, mode: EvaluationMode) -> List[str]:
-        args = ['-project', self._absolute_path(self.project),
-                '-scheme', self.scheme,
-                '-destination', 'platform=iOS,name={}'.format(self._detect_connected_device()),
-                '-only-testing:{}'.format(self.test_name_for_task(task)),
-                'test-without-building',
-                'RESOURCE={}'.format(MetaArgs.INPUT)]
+        args = self._common_args() + [
+            '-only-testing:{}'.format(self.test_name_for_task(task)),
+            'test-without-building',
+            'RESOURCE={}'.format(MetaArgs.INPUT)
+        ]
 
         if task == ReasoningTask.MATCHMAKING:
             args.append('REQUEST={}'.format(MetaArgs.REQUEST))
@@ -161,6 +164,12 @@ class IOSReasoner(MobileReasoner, ABC):
         return args
 
     # Protected
+
+    def _common_args(self) -> List[str]:
+        """Common arguments used in xcodebuild invocations."""
+        return ['-project', self._absolute_path(self.project),
+                '-scheme', self.scheme,
+                '-destination', 'platform=iOS,name={}'.format(self._detect_connected_device())]
 
     def _detect_connected_device(self) -> str:
         """Returns the name of a connected device."""
