@@ -196,3 +196,4 @@ $RECYCLE.BIN/
 # Project specific
 /.idea
 /results
+!/lib

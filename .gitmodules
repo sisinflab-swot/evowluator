@@ -1,3 +1,6 @@
 [submodule "lib/pyutils"]
 	path = lib/pyutils
 	url = https://github.com/IvanoBilenchi/pyutils.git
+[submodule "lib/owltool"]
+	path = lib/owltool
+	url = https://github.com/sisinflab-swot/owltool.git

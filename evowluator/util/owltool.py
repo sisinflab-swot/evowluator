@@ -18,5 +18,5 @@ def convert(source_path: str, target_path: str, target_syntax: str) -> bool:
 
 
 def print_tbox(onto_path: str, output_path: str) -> bool:
-    """Prints the TBox starting from the top concept."""
-    return _spawn_owltool(['print-tbox', '-i', onto_path, '-o', output_path])
+    """Prints the taxonomy starting from the top concept."""
+    return _spawn_owltool(['taxonomy', '-i', onto_path, '-o', output_path])
