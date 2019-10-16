@@ -4,10 +4,7 @@ import os
 from typing import Iterable, List, Optional
 
 from evowluator.config import Paths
-from .ontology import Ontology
-
-
-Syntax = Ontology.Syntax
+from .ontology import Ontology, Syntax
 
 
 class Dataset:

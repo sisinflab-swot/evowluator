@@ -1,4 +1,4 @@
-from evowluator.data.ontology import Ontology
+from evowluator.data.ontology import Syntax
 
 from .base import Evaluator
 
@@ -11,7 +11,7 @@ class InfoEvaluator(Evaluator):
         return 'info'
 
     def setup(self):
-        row = ['Ontology'] + ['Size ({})'.format(s.value) for s in Ontology.Syntax]
+        row = ['Ontology'] + ['Size ({})'.format(s.value) for s in Syntax]
         self._csv_writer.write_row(row)
 
     def run(self, entry):

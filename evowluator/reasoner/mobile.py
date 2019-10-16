@@ -20,7 +20,7 @@ from .base import (
 
 
 class MobileReasoner(Reasoner, ABC):
-    """Mobile reasoner wrapper."""
+    """Abstract mobile reasoner interface."""
 
     # Overrides
 
@@ -67,7 +67,7 @@ class MobileReasoner(Reasoner, ABC):
 
 
 class AndroidReasoner(MobileReasoner, ABC):
-    """Android mobile reasoner wrapper."""
+    """Abstract Android reasoner interface."""
 
     PACKAGE = 'it.poliba.sisinflab.owl.evowluator'
     LAUNCHER_CLASSPATH = PACKAGE + '/.Launcher'
@@ -79,13 +79,13 @@ class AndroidReasoner(MobileReasoner, ABC):
     @property
     @abstractmethod
     def target_package(self) -> str:
-        """Main reasoner app package."""
+        """Package identifier of the reasoner app."""
         pass
 
     @property
     @abstractmethod
     def log_prefix(self) -> str:
-        """Prefix prepended to log messages, used to filter logcat output."""
+        """String prepended to log messages, used to filter logcat output."""
         pass
 
     # Overrides
@@ -161,7 +161,7 @@ class AndroidReasoner(MobileReasoner, ABC):
 
 
 class IOSReasoner(MobileReasoner, ABC):
-    """iOS mobile reasoner wrapper."""
+    """Abstract iOS reasoner interface."""
 
     # Override
 
@@ -174,13 +174,16 @@ class IOSReasoner(MobileReasoner, ABC):
     @property
     @abstractmethod
     def scheme(self) -> str:
-        """Xcode scheme for the test."""
+        """Xcode scheme containing the tests."""
         pass
 
     @abstractmethod
     def test_name_for_task(self, task: ReasoningTask) -> str:
         """
-        Override this method by returning the Xcode test name for the specified reasoning task.
+        Returns the name of the test method exposing the specified reasoning task.
+
+        :param task: Reasoning task.
+        :return: Test method name.
         """
         pass
 

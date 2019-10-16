@@ -2,11 +2,11 @@ import os
 
 from pyutils.io import echo, fileutils
 
-from evowluator.data.ontology import Ontology
+from evowluator.data.ontology import Ontology, Syntax
 from .dataset import Dataset
 
 
-def convert(dataset: Dataset, syntax: Ontology.Syntax) -> None:
+def convert(dataset: Dataset, syntax: Syntax) -> None:
     echo.pretty(('Starting conversion of "{}" dataset '
                  '({} ontologies) in {} syntax...\n'.format(dataset.name, dataset.size, syntax)),
                 color=echo.Color.GREEN)

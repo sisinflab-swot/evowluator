@@ -5,7 +5,7 @@ from . import config
 from .config import EXE_NAME
 from .data import dataset_converter
 from .data.dataset import Dataset
-from .data.ontology import Ontology
+from .data.ontology import Syntax
 from .reasoner.base import ReasoningTask
 from .evaluation.info import InfoEvaluator
 from .evaluation.matchmaking import (
@@ -79,6 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
                        default=modes[0],
                        help='Evaluation mode.')
     group.add_argument('-e', '--energy-probe',
+                       metavar='CLASS_NAME',
                        help='Probe to use for energy measurements.')
 
     # Configuration parser
@@ -88,6 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
     group.add_argument('-d', '--dataset',
                        help='Desired dataset.')
     group.add_argument('-r', '--reasoners',
+                       metavar='REASONER',
                        nargs='+',
                        help='Desired reasoners.')
     group.add_argument('-n', '--num-iterations',
@@ -99,10 +101,11 @@ def build_parser() -> argparse.ArgumentParser:
                        default=config.Evaluation.TIMEOUT,
                        help='Timeout in seconds.')
     group.add_argument('-s', '--syntax',
-                       type=Ontology.Syntax,
-                       choices=Ontology.Syntax.all(),
+                       type=Syntax,
+                       choices=Syntax.all(),
                        help='Use the specified OWL syntax whenever possible.')
     group.add_argument('--resume-after',
+                       metavar='ONTOLOGY_NAME',
                        help='Resume the evaluation after the specified ontology.')
 
     # Main parser
@@ -164,14 +167,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument('path', help='Path of the dir containing the results to visualize.')
     parser.add_argument('-s', '--size',
+                        metavar=('WIDTH', 'HEIGHT'),
                         nargs=2,
                         type=positive_float,
                         help='Width and height of the figure in inches, separated by space.')
     parser.add_argument('-p', '--plots',
+                        metavar='PLOT_INDEX',
                         nargs='+',
                         type=positive_int,
                         help='Subplots to show.')
     parser.add_argument('-r', '--reasoners',
+                        metavar='REASONER',
                         nargs='+',
                         help='Reasoners to show.')
     parser.add_argument('--no-gui',
@@ -205,8 +211,8 @@ def build_parser() -> argparse.ArgumentParser:
                         required=True,
                         help='Dataset to convert.')
     parser.add_argument('-s', '--syntax',
-                        type=Ontology.Syntax,
-                        choices=Ontology.Syntax.all(),
+                        type=Syntax,
+                        choices=Syntax.all(),
                         required=True,
                         help='Desired syntax.')
 

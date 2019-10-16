@@ -7,7 +7,7 @@ from pyutils.io import echo, fileutils
 
 from evowluator import config
 from evowluator.data.dataset import Dataset
-from evowluator.data.ontology import Ontology
+from evowluator.data.ontology import Syntax
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.reasoner.results import MatchmakingResults
 from .base import ReasoningEnergyEvaluator, ReasoningEvaluator
@@ -24,7 +24,7 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None):
+                 syntax: Optional[Syntax] = None):
         super().__init__(ReasoningTask.MATCHMAKING,
                          dataset=dataset, reasoners=reasoners, syntax=syntax)
 
@@ -132,7 +132,7 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None):
+                 syntax: Optional[Syntax] = None):
         super().__init__(ReasoningTask.MATCHMAKING,
                          dataset=dataset, reasoners=reasoners, syntax=syntax)
 
@@ -227,6 +227,6 @@ class MatchmakingEnergyEvaluator(ReasoningEnergyEvaluator, MatchmakingMeasuremen
                  probe: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None):
+                 syntax: Optional[Syntax] = None):
         super().__init__(ReasoningTask.MATCHMAKING,
                          probe=probe, dataset=dataset, reasoners=reasoners, syntax=syntax)

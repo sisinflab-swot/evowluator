@@ -12,7 +12,7 @@ from pyutils.io import fileutils
 from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
 from evowluator.data.dataset import Dataset
-from evowluator.data.ontology import Ontology
+from evowluator.data.ontology import Syntax
 from evowluator.reasoner.base import ReasoningTask
 from evowluator.evaluation.mode import EvaluationMode
 
@@ -74,8 +74,8 @@ class Visualizer:
         self.index_columns = index_columns if index_columns else ['Ontology']
         self.dataset_name = cfg[ConfigKey.DATASET]
 
-        self._syntaxes_by_reasoner: 'OrderedDict[str, Ontology.Syntax]' = OrderedDict(
-            (r[ConfigKey.NAME], Ontology.Syntax(r[ConfigKey.SYNTAX]))
+        self._syntaxes_by_reasoner: 'OrderedDict[str, Syntax]' = OrderedDict(
+            (r[ConfigKey.NAME], Syntax(r[ConfigKey.SYNTAX]))
             for r in cfg[ConfigKey.REASONERS]
         )
 

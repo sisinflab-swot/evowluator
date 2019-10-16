@@ -15,7 +15,7 @@ from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
 from evowluator.data.csv import CSVWriter
 from evowluator.data.dataset import Dataset
-from evowluator.data.ontology import Ontology
+from evowluator.data.ontology import Ontology, Syntax
 from evowluator.reasoner.base import Reasoner, ReasoningTask
 from evowluator.reasoner.results import ReasoningResults
 from evowluator.user.loader import Loader
@@ -74,7 +74,7 @@ class Evaluator(ABC):
     def __init__(self,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None) -> None:
+                 syntax: Optional[Syntax] = None) -> None:
         self._dataset = Dataset.with_name(dataset) if dataset else Dataset.first()
 
         if syntax and syntax not in self._dataset.syntaxes:
@@ -118,11 +118,11 @@ class Evaluator(ABC):
 
     # Protected
 
-    def _syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[Ontology.Syntax]:
+    def _syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[Syntax]:
         available = self._dataset.syntaxes
         return [s for s in reasoner.supported_syntaxes if s in available]
 
-    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Optional[Ontology.Syntax]:
+    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Optional[Syntax]:
         supported = reasoner.supported_syntaxes
 
         if self._syntax in supported:
@@ -227,7 +227,7 @@ class ReasoningEvaluator(Evaluator):
                  task: ReasoningTask,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None) -> None:
+                 syntax: Optional[Syntax] = None) -> None:
         super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.task = task
 
@@ -250,7 +250,7 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator, ABC):
                  task: ReasoningTask, probe: str,
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Ontology.Syntax] = None):
+                 syntax: Optional[Syntax] = None):
         if not probe:
             raise ValueError('No probe specified.')
 

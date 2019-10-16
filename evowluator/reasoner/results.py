@@ -3,7 +3,7 @@ from __future__ import annotations
 import filecmp
 import re
 from abc import ABC, abstractmethod
-from typing import List, NamedTuple, Union
+from typing import List, Union
 
 from pyutils import exc
 from pyutils.proc.bench import Benchmark, EnergyProfiler
@@ -12,13 +12,30 @@ from pyutils.proc.task import Task
 EvaluationTask = Union[Task, Benchmark, EnergyProfiler]
 
 
-class EnergyStats(NamedTuple):
-    """Contains energy stats for a reasoning task."""
-    samples: List[float]
-    interval: int
+class EnergyStats:
+    """Contains energy statistics of a reasoning task."""
+
+    @property
+    def samples(self) -> List[float]:
+        """Power samples."""
+        return self._samples
+
+    @property
+    def interval(self) -> int:
+        """Sampling interval in milliseconds."""
+        return self._interval
+
+    def __init__(self, samples: List[float], interval: int):
+        self._samples = samples
+        self._interval = interval
 
     def score(self, task_duration: float) -> float:
-        """Returns an energy consumption score for a reasoning task of the specified duration."""
+        """
+        Returns an energy impact score for a reasoning task of the specified duration.
+
+        :param task_duration: Duration of the reasoning task in milliseconds.
+        :return: Energy impact score.
+        """
         if not self.samples:
             return 0.0
 
@@ -64,37 +81,51 @@ class EnergyStats(NamedTuple):
 
 
 class ReasoningResults(ABC):
+    """Contains results of a reasoning task."""
 
     # Override
 
     @property
     @abstractmethod
     def output(self) -> str:
+        """
+        Output of the reasoning task.
+        Can be either the output itself, or the path to the file containing the output,
+        depending on :attr:`output_is_file`.
+        """
         pass
 
     @property
     @abstractmethod
     def output_is_file(self) -> bool:
+        """
+        If True, :attr:`output` is the path to a file containing the output
+        of the reasoning task; otherwise, :attr:`output` contains actual reasoner output.
+        """
         pass
 
     @property
     @abstractmethod
     def parsing_ms(self) -> float:
+        """Parsing time in milliseconds."""
         pass
 
     @property
     @abstractmethod
     def reasoning_ms(self) -> float:
+        """Reasoning time in milliseconds."""
         pass
 
     @property
     @abstractmethod
     def max_memory(self) -> int:
+        """Memory peak in bytes."""
         pass
 
     @property
     @abstractmethod
     def energy_stats(self) -> EnergyStats:
+        """Energy statistics."""
         pass
 
     # Public
@@ -141,7 +172,7 @@ class ReasoningResults(ABC):
 
 
 class StandardReasoningResults(ReasoningResults):
-    """Contains reasoning results and stats."""
+    """Contains results of a standard reasoning task."""
 
     @property
     def output(self) -> str:
@@ -167,14 +198,15 @@ class StandardReasoningResults(ReasoningResults):
     def energy_stats(self) -> EnergyStats:
         return self._energy_stats
 
-    def __init__(self, output: str, output_is_file: bool, parsing_ms: float, reasoning_ms: float,
-                 max_memory: int, energy_stats: EnergyStats) -> None:
-        self._output = output
-        self._output_is_file = output_is_file
+    def __init__(self, parsing_ms: float, reasoning_ms: float,
+                 max_memory: int, energy_stats: EnergyStats,
+                 output: str = '', output_is_file: bool = False) -> None:
         self._parsing_ms = parsing_ms
         self._reasoning_ms = reasoning_ms
         self._max_memory = max_memory
         self._energy_stats = energy_stats
+        self._output = output
+        self._output_is_file = output_is_file
 
     def with_output(self, output: str, is_file: bool) -> StandardReasoningResults:
         return StandardReasoningResults(output=output, output_is_file=is_file,
@@ -183,7 +215,17 @@ class StandardReasoningResults(ReasoningResults):
 
 
 class MatchmakingResults(ReasoningResults):
-    """Contains results for the matchmaking task."""
+    """Contains results of a matchmaking task."""
+
+    @property
+    def init_ms(self) -> float:
+        """Reasoner initialization time in milliseconds."""
+        return self._init_ms
+
+    @property
+    def matchmaking_ms(self) -> float:
+        """Matchmaking time in milliseconds."""
+        return self._matchmaking_ms
 
     @property
     def output(self) -> str:
@@ -199,7 +241,7 @@ class MatchmakingResults(ReasoningResults):
 
     @property
     def reasoning_ms(self) -> float:
-        return self.init_ms + self.matchmaking_ms
+        return self._init_ms + self._matchmaking_ms
 
     @property
     def max_memory(self) -> int:
@@ -209,15 +251,16 @@ class MatchmakingResults(ReasoningResults):
     def energy_stats(self) -> EnergyStats:
         return self._energy_stats
 
-    def __init__(self, output: str, output_is_file: bool, parsing_ms: float, init_ms: float,
-                 matchmaking_ms: float, max_memory: int, energy_stats: EnergyStats) -> None:
-        self.init_ms = init_ms
-        self.matchmaking_ms = matchmaking_ms
+    def __init__(self, parsing_ms: float, init_ms: float,
+                 matchmaking_ms: float, max_memory: int, energy_stats: EnergyStats,
+                 output: str = '', output_is_file: bool = False) -> None:
+        self._init_ms = init_ms
+        self._matchmaking_ms = matchmaking_ms
         self._parsing_ms = parsing_ms
-        self._output = output
-        self._output_is_file = output_is_file
         self._max_memory = max_memory
         self._energy_stats = energy_stats
+        self._output = output
+        self._output_is_file = output_is_file
 
     def with_output(self, output: str, is_file: bool) -> MatchmakingResults:
         return MatchmakingResults(output=output, output_is_file=is_file,
@@ -229,16 +272,26 @@ class MatchmakingResults(ReasoningResults):
 
 
 class ResultsParser:
-    """Parses reasoning task results."""
+    """Parses results of reasoning tasks."""
 
     # Public methods
 
     def parse_classification_results(self, task: EvaluationTask) -> StandardReasoningResults:
-        """Parses the results of the classification task."""
+        """
+        Parses the results of a classification task.
+
+        :param task: Classification task.
+        :return: Results of the classification task.
+        """
         return self._parse_reasoning_stats(task)
 
     def parse_consistency_results(self, task: EvaluationTask) -> StandardReasoningResults:
-        """Parses the results of the consistency task."""
+        """
+        Parses the results of a consistency task.
+
+        :param task: Consistency task.
+        :return: Results of the consistency task.
+        """
         results = self._parse_reasoning_stats(task)
 
         res = re.search(r'The ontology is (.*)\.', task.stdout)
@@ -251,7 +304,12 @@ class ResultsParser:
         return results.with_output(res, is_file=False)
 
     def parse_matchmaking_results(self, task: EvaluationTask) -> MatchmakingResults:
-        """Parses the result of the matchmaking task by parsing stdout."""
+        """
+        Parses the results of a matchmaking task.
+
+        :param task: Matchmaking task.
+        :return: Results of the matchmaking task.
+        """
         stdout = task.stdout
         exc.raise_if_falsy(stdout=stdout)
 
@@ -268,8 +326,7 @@ class ResultsParser:
         res = re.search(r'Reasoning: (.*) ms', stdout)
         matchmaking_ms = float(res.group(1)) if res else 0.0
 
-        return MatchmakingResults(output='', output_is_file=False,
-                                  parsing_ms=parsing_ms,
+        return MatchmakingResults(parsing_ms=parsing_ms,
                                   init_ms=init_ms,
                                   matchmaking_ms=matchmaking_ms,
                                   max_memory=self._parse_memory(task),
@@ -278,7 +335,7 @@ class ResultsParser:
     # Protected methods
 
     def _parse_reasoning_stats(self, task: EvaluationTask) -> StandardReasoningResults:
-        """Parses stats for a reasoning task."""
+        """Parses performance stats for a reasoning task."""
         stdout = task.stdout
         exc.raise_if_falsy(stdout=stdout)
 
@@ -288,8 +345,7 @@ class ResultsParser:
         res = re.search(r'Reasoning: (.*) ms', stdout)
         reasoning_ms = float(res.group(1)) if res else 0.0
 
-        return StandardReasoningResults(output='', output_is_file=False,
-                                        parsing_ms=parsing_ms,
+        return StandardReasoningResults(parsing_ms=parsing_ms,
                                         reasoning_ms=reasoning_ms,
                                         max_memory=self._parse_memory(task),
                                         energy_stats=self._parse_energy(task))

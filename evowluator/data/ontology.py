@@ -8,15 +8,24 @@ from evowluator.util import owltool
 from evowluator.util.strenum import StrEnum
 
 
+class Syntax(StrEnum):
+    """OWL ontology syntaxes."""
+
+    FUNCTIONAL = 'functional'
+    """Functional syntax."""
+
+    MANCHESTER = 'manchester'
+    """Manchester syntax."""
+
+    OWLXML = 'owlxml'
+    """OWL/XML syntax."""
+
+    RDFXML = 'rdfxml'
+    """RDF/XML syntax."""
+
+
 class Ontology:
     """Models ontology files."""
-
-    class Syntax(StrEnum):
-        """OWL ontology syntaxes."""
-        FUNCTIONAL = 'functional'
-        MANCHESTER = 'manchester'
-        OWLXML = 'owlxml'
-        RDFXML = 'rdfxml'
 
     class ConversionResult(StrEnum):
         """Ontology conversion result."""

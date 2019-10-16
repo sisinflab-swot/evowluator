@@ -15,6 +15,12 @@ class JavaReasoner(Reasoner, ABC):
 
     @property
     @abstractmethod
+    def path(self) -> str:
+        """Path to the Jar file of the reasoner."""
+        pass
+
+    @property
+    @abstractmethod
     def vm_opts(self) -> List[str]:
         """Options to pass to the Java VM."""
         pass
