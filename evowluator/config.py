@@ -10,6 +10,7 @@ class Paths:
     """Paths config namespace."""
     SRC_DIR = path.dirname(path.realpath(sys.argv[0]))
     ROOT_DIR = path.dirname(SRC_DIR)
+    LIB_DIR = path.join(ROOT_DIR, 'lib')
     BIN_DIR = path.join(ROOT_DIR, 'bin')
     DATA_DIR = path.join(ROOT_DIR, 'data')
     RESULTS_DIR = path.join(ROOT_DIR, 'results')
