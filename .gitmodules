@@ -4,3 +4,6 @@
 [submodule "lib/owltool"]
 	path = lib/owltool
 	url = https://github.com/sisinflab-swot/owltool.git
+[submodule "lib/android-launcher"]
+	path = lib/android-launcher
+	url = https://github.com/sisinflab-swot/evowluator-android-launcher.git
