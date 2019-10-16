@@ -69,10 +69,11 @@ class MobileReasoner(Reasoner, ABC):
 class AndroidReasoner(MobileReasoner, ABC):
     """Android mobile reasoner wrapper."""
 
-    LAUNCHER_CLASSPATH = 'it.poliba.sisinflab.owl.evowluator/.Launcher'
     PACKAGE = 'it.poliba.sisinflab.owl.evowluator'
-    ANDROID_LAUNCHER_DIR = path.join(Paths.LIB_DIR, 'android-launcher')
-    APK_PATH = path.join(ANDROID_LAUNCHER_DIR, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk')
+    LAUNCHER_CLASSPATH = PACKAGE + '/.Launcher'
+    LAUNCHER_DIR = path.join(Paths.LIB_DIR, 'android-launcher')
+    APK_PATH = path.join(LAUNCHER_DIR, 'app', 'build', 'outputs',
+                         'apk', 'release', 'app-release.apk')
 
     # Override
     @property
@@ -117,46 +118,46 @@ class AndroidReasoner(MobileReasoner, ABC):
         return ['shell', '-x', ';'.join(shell_cmds)]
 
     def setup(self) -> None:
-        if not self._is_instrumentation_installed():
-            if not self._is_instrumentation_assembled():
-                self._assemble_instrumentation()
-            self._install_instrumentation()
+        if self._is_instrumentation_installed():
+            return
+
+        if not self._is_instrumentation_assembled():
+            self._assemble_instrumentation()
+
+        self._install_instrumentation()
 
     def teardown(self) -> None:
-        adb = Task.spawn(self.path, args=['uninstall', AndroidReasoner.PACKAGE])
-        adb.raise_if_failed(message='Cannot uninstall instrumentation from device')
+        self._uninstall_instrumentation()
 
     # Protected
 
     def _is_instrumentation_installed(self) -> bool:
-        adb_list_arguments = ['shell', 'cmd package list packages {}'.format(AndroidReasoner.PACKAGE)]
-        adb = Task.spawn(self.path, args=adb_list_arguments)
+        args = ['shell', 'cmd package list packages {}'.format(self.PACKAGE)]
+        adb = Task.spawn(self.path, args=args)
         adb.raise_if_failed(message='Cannot start Android Debug Bridge')
-        return len(adb.stdout) != 0
+        return True if adb.stdout else False
 
     def _is_instrumentation_assembled(self) -> bool:
-        return os.path.isfile(AndroidReasoner.APK_PATH)
+        return os.path.isfile(self.APK_PATH)
 
     def _assemble_instrumentation(self) -> None:
-        gradle_dir_args = ['-p', AndroidReasoner.ANDROID_LAUNCHER_DIR]
-        gradle_tasks = ['wrapper']
+        base_args = ['-p', self.LAUNCHER_DIR]
+        tasks = ['wrapper']
 
-        gradle = Task.spawn('gradle', args=gradle_dir_args + gradle_tasks)
-        gradle.raise_if_failed(message='Cannot generate gradle wrapper')
+        gradle = Task.spawn('gradle', args=base_args + tasks)
+        gradle.raise_if_failed(message='Cannot generate Gradle wrapper')
 
-        gradlew_tasks = ['clean', 'assembleRelease']
-        gradle = Task.spawn(
-            path.join(AndroidReasoner.ANDROID_LAUNCHER_DIR, 'gradlew'),
-            args=gradle_dir_args + gradlew_tasks)
-        gradle.raise_if_failed(message='Gradle cannot build android launcher')
+        tasks = ['clean', 'assembleRelease']
+        gradle = Task.spawn(path.join(self.LAUNCHER_DIR, 'gradlew'), args=base_args + tasks)
+        gradle.raise_if_failed(message='Gradle build failed')
 
     def _install_instrumentation(self) -> None:
-        adb_install_arguments = [
-            'install',
-            AndroidReasoner.APK_PATH
-        ]
-        adb = Task.spawn(self.path, args=adb_install_arguments)
+        adb = Task.spawn(self.path, args=['install', self.APK_PATH])
         adb.raise_if_failed(message='Cannot install instrumentation on device')
+
+    def _uninstall_instrumentation(self) -> None:
+        adb = Task.spawn(self.path, args=['uninstall', self.PACKAGE])
+        adb.raise_if_failed(message='Cannot uninstall instrumentation from device')
 
 
 class IOSReasoner(MobileReasoner, ABC):
