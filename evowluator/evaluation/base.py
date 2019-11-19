@@ -15,7 +15,7 @@ from evowluator.config import ConfigKey, Paths
 from evowluator.data import json
 from evowluator.data.csv import CSVWriter
 from evowluator.data.dataset import Dataset
-from evowluator.data.ontology import Ontology, Syntax
+from evowluator.data.ontology import Syntax
 from evowluator.reasoner.base import Reasoner, ReasoningTask
 from evowluator.reasoner.results import ReasoningResults
 from evowluator.user.loader import Loader

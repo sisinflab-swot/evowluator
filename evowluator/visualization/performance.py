@@ -35,14 +35,14 @@ class SingleValueVisualizer(Visualizer):
     # Private
 
     def _write_summary(self, file_path: str) -> None:
-        results = np.asarray([self.results_for_reasoner(r).values for r in self.reasoners])
+        results = np.array([self.results_for_reasoner(r).values for r in self.reasoners])
         metric_str = self.metric.to_string()
 
         self._summary = pd.DataFrame({
             'Reasoner': self.reasoners,
-            'Min ' + metric_str: results.min(axis=1).flatten(),
-            'Avg ' + metric_str: results.mean(axis=1).flatten(),
-            'Max ' + metric_str: results.max(axis=1).flatten()
+            'Min ' + metric_str: np.min(results, axis=1).flatten(),
+            'Avg ' + metric_str: np.mean(results, axis=1).flatten(),
+            'Max ' + metric_str: np.max(results, axis=1).flatten()
         }).set_index('Reasoner')
 
         self._summary.to_csv(file_path, float_format='%.2f')
@@ -131,13 +131,13 @@ class PerformanceVisualizer(Visualizer):
         memory = self.results_grouped_by_reasoner(memory_cols).sum()
         memory_min, memory_mean, memory_max = memory.min(), memory.mean(), memory.max()
 
-        parsing = np.asarray([parsing[r] for r in reasoners])
-        reasoning = np.asarray([reasoning[r] for r in reasoners])
-        memory_min = np.asarray([memory_min[r] for r in reasoners])
-        memory_mean = np.asarray([memory_mean[r] for r in reasoners])
-        memory_max = np.asarray([memory_max[r] for r in reasoners])
+        parsing = np.array([parsing[r] for r in reasoners])
+        reasoning = np.array([reasoning[r] for r in reasoners])
+        memory_min = np.array([memory_min[r] for r in reasoners])
+        memory_mean = np.array([memory_mean[r] for r in reasoners])
+        memory_max = np.array([memory_max[r] for r in reasoners])
 
-        if np.append(parsing, reasoning).min() < 1000.0:
+        if np.min(np.append(parsing, reasoning)) < 1000.0:
             time_unit = 'ms'
         else:
             parsing /= 1000.0

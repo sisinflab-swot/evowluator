@@ -40,7 +40,7 @@ class CorrectnessVisualizer(Visualizer):
                    for r in reasoners]
 
         stats = ['same', 'different', 'timeout', 'error']
-        correct, incorrect, timeout, error = [np.asarray([r.get(s, default=0) for r in results])
+        correct, incorrect, timeout, error = [np.array([r.get(s, default=0) for r in results])
                                               for s in stats]
 
         self._summary = pd.DataFrame({
