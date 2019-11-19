@@ -264,8 +264,6 @@ class GroupedHistogramPlot(HistogramPlot):
         self.configure_limits(data_min, data_max)
 
         labels = list(self.data.keys())
-        labels.sort()
-
         n_labels = len(labels)
         n_groups = len(self.groups)
 
@@ -307,7 +305,6 @@ class StackedHistogramPlot(HistogramPlot):
         self.configure_limits(data_min, data_max)
 
         group_labels = list(self.data.keys())
-        group_labels.sort()
         n_group_labels = len(group_labels)
 
         n_sections = len(next(iter(self.data.values())))
@@ -339,7 +336,6 @@ class ScatterPlot(Plot):
 
     def draw(self) -> None:
         labels = list(self.data.keys())
-        labels.sort()
 
         dataset_size = len(next(iter(self.data.values()))[0])
         point_size = 10.0 if dataset_size > 100 else 50.0
