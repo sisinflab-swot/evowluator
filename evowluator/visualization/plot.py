@@ -39,6 +39,7 @@ class Plot(ABC):
 
     def __init__(self, ax: plt.Axes):
         self.data = None
+        self.colors: Dict[str, str] = {}
         self.grid_axis = 'both'
         self.legend_loc = LegendLocation.BEST
         self.legend_cols = 1
@@ -297,8 +298,9 @@ class GroupedHistogramPlot(HistogramPlot):
         bar_width = 0.8 * width
 
         for i, label in enumerate(labels):
+            color = self.colors.get(label)
             self._ax.bar([j + width * i for j in range(n_groups)], self.data[label],
-                         width=bar_width, alpha=0.9, label=label)
+                         width=bar_width, alpha=0.9, label=label, color=color)
 
         self._ax.set_xticks([p + width * ((n_labels - 1) / 2) for p in range(n_groups)])
         self._ax.set_xticklabels(self.groups)
@@ -355,6 +357,7 @@ class ScatterPlot(Plot):
     def __init__(self, ax: plt.Axes):
         super().__init__(ax)
         self.data: Dict[str, Tuple[List[float], List[float]]] = {}
+        self.markers: Dict[str, str] = {}
         self.xmetric: Optional[Metric] = None
         self.ymetric: Optional[Metric] = None
 
@@ -373,14 +376,15 @@ class ScatterPlot(Plot):
 
         for label in labels:
             x, y = self.data[label]
-            self._ax.scatter(x, y, s=point_size, alpha=0.5, label=label)
-            self.draw_polyline(x, y)
+            marker, color = self.markers.get(label), self.colors.get(label)
+            self._ax.scatter(x, y, s=point_size, alpha=0.5, label=label, marker=marker, color=color)
+            self.draw_polyline(x, y, color=color)
 
         self.title = '{} by {}'.format(self.ymetric.capitalized_name, self.xmetric.name)
         self.xlabel = self.xmetric.to_string(capitalize=True)
         self.ylabel = self.ymetric.to_string(capitalize=True)
 
-    def draw_polyline(self, x: List[float], y: List[float]) -> None:
+    def draw_polyline(self, x: List[float], y: List[float], color: Optional[str] = None) -> None:
         count = len(x)
         weights = [1.0] * count
 
@@ -389,7 +393,7 @@ class ScatterPlot(Plot):
         y[0] = sum(y[:count]) / count
         weights[0] = max(y) * 10.0
 
-        self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x))
+        self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color)
 
     def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
         xlog = xmax / xmin > 25.0

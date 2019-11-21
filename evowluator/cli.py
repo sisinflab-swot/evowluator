@@ -203,6 +203,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--legend-only',
                         action='store_true',
                         help='Only plot the legend.')
+    parser.add_argument('--colors',
+                        metavar='COLOR',
+                        nargs='+',
+                        help='Colors to use for each reasoner.')
+    parser.add_argument('--markers',
+                        metavar='MARKER',
+                        nargs='+',
+                        help='Markers to use for each reasoner.')
 
     parser.set_defaults(func=visualize_sub)
 
@@ -300,6 +308,12 @@ def visualize_sub(args) -> int:
 
     if args.label_fmt:
         visualizer.figure.label_fmt = args.label_fmt
+
+    if args.colors:
+        visualizer.set_colors(args.colors)
+
+    if args.markers:
+        visualizer.set_markers(args.markers)
 
     visualizer.figure.show_labels = not args.no_labels
     visualizer.figure.show_titles = not args.no_titles

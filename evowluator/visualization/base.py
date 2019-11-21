@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 from os import path
-from typing import Callable, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -81,6 +81,8 @@ class Visualizer:
 
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)
         self.reasoners: List[str] = list(self._syntaxes_by_reasoner.keys())
+        self.colors: Dict[str, str] = {}
+        self.markers: Dict[str, str] = {}
         self.figure = Figure()
 
     def ontologies(self) -> Iterable[str]:
@@ -141,6 +143,18 @@ class Visualizer:
 
         return results
 
+    def set_colors(self, colors: List[str]) -> None:
+        self.colors = {
+            self.reasoners[idx]: color
+            for idx, color in enumerate(colors[:len(self.reasoners)]) if color != 'auto'
+        }
+
+    def set_markers(self, markers: List[str]) -> None:
+        self.markers = {
+            self.reasoners[idx]: marker
+            for idx, marker in enumerate(markers[:len(self.reasoners)]) if marker != 'auto'
+        }
+
     def add_scatter_plotter(self, metric: Metric,
                             col_filter: Optional[Callable[[str], bool]] = None) -> None:
         dataset = Dataset(os.path.join(Paths.DATA_DIR, self.dataset_name))
@@ -166,7 +180,8 @@ class Visualizer:
             data.append((x, y))
 
         data = dict(zip(self.reasoners, data))
-        self.figure.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric)
+        self.figure.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric,
+                                colors=self.colors, markers=self.markers)
 
     def add_min_max_avg_plotter(self, data: pd.DataFrame, metric: Metric,
                                 col_filter: Optional[Callable[[str], bool]] = None) -> None:
@@ -178,4 +193,5 @@ class Visualizer:
 
         data = [data.loc[r].values for r in reasoners]
         data = dict(zip(reasoners, data))
-        self.figure.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric)
+        self.figure.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric,
+                                colors=self.colors)
