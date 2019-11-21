@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from abc import ABC, abstractmethod
 from math import ceil
 from typing import Dict, List, Optional, Tuple
 
@@ -26,14 +27,13 @@ class LegendLocation(StrEnum):
     CENTER = 'center'
 
 
-class Plot:
+class Plot(ABC):
 
     # Override
 
-    def draw(self) -> None:
-        self.draw_grid()
-        self.draw_legend()
-        self.draw_titles()
+    @abstractmethod
+    def draw_plot(self) -> None:
+        pass
 
     # Public
 
@@ -41,6 +41,8 @@ class Plot:
         self.data = None
         self.grid_axis = 'both'
         self.legend_loc = LegendLocation.BEST
+        self.legend_cols = 1
+        self.legend_only = False
         self.show_titles = True
         self.title: Optional[str] = None
         self.xlabel: Optional[str] = None
@@ -76,23 +78,50 @@ class Plot:
         self._ax.yaxis.set_major_formatter(y_maj)
         self._ax.yaxis.set_minor_formatter(y_min)
 
+    def draw(self) -> None:
+        if self.legend_only:
+            self.draw_legend_only()
+            return
+
+        self.draw_plot()
+        self.draw_grid()
+
+        if self.legend_loc != LegendLocation.NONE:
+            self.draw_legend()
+
+        if self.show_titles:
+            self.draw_titles()
+
+    def draw_legend_only(self) -> None:
+        self.draw_plot()
+        legend = self.draw_legend()
+
+        for artist in self._ax.get_children():
+            if artist is not legend:
+                artist.set_visible(False)
+
+        self._ax.relim(visible_only=True)
+        self._ax.set_axis_off()
+
     def draw_grid(self) -> None:
         self._ax.minorticks_on()
         self._ax.set_axisbelow(True)
         self._ax.grid(b=True, axis=self.grid_axis, which='major')
         self._ax.grid(b=True, axis=self.grid_axis, which='minor', alpha=0.25)
 
-    def draw_legend(self) -> None:
-        if self.legend_loc == LegendLocation.NONE:
-            return
-
-        legend = self._ax.legend(loc=self.legend_loc.value)
+    def draw_legend(self):
+        legend = self._ax.legend(loc=self.legend_loc.value,
+                                 mode='expand' if self.legend_only else None,
+                                 ncol=self.legend_cols,
+                                 handletextpad=0.4,
+                                 handlelength=0.7,
+                                 labelspacing=0.25,
+                                 columnspacing=1.0,
+                                 borderaxespad=0.0 if self.legend_only else None)
         legend.set_draggable(True)
+        return legend
 
     def draw_titles(self) -> None:
-        if not self.show_titles:
-            return
-
         if self.title:
             self._ax.set_title(self.title)
 
@@ -106,11 +135,7 @@ class Plot:
         return ticker.FormatStrFormatter('%g')
 
 
-class HistogramPlot(Plot):
-
-    def draw(self) -> None:
-        self.draw_labels()
-        super().draw()
+class HistogramPlot(Plot, ABC):
 
     def __init__(self, ax: plt.Axes):
         super().__init__(ax)
@@ -122,10 +147,11 @@ class HistogramPlot(Plot):
         self.show_labels = True
         self._labels: List[plt.Annotation] = []
 
-    def draw_labels(self) -> None:
-        if not self.show_labels:
-            return
+    def draw_plot(self) -> None:
+        if self.show_labels:
+            self.draw_labels()
 
+    def draw_labels(self) -> None:
         fmt = self.label_fmt if self.label_fmt else self.metric.fmt
 
         if not fmt:
@@ -257,7 +283,7 @@ class GroupedHistogramPlot(HistogramPlot):
         super().__init__(ax)
         self.groups: List[str] = []
 
-    def draw(self) -> None:
+    def draw_plot(self) -> None:
         data_min = min(p for l in self.data.values() for p in l)
         data_max = max(p for l in self.data.values() for p in l)
         self.configure_scale(data_min, data_max)
@@ -279,8 +305,7 @@ class GroupedHistogramPlot(HistogramPlot):
 
         self.ylabel = self.metric.to_string(capitalize=True)
         self.title = self.metric.capitalized_name
-
-        super().draw()
+        super().draw_plot()
 
 
 class MinMaxAvgHistogramPlot(GroupedHistogramPlot):
@@ -298,7 +323,7 @@ class StackedHistogramPlot(HistogramPlot):
         self.data: Dict[str, List[float]] = {}
         self.labels: List[str] = []
 
-    def draw(self) -> None:
+    def draw_plot(self) -> None:
         data_min = min(p for l in self.data.values() for p in l)
         data_max = max(sum(l) for l in self.data.values())
         self.configure_scale(data_min, data_max)
@@ -322,8 +347,7 @@ class StackedHistogramPlot(HistogramPlot):
 
         self._ax.set_xticks(pos)
         self._ax.set_xticklabels(group_labels)
-
-        super().draw()
+        super().draw_plot()
 
 
 class ScatterPlot(Plot):
@@ -334,7 +358,7 @@ class ScatterPlot(Plot):
         self.xmetric: Optional[Metric] = None
         self.ymetric: Optional[Metric] = None
 
-    def draw(self) -> None:
+    def draw_plot(self) -> None:
         labels = list(self.data.keys())
 
         dataset_size = len(next(iter(self.data.values()))[0])
@@ -355,8 +379,6 @@ class ScatterPlot(Plot):
         self.title = '{} by {}'.format(self.ymetric.capitalized_name, self.xmetric.name)
         self.xlabel = self.xmetric.to_string(capitalize=True)
         self.ylabel = self.ymetric.to_string(capitalize=True)
-
-        super().draw()
 
     def draw_polyline(self, x: List[float], y: List[float]) -> None:
         count = len(x)
@@ -407,6 +429,8 @@ class Figure:
         self.show_labels = True
         self.label_fmt: Optional[str] = None
         self.legend_loc = LegendLocation.BEST
+        self.legend_cols = 1
+        self.legend_only = True
         self._plotters: List[Plotter] = []
         self._is_drawn = False
 
@@ -417,6 +441,8 @@ class Figure:
         kwargs['show_titles'] = self.show_titles
         kwargs['show_labels'] = self.show_labels
         kwargs['legend_loc'] = self.legend_loc
+        kwargs['legend_cols'] = self.legend_cols
+        kwargs['legend_only'] = self.legend_only
 
         self._plotters.append(Plotter(plot_type, **kwargs))
 

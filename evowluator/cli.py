@@ -196,6 +196,13 @@ def build_parser() -> argparse.ArgumentParser:
                         choices=LegendLocation.all(),
                         default=LegendLocation.BEST,
                         help='Location of the legend.')
+    parser.add_argument('--legend-cols',
+                        type=positive_int,
+                        default=1,
+                        help='Number of columns of the legend.')
+    parser.add_argument('--legend-only',
+                        action='store_true',
+                        help='Only plot the legend.')
 
     parser.set_defaults(func=visualize_sub)
 
@@ -297,6 +304,8 @@ def visualize_sub(args) -> int:
     visualizer.figure.show_labels = not args.no_labels
     visualizer.figure.show_titles = not args.no_titles
     visualizer.figure.legend_loc = args.legend_loc
+    visualizer.figure.legend_cols = args.legend_cols
+    visualizer.figure.legend_only = args.legend_only
     visualizer.write_results()
 
     plots = [p - 1 for p in args.plots] if args.plots else None
