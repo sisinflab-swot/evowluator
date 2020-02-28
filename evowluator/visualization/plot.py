@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-from abc import ABC, abstractmethod
 from math import ceil
 from typing import Dict, List, Optional, Tuple
 
@@ -27,13 +26,16 @@ class LegendLocation(StrEnum):
     CENTER = 'center'
 
 
-class Plot(ABC):
+class Plot:
 
     # Override
 
-    @abstractmethod
     def draw_plot(self) -> None:
-        pass
+        for label in self._ax.get_xticklabels():
+            label.set_rotation(self.xtick_rot)
+
+        for label in self._ax.get_yticklabels():
+            label.set_rotation(self.ytick_rot)
 
     # Public
 
@@ -48,6 +50,8 @@ class Plot(ABC):
         self.title: Optional[str] = None
         self.xlabel: Optional[str] = None
         self.ylabel: Optional[str] = None
+        self.xtick_rot = 0.0
+        self.ytick_rot = 0.0
 
         self._ax = ax
 
@@ -136,14 +140,14 @@ class Plot(ABC):
         return ticker.FormatStrFormatter('%g')
 
 
-class HistogramPlot(Plot, ABC):
+class HistogramPlot(Plot):
 
     def __init__(self, ax: plt.Axes):
         super().__init__(ax)
-        self.center_labels = False
         self.data: Dict[str, List[float]] = {}
         self.grid_axis = 'y'
         self.label_fmt: Optional[str] = None
+        self.label_rot = 0.0
         self.metric: Optional[Metric] = None
         self.show_labels = True
         self._labels: List[plt.Annotation] = []
@@ -151,6 +155,7 @@ class HistogramPlot(Plot, ABC):
     def draw_plot(self) -> None:
         if self.show_labels:
             self.draw_labels()
+        super().draw_plot()
 
     def draw_labels(self) -> None:
         fmt = self.label_fmt if self.label_fmt else self.metric.fmt
@@ -166,19 +171,14 @@ class HistogramPlot(Plot, ABC):
     def draw_label(self, bar: Rectangle, fmt: str) -> plt.Annotation:
         w, h = bar.get_width(), bar.get_height()
 
-        if self.center_labels:
-            y_mult = 0.5
-            va = 'center'
-        else:
-            y_mult = 1.0
-            va = 'bottom'
-
         x = bar.get_x() + w * 0.5
-        y = bar.get_y() + h * y_mult
+        y = bar.get_y() + h
 
-        label = self._ax.annotate(format(h, fmt), (x, y), ha='center', va=va)
+        label = self._ax.annotate(format(h, fmt), (x, y), ha='center', va='bottom')
         label.draggable()
+
         self.fit_label(label)
+        label.set_rotation(self.label_rot)
 
         return label
 
@@ -207,7 +207,7 @@ class HistogramPlot(Plot, ABC):
         ymin, ymax = float('inf'), -float('inf')
         renderer = self._ax.figure.canvas.get_renderer()
 
-        for box in (l.get_window_extent(renderer=renderer) for l in self._labels):
+        for box in (label.get_window_extent(renderer=renderer) for label in self._labels):
             if box.ymin < ymin:
                 ymin = box.ymin
 
@@ -228,7 +228,7 @@ class HistogramPlot(Plot, ABC):
         renderer = self._ax.figure.canvas.get_renderer()
         artist_box = artist.get_window_extent(renderer)
 
-        for box in (l.get_window_extent(renderer) for l in self._labels):
+        for box in (label.get_window_extent(renderer) for label in self._labels):
             if box.overlaps(artist_box):
                 return True
 
@@ -285,8 +285,8 @@ class GroupedHistogramPlot(HistogramPlot):
         self.groups: List[str] = []
 
     def draw_plot(self) -> None:
-        data_min = min(p for l in self.data.values() for p in l)
-        data_max = max(p for l in self.data.values() for p in l)
+        data_min = min(p for v in self.data.values() for p in v)
+        data_max = max(p for v in self.data.values() for p in v)
         self.configure_scale(data_min, data_max)
         self.configure_limits(data_min, data_max)
 
@@ -326,8 +326,8 @@ class StackedHistogramPlot(HistogramPlot):
         self.labels: List[str] = []
 
     def draw_plot(self) -> None:
-        data_min = min(p for l in self.data.values() for p in l)
-        data_max = max(sum(l) for l in self.data.values())
+        data_min = min(p for v in self.data.values() for p in v)
+        data_max = max(sum(v) for v in self.data.values())
         self.configure_scale(data_min, data_max)
         self.configure_limits(data_min, data_max)
 
@@ -383,6 +383,7 @@ class ScatterPlot(Plot):
         self.title = '{} by {}'.format(self.ymetric.capitalized_name, self.xmetric.name)
         self.xlabel = self.xmetric.to_string(capitalize=True)
         self.ylabel = self.ymetric.to_string(capitalize=True)
+        super().draw_plot()
 
     def draw_polyline(self, x: List[float], y: List[float], color: Optional[str] = None) -> None:
         count = len(x)
@@ -432,9 +433,12 @@ class Figure:
         self.show_titles = True
         self.show_labels = True
         self.label_fmt: Optional[str] = None
+        self.label_rot = 0.0
         self.legend_loc = LegendLocation.BEST
         self.legend_cols = 1
         self.legend_only = True
+        self.xtick_rot = 0.0
+        self.ytick_rot = 0.0
         self._plotters: List[Plotter] = []
         self._is_drawn = False
 
@@ -447,6 +451,9 @@ class Figure:
         kwargs['legend_loc'] = self.legend_loc
         kwargs['legend_cols'] = self.legend_cols
         kwargs['legend_only'] = self.legend_only
+        kwargs['label_rot'] = self.label_rot
+        kwargs['xtick_rot'] = self.xtick_rot
+        kwargs['ytick_rot'] = self.ytick_rot
 
         self._plotters.append(Plotter(plot_type, **kwargs))
 

@@ -191,6 +191,15 @@ def build_parser() -> argparse.ArgumentParser:
                         help='Omit value labels when plotting.')
     parser.add_argument('--label-fmt',
                         help='Float format of value labels.')
+    parser.add_argument('--label-rot',
+                        type=float,
+                        help='Rotation of value labels in degrees.')
+    parser.add_argument('--xtick-rot',
+                        type=float,
+                        help='Rotation of labels on the x axis in degrees.')
+    parser.add_argument('--ytick-rot',
+                        type=float,
+                        help='Rotation of labels on the y axis in degrees.')
     parser.add_argument('--legend-loc',
                         type=LegendLocation,
                         choices=LegendLocation.all(),
@@ -299,12 +308,22 @@ def info_sub(args) -> int:
 
 def visualize_sub(args) -> int:
     visualizer = Visualizer.from_dir(args.path, reasoners=args.reasoners)
+    figure = visualizer.figure
 
     if args.size:
-        visualizer.figure.size = (args.size[0], args.size[1])
+        figure.size = (args.size[0], args.size[1])
 
     if args.label_fmt:
-        visualizer.figure.label_fmt = args.label_fmt
+        figure.label_fmt = args.label_fmt
+
+    if args.label_rot:
+        figure.label_rot = args.label_rot
+
+    if args.xtick_rot:
+        figure.xtick_rot = args.xtick_rot
+
+    if args.ytick_rot:
+        figure.ytick_rot = args.ytick_rot
 
     if args.colors:
         visualizer.set_colors(args.colors)
@@ -312,11 +331,11 @@ def visualize_sub(args) -> int:
     if args.markers:
         visualizer.set_markers(args.markers)
 
-    visualizer.figure.show_labels = not args.no_labels
-    visualizer.figure.show_titles = not args.no_titles
-    visualizer.figure.legend_loc = args.legend_loc
-    visualizer.figure.legend_cols = args.legend_cols
-    visualizer.figure.legend_only = args.legend_only
+    figure.show_labels = not args.no_labels
+    figure.show_titles = not args.no_titles
+    figure.legend_loc = args.legend_loc
+    figure.legend_cols = args.legend_cols
+    figure.legend_only = args.legend_only
     visualizer.write_results()
 
     plots = [p - 1 for p in args.plots] if args.plots else None
