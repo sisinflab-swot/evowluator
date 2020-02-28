@@ -35,11 +35,11 @@ class SingleValueVisualizer(Visualizer):
     # Private
 
     def _write_summary(self, file_path: str) -> None:
-        results = np.array([self.results_for_reasoner(r).values for r in self.reasoners])
+        results = np.array([self.results_for_reasoner(r).values for r in self._reasoners])
         metric_str = self.metric.to_string()
 
         self._summary = pd.DataFrame({
-            'Reasoner': self.reasoners,
+            'Reasoner': self._reasoners,
             'Min ' + metric_str: np.min(results, axis=1).flatten(),
             'Avg ' + metric_str: np.mean(results, axis=1).flatten(),
             'Max ' + metric_str: np.max(results, axis=1).flatten()
@@ -120,7 +120,7 @@ class PerformanceVisualizer(Visualizer):
         totals.to_csv(file_path, float_format='%.2f')
 
     def _write_summary(self, file_path: str) -> None:
-        reasoners = self.reasoners
+        reasoners = self._reasoners
         parsing_cols = self._parsing_cols()
         reasoning_cols = self._reasoning_cols()
         memory_cols = self._memory_cols()

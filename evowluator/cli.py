@@ -298,10 +298,7 @@ def info_sub(args) -> int:
 
 
 def visualize_sub(args) -> int:
-    visualizer = Visualizer.from_dir(args.path)
-
-    if args.reasoners:
-        visualizer.reasoners = args.reasoners
+    visualizer = Visualizer.from_dir(args.path, reasoners=args.reasoners)
 
     if args.size:
         visualizer.figure.size = (args.size[0], args.size[1])

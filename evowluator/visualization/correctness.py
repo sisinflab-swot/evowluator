@@ -16,7 +16,7 @@ class CorrectnessVisualizer(Visualizer):
 
     def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(results_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
-        self.reasoners = self.reasoners[1:]
+        self._reasoners = self._reasoners[1:]
         self._summary: Optional[pd.DataFrame] = None
 
     def configure_plotters(self) -> None:
@@ -35,7 +35,7 @@ class CorrectnessVisualizer(Visualizer):
     def write_results(self) -> None:
         fileutils.create_dir(self.output_dir)
 
-        reasoners = self.reasoners
+        reasoners = self._reasoners
         results = [self.results_for_reasoner(r)['match'].value_counts(sort=False)
                    for r in reasoners]
 
