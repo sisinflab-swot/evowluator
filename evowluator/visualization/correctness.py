@@ -26,11 +26,11 @@ class CorrectnessVisualizer(Visualizer):
         cols = ['correct', 'incorrect', 'timeout', 'error']
         stats = self._summary[cols]
         reasoners = stats.index.values
-        self.figure.add_plotter(GroupedHistogramPlot,
-                                title='Correctness results',
-                                data=dict(zip(reasoners, (stats.loc[r].values for r in reasoners))),
-                                metric=Metric('occurrences', fmt='.0f'),
-                                groups=cols)
+        self.add_plotter(GroupedHistogramPlot,
+                         title='Correctness results',
+                         data=dict(zip(reasoners, (stats.loc[r].values for r in reasoners))),
+                         metric=Metric('occurrences', fmt='.0f'),
+                         groups=cols)
 
     def write_results(self) -> None:
         fileutils.create_dir(self.output_dir)

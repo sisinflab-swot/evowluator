@@ -161,6 +161,11 @@ class Visualizer:
             for idx, marker in enumerate(markers[:len(self._reasoners)]) if marker != 'auto'
         }
 
+    def add_plotter(self, plot_type: type, **kwargs) -> None:
+        kwargs['colors'] = self.colors
+        kwargs['markers'] = self.markers
+        self.figure.add_plotter(plot_type, **kwargs)
+
     def add_scatter_plotter(self, metric: Metric,
                             col_filter: Optional[Callable[[str], bool]] = None) -> None:
         dataset = Dataset(os.path.join(Paths.DATA_DIR, self._dataset_name))
@@ -186,8 +191,7 @@ class Visualizer:
             data.append((x, y))
 
         data = dict(zip(self._reasoners, data))
-        self.figure.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric,
-                                colors=self.colors, markers=self.markers)
+        self.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric)
 
     def add_min_max_avg_plotter(self, data: pd.DataFrame, metric: Metric,
                                 col_filter: Optional[Callable[[str], bool]] = None) -> None:
@@ -199,5 +203,4 @@ class Visualizer:
 
         data = [data.loc[r].values for r in reasoners]
         data = dict(zip(reasoners, data))
-        self.figure.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric,
-                                colors=self.colors)
+        self.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric)

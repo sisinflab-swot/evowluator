@@ -73,11 +73,11 @@ class PerformanceVisualizer(Visualizer):
         reasoners = list(data.index.values)
         data = data.values.transpose()
 
-        self.figure.add_plotter(GroupedHistogramPlot,
-                                title='Total parsing and reasoning time',
-                                data=dict(zip(['Parsing', 'Reasoning'], list(data))),
-                                metric=Metric('time', self._time_unit, '.0f'),
-                                groups=reasoners)
+        self.add_plotter(GroupedHistogramPlot,
+                         title='Total parsing and reasoning time',
+                         data=dict(zip(['Parsing', 'Reasoning'], list(data))),
+                         metric=Metric('time', self._time_unit, '.0f'),
+                         groups=reasoners)
 
         # Time scatter
         metric = Metric('time', 'ms', '.0f')
