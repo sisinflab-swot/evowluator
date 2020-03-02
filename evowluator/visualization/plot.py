@@ -174,34 +174,13 @@ class HistogramPlot(Plot):
         x = bar.get_x() + w * 0.5
         y = bar.get_y() + h
 
-        label = self._ax.annotate(format(h, fmt), (x, y), ha='center', va='bottom')
+        label = self._ax.annotate(format(h, fmt), (x, y),
+                                  xytext=(0.0, 4.0), textcoords='offset points',
+                                  ha='center', va='bottom')
         label.draggable()
-
-        self.fit_label(label)
         label.set_rotation(self.label_rot)
 
         return label
-
-    def fit_label(self, label: plt.Annotation) -> None:
-        # Attempt to resolve obvious layout issues
-        renderer = self._ax.figure.canvas.get_renderer()
-        box = label.get_window_extent(renderer=renderer)
-        transform = self._ax.transData.inverted()
-
-        def set_ann_y(ann: plt.Annotation, ann_y: float) -> None:
-            ann.set_y(transform.transform_point((0.0, ann_y))[1])
-
-        # Very simple label overlap detection
-        for olabel in self._labels:
-            lbox = olabel.get_window_extent(renderer=renderer)
-
-            if not lbox.overlaps(box):
-                continue
-
-            if box.ymin > lbox.ymin:
-                set_ann_y(label, lbox.ymax + box.height * 0.05)
-            else:
-                set_ann_y(olabel, box.ymax + lbox.height * 0.05)
 
     def fit_labels(self) -> None:
         ymin, ymax = float('inf'), -float('inf')
