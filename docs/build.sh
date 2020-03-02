@@ -22,7 +22,6 @@ source "${ROOT_DIR}/venv/bin/activate"
 pip3 install -r "${SRC_DIR}/requirements.txt" > "${LOG_DIR}/pip.log" 2>&1
 
 echo "Building docs..."
-cd "${SRC_DIR}"
 sphinx-build -b html "${SRC_DIR}" "${HTML_DIR}"  > "${LOG_DIR}/sphinx.log" 2>&1
 
 echo "Done!"
