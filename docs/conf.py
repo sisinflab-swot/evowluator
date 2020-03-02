@@ -11,7 +11,7 @@ sys.path.extend([
 project = 'evOWLuator'
 copyright = '2019, SisInf Lab'
 author = 'SisInf Lab'
-version = '0.1.0'
+version = '0.1.1'
 release = version
 logo = ''
 git_url = 'https://github.com/sisinflab-swot/evowluator'
