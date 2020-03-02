@@ -337,6 +337,7 @@ class ScatterPlot(Plot):
         super().__init__(ax)
         self.data: Dict[str, Tuple[List[float], List[float]]] = {}
         self.markers: Dict[str, str] = {}
+        self.marker_size = 0.0
         self.xmetric: Optional[Metric] = None
         self.ymetric: Optional[Metric] = None
 
@@ -344,7 +345,11 @@ class ScatterPlot(Plot):
         labels = list(self.data.keys())
 
         dataset_size = len(next(iter(self.data.values()))[0])
-        point_size = 10.0 if dataset_size > 100 else 50.0
+
+        if self.marker_size:
+            msize = self.marker_size
+        else:
+            msize = 3.0 if dataset_size > 100 else 7.0
 
         xmin = min(p for t in self.data.values() for p in t[0])
         xmax = max(p for t in self.data.values() for p in t[0])
@@ -355,9 +360,12 @@ class ScatterPlot(Plot):
 
         for label in labels:
             x, y = self.data[label]
-            marker, color = self.markers.get(label), self.colors.get(label)
-            self._ax.scatter(x, y, s=point_size, alpha=0.5, label=label, marker=marker, color=color)
-            self.draw_polyline(x, y, color=color)
+            marker, color = self.markers.get(label, 'o'), self.colors.get(label)
+            lines = self._ax.plot(x, y, linestyle='none', alpha=0.5,
+                                  ms=msize, label=label, marker=marker, c=color, lw=1.0)
+
+            if lines:
+                self.draw_polyline(x, y, color=lines[0].get_color())
 
         self.title = '{} by {}'.format(self.ymetric.capitalized_name, self.xmetric.name)
         self.xlabel = self.xmetric.to_string(capitalize=True)
@@ -416,6 +424,7 @@ class Figure:
         self.legend_loc = LegendLocation.BEST
         self.legend_cols = 1
         self.legend_only = True
+        self.marker_size = 0.0
         self.xtick_rot = 0.0
         self.ytick_rot = 0.0
         self._plotters: List[Plotter] = []
@@ -433,6 +442,7 @@ class Figure:
         kwargs['label_rot'] = self.label_rot
         kwargs['xtick_rot'] = self.xtick_rot
         kwargs['ytick_rot'] = self.ytick_rot
+        kwargs['marker_size'] = self.marker_size
 
         self._plotters.append(Plotter(plot_type, **kwargs))
 

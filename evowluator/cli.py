@@ -220,6 +220,9 @@ def build_parser() -> argparse.ArgumentParser:
                         metavar='MARKER',
                         nargs='+',
                         help='Markers to use for each reasoner.')
+    parser.add_argument('--marker-size',
+                        type=positive_float,
+                        help='Marker size in points.')
 
     parser.set_defaults(func=visualize_sub)
 
@@ -331,16 +334,21 @@ def visualize_sub(args) -> int:
     if args.markers:
         visualizer.set_markers(args.markers)
 
+    if args.marker_size:
+        figure.marker_size = args.marker_size
+
     figure.show_labels = not args.no_labels
     figure.show_titles = not args.no_titles
     figure.legend_loc = args.legend_loc
     figure.legend_cols = args.legend_cols
     figure.legend_only = args.legend_only
-    visualizer.write_results()
 
     plots = [p - 1 for p in args.plots] if args.plots else None
     show_gui = not args.no_gui
+
+    visualizer.write_results()
     visualizer.plot_results(gui=show_gui, plots=plots)
+
     return 0
 
 
