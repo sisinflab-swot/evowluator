@@ -47,8 +47,8 @@ classification, consistency, matchmaking
   **Default:** all configured reasoners.
 - :code:`-n, --num-iterations <NUM>`: number of iterations for each test.
   **Default:** 5.
-- :code:`-t, --timeout <TIMEOUT>`: timeout imposed on each reasoner, in seconds.
-  **Default:** 1200.
+- :code:`-t, --timeout <TIMEOUT>`: timeout imposed on each reasoner for a single inference task,
+  in seconds. **Default:** 1200.
 - :code:`-s, --syntax <SYNTAX>`: reference OWL syntax.
   **Values:** |syntaxes|.
   **Default:** preferred syntax for each reasoner.
@@ -90,10 +90,20 @@ visualize
 - :code:`--no-titles`: omit titles for figures and axes.
 - :code:`--no-labels`: omit value labels.
 - :code:`--label-fmt <FORMAT>`: `float format`_ of value labels.
+- :code:`--label-rot`: rotation of value labels in degrees.
+- :code:`--xtick-rot`: rotation of labels on the x axis in degrees.
+- :code:`--ytick-rot`: rotation of labels on the y axis in degrees.
 - :code:`--legend-loc <LOCATION>`: location of the legend. **Values:**
 
   - :code:`none`: do not plot the legend.
   - :code:`best`: let the matplotlib engine decide the position.
   - :code:`[upper, lower, center] right, left, center`: explicit position.
+- :code:`--legend-cols`: number of columns of the legend.
+- :code:`--legend-only`: only plot the legend.
+- :code:`--colors`: colors_ to use for each reasoner.
+- :code:`--markers`: markers_ to use for each reasoner.
+- :code:`--marker-size`: marker size in points.
 
 .. _float format: https://docs.python.org/3/library/string.html#formatspec
+.. _colors: https://matplotlib.org/tutorials/colors/colors.html
+.. _markers: https://matplotlib.org/api/markers_api.html
