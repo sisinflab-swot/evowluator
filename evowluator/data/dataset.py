@@ -106,8 +106,14 @@ class Dataset:
     def get_max_ontology_size(self) -> int:
         return max(e.max_size for e in self.get_entries())
 
-    def get_ontologies(self, syntax: Syntax, sort_by_size: bool = False) -> Iterable[Ontology]:
-        ontologies = (e.ontology(syntax) for e in self.get_entries())
+    def get_ontologies(self, syntax: Syntax, names: Optional[Iterable[str]] = None,
+                       sort_by_size: bool = False) -> Iterable[Ontology]:
+        entries = self.get_entries()
+
+        if names is not None:
+            entries = (e for e in entries if e.name in names)
+
+        ontologies = (e.ontology(syntax) for e in entries)
         return sorted(ontologies, key=lambda o: o.size) if sort_by_size else ontologies
 
     def get_entries(self, resume_after: Optional[str] = None) -> Iterable[Entry]:
@@ -115,8 +121,6 @@ class Dataset:
         onto_names = sorted(f for f in os.listdir(onto_dir) if f.endswith('.owl'))
 
         for onto_name in onto_names:
-
-            # Allow resuming the test after a certain ontology.
             if resume_after:
                 if onto_name == resume_after:
                     resume_after = None

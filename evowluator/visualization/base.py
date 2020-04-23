@@ -93,9 +93,12 @@ class Visualizer:
         return self._results.index.values
 
     def results_for_reasoner(self, reasoner: str,
-                             col_filter: Optional[Callable[[str], bool]] = None) -> pd.DataFrame:
+                             col_filter: Optional[Callable[[str], bool]] = None,
+                             drop_missing: bool = True) -> pd.DataFrame:
+        results = self._results.dropna() if drop_missing else self._results
+
         needle = reasoner + ':'
-        results = self._results[[f for f in self._results if f.startswith(needle)]]
+        results = results[[f for f in self._results if f.startswith(needle)]]
         results = results.rename(lambda s: s.rsplit(':', maxsplit=1)[1].strip(), axis='columns')
 
         if col_filter:
@@ -139,7 +142,6 @@ class Visualizer:
         if columns:
             res[columns] = res[columns].apply(pd.to_numeric, errors='coerce')
             res[columns] = res[columns].replace(0, np.nan)
-            res.dropna(inplace=True)
 
         if not res.index.is_unique:
             res = res.groupby(res.index).mean()
@@ -176,17 +178,22 @@ class Visualizer:
         data = []
 
         for reasoner in self._reasoners:
+            results = self.results_for_reasoner(reasoner, col_filter=col_filter, drop_missing=False)
             ontologies = dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
+                                                names=results.index,
                                                 sort_by_size=True)
-            results = self.results_for_reasoner(reasoner, col_filter=col_filter)
 
             if isinstance(results.index, pd.MultiIndex):
                 results = results.groupby(level=0).mean()
 
-            ontologies = [o for o in ontologies if o.name in results.index]
+            x, y = [], []
 
-            x = [o.size / xscale for o in ontologies]
-            y = [results.loc[o.name].sum() for o in ontologies]
+            for onto in ontologies:
+                yi = results.loc[onto.name].sum(skipna=False)
+
+                if not np.isnan(yi):
+                    x.append(onto.size / xscale)
+                    y.append(yi)
 
             data.append((x, y))
 
