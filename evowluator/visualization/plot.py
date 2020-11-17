@@ -73,10 +73,10 @@ class Plot:
         subticks = [2, 3, 4, 5, 6, 7, 8, 9]
 
         if axis != 'x':
-            self._ax.set_yscale(scale, subsy=subticks)
+            self._ax.set_yscale(scale, subs=subticks)
 
         if axis != 'y':
-            self._ax.set_xscale(scale, subsx=subticks)
+            self._ax.set_xscale(scale, subs=subticks)
 
         self._ax.xaxis.set_major_formatter(x_maj)
         self._ax.xaxis.set_minor_formatter(x_min)
