@@ -37,7 +37,7 @@ classification, consistency, matchmaking
     via the :code:`-e` flag.
 
 - :code:`-e, --energy-probe <PROBE>`: class name of the energy probe the framework should use, only
-  required with :code:`-m energy`.
+  required with :code:`-m energy`. Built-in probes: `powertop`, `powermetrics`.
 
 **Optional arguments:**
 
