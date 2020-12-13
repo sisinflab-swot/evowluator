@@ -94,10 +94,10 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
                         color = echo.Color.RED
                     else:
                         if r_result.output_matches(ref_result):
-                            result = 'same'
+                            result = 'ok'
                             color = echo.Color.GREEN
                         else:
-                            result = 'different'
+                            result = 'incorrect'
                             color = echo.Color.RED
 
                     self._logger.log(result, color=color)

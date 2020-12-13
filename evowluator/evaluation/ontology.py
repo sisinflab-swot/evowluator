@@ -72,10 +72,10 @@ class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
                     color = echo.Color.RED
                 else:
                     if ref_result.output_matches(r_result):
-                        result = 'same'
+                        result = 'ok'
                         color = echo.Color.GREEN
                     else:
-                        result = 'different'
+                        result = 'incorrect'
                         color = echo.Color.RED
 
                 self._logger.log(result, color=color)

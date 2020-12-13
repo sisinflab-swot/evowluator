@@ -39,7 +39,7 @@ class CorrectnessVisualizer(Visualizer):
         results = [self.results_for_reasoner(r)['match'].value_counts(sort=False)
                    for r in reasoners]
 
-        stats = ['same', 'different', 'timeout', 'error']
+        stats = ['ok', 'incorrect', 'timeout', 'error']
         correct, incorrect, timeout, error = [np.array([r.get(s, default=0) for r in results])
                                               for s in stats]
 
