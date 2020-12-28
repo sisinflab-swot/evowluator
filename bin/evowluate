@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-cd "$(dirname "${0}")"
+cd "$(dirname "${0}")"/..
 source venv/bin/activate
 
 CHECK='import sys; sys.exit(1 if sys.version_info[:2] < (3, 7) else 0);'
