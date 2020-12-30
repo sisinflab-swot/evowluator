@@ -5,8 +5,14 @@ Installation
 evOWLuator can be used on **Linux**, **macOS** and **Windows** (via WSL_).
 The following sections detail its requirements, setup, and some platform-specific instructions.
 
+Manual installation
+===================
+
+This section describes how to manually install evOWLuator on supported host platforms.
+For an alternative, check the `Docker-based installation <#docker-installation>`_.
+
 Requirements
-============
+------------
 
 In order to run evOWLuator you will need:
 
@@ -16,15 +22,13 @@ In order to run evOWLuator you will need:
 - Java_ version 10.0 or later.
 - Gradle_ version 5.6 or later.
 
-Ubuntu
-------
+**Ubuntu:**
 
 .. code-block:: bash
 
    apt install default-jdk git gradle python3 python3-dev python3-pip python3-tk python3-venv
 
-macOS
------
+**macOS:**
 
 It is recommended to install the required dependencies via HomeBrew_:
 
@@ -34,7 +38,7 @@ It is recommended to install the required dependencies via HomeBrew_:
    brew cask install java
 
 Download and setup
-==================
+------------------
 
 You can find evOWLuator's code on its `git repository <git_url_>`_. Please note that it contains
 submodules, so it is recommended that you clone it using the `--recursive` flag.
@@ -43,21 +47,36 @@ submodules, so it is recommended that you clone it using the `--recursive` flag.
 
    git clone --recursive <repo URL> <dir>
 
-After cloning the repo you must run the `setup.sh` script, which fetches the remaining libraries,
+After cloning the repo you must run the ``setup.sh`` script, which fetches the remaining libraries,
 sets up a virtual environment via venv_ and installs the necessary Python packages.
 
-In general, the framework will use the global `Python` interpreter; if multiple versions of
+In general, the framework will use the global *Python* interpreter; if multiple versions of
 the interpreter are installed, the user can specify which one will be used by evOWLuator by
-exporting its path to the :code:`EVOWLUATOR_PYTHON` environment variable before running `setup.sh`.
+exporting its path to the ``EVOWLUATOR_PYTHON`` environment variable before running `setup.sh`.
 
 Building the documentation
-==========================
+--------------------------
 
 It is also possible to build the docs you are currently viewing by invoking the `build.sh` script
 in the `docs` subdirectory. This will install Sphinx_ and other requirements in the
 virtual environment created by the setup script, and it will output HTML docs in the
-`docs/_build/html` subdirectory. Build logs are stored under `docs/_build/log`.
+`docs/_build/html` subdirectory. Build logs are stored under ``docs/_build/log``.
 
+Docker installation
+===================
+
+We provide a Debian-based Docker image that you can customize by adding reasoners, datasets, etc.
+Its Dockerfile is available on evOWLuator's `git repository <git_url_>`_, and a public image
+is available on `Docker Hub`_. To use it, just specify it as a base image in your Dockerfile:
+
+.. code-block::
+
+   FROM sisinflabswot/evowluator:latest
+   ...
+
+Note that evOWLuator is installed in the ``/evowluator`` dir.
+
+.. _Docker Hub: https://hub.docker.com/r/sisinflabswot/evowluator
 .. _git: https://git-scm.com
 .. _Gradle: https://gradle.org
 .. _HomeBrew: https://brew.sh
