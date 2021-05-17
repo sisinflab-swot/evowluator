@@ -115,6 +115,8 @@ class Evaluator(ABC):
         finally:
             fileutils.chmod(self.work_dir, 0o666, recursive=True, dir_mode=0o777)
             self.__teardown_reasoners()
+            echo.success('Evaluation results: ', endl=False)
+            echo.info(self.work_dir)
 
     # Protected
 

@@ -119,6 +119,7 @@ class Visualizer:
 
     def plot_results(self, gui: bool = True, plots: Optional[List[int]] = None) -> None:
         self.configure_plotters()
+        self.figure.title += ' ({})'.format(path.basename(self._results_dir))
         self.figure.draw(plots=plots)
         self.figure.save(path.join(self.output_dir, 'figure.pdf'))
 

@@ -1,3 +1,4 @@
+import os
 import sys
 from os import environ, path
 
@@ -23,6 +24,13 @@ class Paths:
     CONFIG_FILE_NAME = 'config.json'
 
     OWLTOOL = path.join(BIN_DIR, 'OWLTool', 'owltool.jar')
+
+    @staticmethod
+    def last_results_dir() -> str:
+        return max((p for p in (path.join(Paths.RESULTS_DIR, d)
+                                for d in os.listdir(Paths.RESULTS_DIR))
+                    if path.isdir(p)),
+                   key=path.getmtime, default=None)
 
 
 class OWLTool:

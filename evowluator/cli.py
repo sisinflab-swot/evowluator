@@ -165,7 +165,10 @@ def build_parser() -> argparse.ArgumentParser:
                                    parents=[help_parser],
                                    add_help=False)
 
-    parser.add_argument('path', help='Path of the dir containing the results to visualize.')
+    parser.add_argument('path',
+                        nargs='?',
+                        default=config.Paths.last_results_dir(),
+                        help='Path of the dir containing the results to visualize.')
     parser.add_argument('-s', '--size',
                         metavar=('WIDTH', 'HEIGHT'),
                         nargs=2,
