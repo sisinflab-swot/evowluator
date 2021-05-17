@@ -6,6 +6,8 @@ sys.path.extend([
     os.path.abspath('../lib/pyutils')
 ])
 
+from evowluator.data.ontology import Syntax
+
 # Project metadata
 
 project = 'evOWLuator'
@@ -28,14 +30,12 @@ extensions = [
 
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-rst_prolog = """
-:github_url: {}
-""".format(git_url)
-
-rst_epilog = """
-.. |syntaxes| replace:: :code:`functional`, :code:`manchester`, :code:`owlxml`, :code:`rdfxml`
-.. _git_url: {}
-""".format(git_url)
+syntaxes = ', '.join(f':code:`{s}`' for s in Syntax.all())
+rst_prolog = f':github_url: {git_url}'
+rst_epilog = (
+    f'.. |syntaxes| replace:: {syntaxes}\n'
+    f'.. _git_url: {git_url}\n'
+)
 
 # Autodoc
 
