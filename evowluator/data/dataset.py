@@ -38,7 +38,7 @@ class Dataset:
                     syntax = _available_syntaxes(req_dir)[0]
 
                 req_names = sorted(f for f in os.listdir(os.path.join(req_dir, syntax.value))
-                                   if f.endswith('.owl'))
+                                   if not f.startswith('.'))
             except (IndexError, FileNotFoundError):
                 req_names = []
 
@@ -118,7 +118,7 @@ class Dataset:
 
     def get_entries(self, resume_after: Optional[str] = None) -> Iterable[Entry]:
         onto_dir = self.get_dir(self.syntaxes[0])
-        onto_names = sorted(f for f in os.listdir(onto_dir) if f.endswith('.owl'))
+        onto_names = sorted(f for f in os.listdir(onto_dir) if not f.startswith('.'))
 
         for onto_name in onto_names:
             if resume_after:
