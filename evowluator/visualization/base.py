@@ -86,6 +86,7 @@ class Visualizer:
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)
 
         self.colors: Dict[str, str] = {}
+        self.linestyles: Dict[str, str] = {}
         self.markers: Dict[str, str] = {}
         self.figure = Figure()
 
@@ -157,6 +158,15 @@ class Visualizer:
             self._reasoners[idx]: color
             for idx, color in enumerate(colors[:len(self._reasoners)]) if color != 'auto'
         }
+    
+    def set_linestyles(self, linestyles: List[str]) -> None:
+        self.linestyles = {
+            self._reasoners[idx]: self._parse_linestyle(linestyle)
+            for idx, linestyle in enumerate(linestyles[:len(self._reasoners)]) if linestyles != 'auto'
+        }
+
+
+
 
     def set_markers(self, markers: List[str]) -> None:
         self.markers = {
@@ -167,6 +177,7 @@ class Visualizer:
     def add_plotter(self, plot_type: type, **kwargs) -> None:
         kwargs['colors'] = self.colors
         kwargs['markers'] = self.markers
+        kwargs['linestyles'] = self.linestyles
         self.figure.add_plotter(plot_type, **kwargs)
 
     def add_scatter_plotter(self, metric: Metric,
@@ -212,3 +223,24 @@ class Visualizer:
         data = [data.loc[r].values for r in reasoners]
         data = dict(zip(reasoners, data))
         self.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric)
+
+    def _parse_linestyle(self, linestyle: str) -> Union[str, tuple]:
+        valid_styles = {'loosely_dotted': (0, (1, 10)),
+            'dotted':                (0, (1, 1)),
+            'densely_dotted':        (0, (1, 1)),
+            'loosely_dashed':        (0, (5, 10)),
+            'dashed':                (0, (5, 5)),
+            'densely_dashed':        (0, (5, 1)),
+            'loosely_dashdotted':    (0, (3, 10, 1, 10)),
+            'dashdotted':            (0, (3, 5, 1, 5)),
+            'densely_dashdotted':    (0, (3, 1, 1, 1)),
+            'dashdotdotted':        (0, (3, 5, 1, 5, 1, 5)),
+            'loosely_dashdotdotted': (0, (3, 10, 1, 10, 1, 10)),
+            'densely_dashdotdotted': (0, (3, 1, 1, 1, 1, 1)),
+            'solid': '-'
+            }
+        
+        if (linestyle not in valid_styles.keys()):
+            raise ValueError("{} is not a valid value for linestyle. Supported values are {}".format(linestyle, set(valid_styles.keys())))
+        
+        return valid_styles[linestyle]

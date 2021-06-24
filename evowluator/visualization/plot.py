@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from matplotlib import pyplot as plt, ticker
+from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
 from evowluator.util.strenum import StrEnum
@@ -337,9 +338,11 @@ class ScatterPlot(Plot):
         super().__init__(ax)
         self.data: Dict[str, Tuple[List[float], List[float]]] = {}
         self.markers: Dict[str, str] = {}
+        self.linestyles: Dict[str, str] = {}
         self.marker_size = 0.0
         self.xmetric: Optional[Metric] = None
         self.ymetric: Optional[Metric] = None
+        self.legend_handles: Dict[str, Line2D] = {}
 
     def draw_plot(self) -> None:
         labels = list(self.data.keys())
@@ -360,19 +363,22 @@ class ScatterPlot(Plot):
 
         for label in labels:
             x, y = self.data[label]
-            marker, color = self.markers.get(label, 'o'), self.colors.get(label)
+            marker, color, linestyle = self.markers.get(label, 'o'), self.colors.get(label), self.linestyles.get(label)
             lines = self._ax.plot(x, y, linestyle='none', alpha=0.5,
                                   ms=msize, label=label, marker=marker, c=color, lw=1.0)
 
             if lines:
-                self.draw_polyline(x, y, color=lines[0].get_color())
+                self.draw_polyline(x, y, color=lines[0].get_color(), linestyle=linestyle)
+                self.legend_handles[label] = Line2D([], [], 
+                    linestyle=linestyle, ms=msize, marker=lines[0].get_marker(), color=lines[0].get_color(), alpha=1.0, lw=1.5, label=label)
+                
 
         self.title = '{} by {}'.format(self.ymetric.capitalized_name, self.xmetric.name)
         self.xlabel = self.xmetric.to_string(capitalize=True)
         self.ylabel = self.ymetric.to_string(capitalize=True)
         super().draw_plot()
 
-    def draw_polyline(self, x: List[float], y: List[float], color: Optional[str] = None) -> None:
+    def draw_polyline(self, x: List[float], y: List[float], color: Optional[str] = None, linestyle: Optional[Union[str, tuple]] = None) -> None:
         count = len(x)
         weights = [1.0] * count
 
@@ -381,7 +387,20 @@ class ScatterPlot(Plot):
         y[0] = sum(y[:count]) / count
         weights[0] = max(y) * 10.0
 
-        self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color)
+        self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color, linestyle=linestyle)
+
+    def draw_legend(self):
+        legend = self._ax.legend(handles=list(self.legend_handles.values()),
+                                 loc=self.legend_loc.value,
+                                 mode='expand' if self.legend_only else None,
+                                 ncol=self.legend_cols,
+                                 handletextpad=0.4,
+                                 handlelength=2.5,
+                                 labelspacing=0.25,
+                                 columnspacing=1.0,
+                                 borderaxespad=0.0 if self.legend_only else None)
+        legend.set_draggable(True)
+        return legend
 
     def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
         xlog = xmax / xmin > 25.0
