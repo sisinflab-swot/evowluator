@@ -226,10 +226,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--marker-size',
                         type=positive_float,
                         help='Marker size in points.')
-    parser.add_argument('--linestyles',
-                        metavar='LINESTYLE',
+    parser.add_argument('--line-styles',
+                        metavar='STYLE',
                         nargs='+',
-                        help="Line style to use for each reasoner in scatterplots")
+                        help="Line styles to use for each reasoner.")
 
     parser.set_defaults(func=visualize_sub)
 
@@ -337,9 +337,9 @@ def visualize_sub(args) -> int:
 
     if args.colors:
         visualizer.set_colors(args.colors)
-    
-    if args.linestyles:
-        visualizer.set_linestyles(args.linestyles)
+
+    if args.line_styles:
+        visualizer.set_line_styles(args.line_styles)
 
     if args.markers:
         visualizer.set_markers(args.markers)

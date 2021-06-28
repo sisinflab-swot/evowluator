@@ -2,15 +2,19 @@ from __future__ import annotations
 
 import sys
 from math import ceil
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from matplotlib import pyplot as plt, ticker
+from matplotlib import colors, pyplot as plt, ticker
+from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
 from evowluator.util.strenum import StrEnum
 from .metric import Metric
+
+
+LineStyle = Union[str, tuple]
 
 
 class LegendLocation(StrEnum):
@@ -46,6 +50,8 @@ class Plot:
         self.grid_axis = 'both'
         self.legend_loc = LegendLocation.BEST
         self.legend_cols = 1
+        self.legend_handles: Dict[str, Line2D] = {}
+        self.legend_handle_length = 0.7
         self.legend_only = False
         self.show_titles = True
         self.title: Optional[str] = None
@@ -115,12 +121,14 @@ class Plot:
         self._ax.grid(b=True, axis=self.grid_axis, which='major')
         self._ax.grid(b=True, axis=self.grid_axis, which='minor', alpha=0.25)
 
-    def draw_legend(self):
-        legend = self._ax.legend(loc=self.legend_loc.value,
+    def draw_legend(self) -> Legend:
+        handles = list(self.legend_handles.values()) if self.legend_handles else None
+        legend = self._ax.legend(handles=handles,
+                                 loc=self.legend_loc.value,
                                  mode='expand' if self.legend_only else None,
                                  ncol=self.legend_cols,
                                  handletextpad=0.4,
-                                 handlelength=0.7,
+                                 handlelength=self.legend_handle_length,
                                  labelspacing=0.25,
                                  columnspacing=1.0,
                                  borderaxespad=0.0 if self.legend_only else None)
@@ -338,11 +346,11 @@ class ScatterPlot(Plot):
         super().__init__(ax)
         self.data: Dict[str, Tuple[List[float], List[float]]] = {}
         self.markers: Dict[str, str] = {}
-        self.linestyles: Dict[str, str] = {}
+        self.line_styles: Dict[str, LineStyle] = {}
+        self.legend_handle_length = 2.5
         self.marker_size = 0.0
         self.xmetric: Optional[Metric] = None
         self.ymetric: Optional[Metric] = None
-        self.legend_handles: Dict[str, Line2D] = {}
 
     def draw_plot(self) -> None:
         labels = list(self.data.keys())
@@ -350,9 +358,9 @@ class ScatterPlot(Plot):
         dataset_size = len(next(iter(self.data.values()))[0])
 
         if self.marker_size:
-            msize = self.marker_size
+            marker_size = self.marker_size
         else:
-            msize = 3.0 if dataset_size > 100 else 7.0
+            marker_size = 3.0 if dataset_size > 100 else 7.0
 
         xmin = min(p for t in self.data.values() for p in t[0])
         xmax = max(p for t in self.data.values() for p in t[0])
@@ -363,22 +371,40 @@ class ScatterPlot(Plot):
 
         for label in labels:
             x, y = self.data[label]
-            marker, color, linestyle = self.markers.get(label, 'o'), self.colors.get(label), self.linestyles.get(label)
-            lines = self._ax.plot(x, y, linestyle='none', alpha=0.5,
-                                  ms=msize, label=label, marker=marker, c=color, lw=1.0)
+            marker = self.markers.get(label, 'o')
+            color = self.colors.get(label)
+            line_style = self.line_styles.get(label)
+            lines = self._ax.plot(x, y, label=label, color=color,
+                                  linestyle='none', linewidth=1.0,
+                                  marker=marker, markersize=marker_size)
 
             if lines:
-                self.draw_polyline(x, y, color=lines[0].get_color(), linestyle=linestyle)
-                self.legend_handles[label] = Line2D([], [], 
-                    linestyle=linestyle, ms=msize, marker=lines[0].get_marker(), color=lines[0].get_color(), alpha=1.0, lw=1.5, label=label)
-                
+                line = lines[0]
+
+                # Update marker color
+                line_color = line.get_color()
+                me_color = colors.to_rgba(line_color, alpha=0.8)
+                mf_color = colors.to_rgba(line_color, alpha=0.5)
+                line.set_markeredgecolor(me_color)
+                line.set_markerfacecolor(mf_color)
+
+                # Setup legend handle
+                handle = Line2D([], [], label=label, color=line_color,
+                                linestyle=line_style, linewidth=1.5,
+                                marker=marker, markersize=marker_size,
+                                markeredgecolor=me_color, markerfacecolor=mf_color)
+                self.legend_handles[label] = handle
+
+                # Draw polyline
+                self.draw_polyline(x, y, color=line_color, style=line_style)
 
         self.title = '{} by {}'.format(self.ymetric.capitalized_name, self.xmetric.name)
         self.xlabel = self.xmetric.to_string(capitalize=True)
         self.ylabel = self.ymetric.to_string(capitalize=True)
         super().draw_plot()
 
-    def draw_polyline(self, x: List[float], y: List[float], color: Optional[str] = None, linestyle: Optional[Union[str, tuple]] = None) -> None:
+    def draw_polyline(self, x: List[float], y: List[float], color: Optional[str] = None,
+                      style: Optional[Union[str, tuple]] = None) -> None:
         count = len(x)
         weights = [1.0] * count
 
@@ -387,20 +413,7 @@ class ScatterPlot(Plot):
         y[0] = sum(y[:count]) / count
         weights[0] = max(y) * 10.0
 
-        self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color, linestyle=linestyle)
-
-    def draw_legend(self):
-        legend = self._ax.legend(handles=list(self.legend_handles.values()),
-                                 loc=self.legend_loc.value,
-                                 mode='expand' if self.legend_only else None,
-                                 ncol=self.legend_cols,
-                                 handletextpad=0.4,
-                                 handlelength=2.5,
-                                 labelspacing=0.25,
-                                 columnspacing=1.0,
-                                 borderaxespad=0.0 if self.legend_only else None)
-        legend.set_draggable(True)
-        return legend
+        self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color, linestyle=style)
 
     def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
         xlog = xmax / xmin > 25.0
