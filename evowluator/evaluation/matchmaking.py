@@ -30,7 +30,7 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
 
     def setup(self):
         reasoners = self._usable_reasoners()
-        csv_header = ['Resource', 'Request'] + ['{}: match'.format(r.name) for r in reasoners[1:]]
+        csv_header = ['Resource', 'Request'] + ['f{r.name}: match' for r in reasoners[1:]]
         self._csv_writer.write_row(csv_header)
 
     def run(self, entry):
@@ -53,7 +53,7 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
             self._logger.log('Request: ', color=echo.Color.YELLOW, endl=False)
             self._logger.log(request.name)
             self._logger.indent_level += 1
-            self._logger.log('{}: '.format(reference.name), endl=False)
+            self._logger.log(f'{reference.name}: ', endl=False)
 
             csv_row = [entry.name, request.name]
 
@@ -74,7 +74,7 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
                 self._logger.indent_level += 1
 
                 for reasoner in reasoners:
-                    self._logger.log('{}: '.format(reasoner.name), endl=False)
+                    self._logger.log(f'{reasoner.name}: ', endl=False)
 
                     syntax = self._syntax_for_reasoner(reasoner)
                     resource_onto, request_onto = entry.ontology(syntax), request.ontology(syntax)
@@ -141,7 +141,7 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
 
         for reasoner in self._usable_reasoners():
             for field in self.result_fields:
-                csv_header.append('{}: {}'.format(reasoner.name, field))
+                csv_header.append(f'{reasoner.name}: {field}')
 
         self._csv_writer.write_row(csv_header)
 
@@ -152,7 +152,7 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
             return
 
         for iteration in range(config.Evaluation.ITERATIONS):
-            self._logger.log('Run {}:'.format(iteration + 1), color=echo.Color.YELLOW)
+            self._logger.log(f'Run {iteration + 1}:', color=echo.Color.YELLOW)
             self._logger.indent_level += 1
 
             for request in entry.requests():
@@ -163,7 +163,7 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
                 csv_row = [entry.name, request.name]
 
                 for reasoner in self._usable_reasoners():
-                    self._logger.log('{}: '.format(reasoner.name), endl=False)
+                    self._logger.log(f'{reasoner.name}: ', endl=False)
 
                     syntax = self._syntax_for_reasoner(reasoner)
                     resource_onto = entry.ontology(syntax)
@@ -208,13 +208,13 @@ class MatchmakingPerformanceEvaluator(MatchmakingMeasurementEvaluator):
         if not results.has_performance_stats:
             raise ValueError('Missing performance stats.')
 
-        self._logger.log('{:.0f} ms'.format(results.total_ms))
+        self._logger.log(f'{results.total_ms:.0f} ms')
 
         self._logger.indent_level += 1
-        self._logger.log('Parsing: {:.0f} ms'.format(results.parsing_ms))
-        self._logger.log('Init: {:.0f} ms'.format(results.init_ms))
-        self._logger.log('Matchmaking: {:.0f} ms'.format(results.matchmaking_ms))
-        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(results.max_memory)))
+        self._logger.log(f'Parsing: {results.parsing_ms:.0f} ms')
+        self._logger.log(f'Init: {results.init_ms:.0f} ms')
+        self._logger.log(f'Matchmaking: {results.matchmaking_ms:.0f} ms')
+        self._logger.log(f'Memory: {fileutils.human_readable_bytes(results.max_memory)}')
         self._logger.indent_level -= 1
 
         return [results.parsing_ms, results.init_ms, results.matchmaking_ms, results.max_memory]

@@ -104,15 +104,14 @@ class AndroidReasoner(MobileReasoner, ABC):
         if task == ReasoningTask.MATCHMAKING:
             instrument_env.append(('request', MetaArgs.REQUEST))
 
-        instrument_env = ' '.join(['{}:{}'.format(*env_kv) for env_kv in instrument_env])
+        instrument_env = ' '.join([f'{env_kv[0]}:{env_kv[1]}' for env_kv in instrument_env])
         shell_cmds = [
-            'logcat -c',
-            'am instrument -w -e "target" "{}" -e "args" "{}" {}'.format(self.target_package,
-                                                                         instrument_env,
-                                                                         self.LAUNCHER_CLASSPATH),
-            'am force-stop {}'.format(self.target_package),
-            'am kill {}'.format(self.target_package),
-            'logcat -d -s {}'.format(self.log_prefix)
+            f'logcat -c',
+            f'am instrument -w -e "target" "{self.target_package}" '
+            f'-e "args" "{instrument_env}" {self.LAUNCHER_CLASSPATH}',
+            f'am force-stop {self.target_package}',
+            f'am kill {self.target_package}',
+            f'logcat -d -s {self.log_prefix}'
         ]
 
         return ['shell', '-x', ';'.join(shell_cmds)]
@@ -132,7 +131,7 @@ class AndroidReasoner(MobileReasoner, ABC):
     # Protected
 
     def _is_instrumentation_installed(self) -> bool:
-        args = ['shell', 'cmd package list packages {}'.format(self.PACKAGE)]
+        args = ['shell', f'cmd package list packages {self.PACKAGE}']
         adb = Task.spawn(self.path, args=args)
         adb.raise_if_failed(message='Cannot start Android Debug Bridge')
         return True if adb.stdout else False
@@ -203,13 +202,13 @@ class IOSReasoner(MobileReasoner, ABC):
 
     def args(self, task: ReasoningTask, mode: EvaluationMode) -> List[str]:
         args = self._common_args() + [
-            '-only-testing:{}'.format(self.test_name_for_task(task)),
-            'test-without-building',
-            'RESOURCE={}'.format(MetaArgs.INPUT)
+            f'-only-testing:{self.test_name_for_task(task)}',
+            f'test-without-building',
+            f'RESOURCE={MetaArgs.INPUT}'
         ]
 
         if task == ReasoningTask.MATCHMAKING:
-            args.append('REQUEST={}'.format(MetaArgs.REQUEST))
+            args.append(f'REQUEST={MetaArgs.REQUEST}')
 
         return args
 
@@ -219,7 +218,7 @@ class IOSReasoner(MobileReasoner, ABC):
         """Common arguments used in xcodebuild invocations."""
         return ['-project', self._absolute_path(self.project),
                 '-scheme', self.scheme,
-                '-destination', 'platform=iOS,name={}'.format(self._detect_connected_device())]
+                '-destination', f'platform=iOS,name={self._detect_connected_device()}']
 
     def _detect_connected_device(self) -> str:
         """Returns the name of a connected device."""

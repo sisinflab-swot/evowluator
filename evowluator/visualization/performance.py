@@ -144,11 +144,13 @@ class PerformanceVisualizer(Visualizer):
             reasoning /= 1000.0
             time_unit = 's'
 
+        time_unit = f' ({time_unit})'
+
         data = pd.DataFrame({
             'Reasoner': reasoners,
-            'Total parsing time ({})'.format(time_unit): parsing,
-            'Total reasoning time ({})'.format(time_unit): reasoning,
-            'Total time ({})'.format(time_unit): parsing + reasoning,
+            'Total parsing time' + time_unit: parsing,
+            'Total reasoning time' + time_unit: reasoning,
+            'Total time' + time_unit: parsing + reasoning,
             'Min memory peak (MiB)': memory_min,
             'Avg memory peak (MiB)': memory_mean,
             'Max memory peak (MiB)': memory_max

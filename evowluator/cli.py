@@ -374,12 +374,12 @@ def convert_sub(args) -> int:
 def positive_int(value: str) -> int:
     ivalue = int(value)
     if ivalue <= 0:
-        raise argparse.ArgumentTypeError('{} is not a positive int.'.format(value))
+        raise argparse.ArgumentTypeError(f'{value} is not a positive int')
     return ivalue
 
 
 def positive_float(value: str) -> float:
     fvalue = float(value)
     if fvalue <= 0.0:
-        raise argparse.ArgumentTypeError('{} is not a positive float.'.format(value))
+        raise argparse.ArgumentTypeError(f'{value} is not a positive float')
     return fvalue

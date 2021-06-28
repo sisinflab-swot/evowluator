@@ -301,7 +301,7 @@ class GroupedHistogramPlot(HistogramPlot):
 class MinMaxAvgHistogramPlot(GroupedHistogramPlot):
 
     def draw(self) -> None:
-        self.title = 'Minimum, average and maximum {}'.format(self.metric.name)
+        self.title = 'Minimum, average and maximum ' + self.metric.name
         self.groups = ['Min', 'Avg', 'Max']
         super().draw()
 
@@ -398,7 +398,7 @@ class ScatterPlot(Plot):
                 # Draw polyline
                 self.draw_polyline(x, y, color=line_color, style=line_style)
 
-        self.title = '{} by {}'.format(self.ymetric.capitalized_name, self.xmetric.name)
+        self.title = f'{self.ymetric.capitalized_name} by {self.xmetric.name}'
         self.xlabel = self.xmetric.to_string(capitalize=True)
         self.ylabel = self.ymetric.to_string(capitalize=True)
         super().draw_plot()

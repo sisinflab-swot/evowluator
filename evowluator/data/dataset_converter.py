@@ -7,18 +7,15 @@ from .dataset import Dataset
 
 
 def convert(dataset: Dataset, syntax: Syntax) -> None:
-    echo.pretty(('Starting conversion of "{}" dataset '
-                 '({} ontologies) in {} syntax...\n'.format(dataset.name, dataset.size, syntax)),
+    echo.pretty((f'Starting conversion of "{dataset.name}" dataset '
+                 f'({dataset.size} ontologies) in {syntax} syntax...\n'),
                 color=echo.Color.GREEN)
 
     source_syntax = next(s for s in dataset.syntaxes if s != syntax)
 
     for entry in dataset.get_entries():
         target_ontology = entry.ontology(syntax)
-
-        echo.pretty('{}: '.format(target_ontology.name),
-                    color=echo.Color.YELLOW, endl=False)
-
+        echo.pretty(f'{target_ontology.name}: ', color=echo.Color.YELLOW, endl=False)
         fileutils.create_dir(os.path.dirname(target_ontology.path))
         result = entry.ontology(source_syntax).convert(target_ontology)
 
@@ -26,10 +23,7 @@ def convert(dataset: Dataset, syntax: Syntax) -> None:
 
         for request in entry.requests(source_syntax):
             target_request = request.ontology(syntax)
-
-            echo.pretty('    {}: '.format(target_request.name),
-                        color=echo.Color.YELLOW, endl=False)
-
+            echo.pretty(f'    {target_request.name}: ', color=echo.Color.YELLOW, endl=False)
             fileutils.create_dir(os.path.dirname(target_request.path))
             result = request.ontology(source_syntax).convert(target_request)
 

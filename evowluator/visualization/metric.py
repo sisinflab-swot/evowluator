@@ -14,4 +14,4 @@ class Metric:
 
     def to_string(self, capitalize: bool = False) -> str:
         name = self.capitalized_name if capitalize else self.name
-        return '{} ({})'.format(name, self.unit) if self.unit else name
+        return f'{name} ({self.unit})' if self.unit else name

@@ -269,6 +269,6 @@ class Reasoner(ABC):
             task = EnergyProfiler(task, self.energy_probe, sampling_interval=500)
 
         task.run(timeout=timeout)
-        task.raise_if_failed(message='{} exited with code: {}'.format(self.name, task.exit_code))
+        task.raise_if_failed(message=f'{self.name} exited with code: {task.exit_code}')
 
         return task

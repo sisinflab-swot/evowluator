@@ -21,7 +21,7 @@ class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
     def setup(self):
         reasoners = self._usable_reasoners()
-        csv_header = ['Ontology'] + ['{}: match'.format(r.name) for r in reasoners[1:]]
+        csv_header = ['Ontology'] + [f'{r.name}: match' for r in reasoners[1:]]
         self._csv_writer.write_row(csv_header)
 
     def run(self, entry: Dataset.Entry) -> None:
@@ -37,7 +37,7 @@ class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
         csv_row = [entry.name]
 
         # Reasoning
-        self._logger.log('{}: '.format(reference.name), endl=False)
+        self._logger.log(f'{reference.name}: ', endl=False)
         self._logger.indent_level += 1
 
         try:
@@ -54,7 +54,7 @@ class OntologyReasoningCorrectnessEvaluator(ReasoningEvaluator):
             self._logger.log('done', color=echo.Color.GREEN)
 
             for reasoner in reasoners:
-                self._logger.log('{}: '.format(reasoner.name), endl=False)
+                self._logger.log(f'{reasoner.name}: ', endl=False)
 
                 try:
                     r_ontology = entry.ontology(self._syntax_for_reasoner(reasoner))
@@ -108,7 +108,7 @@ class OntologyReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
 
         for reasoner in self._usable_reasoners():
             for field in self.result_fields:
-                csv_header.append('{}: {}'.format(reasoner.name, field))
+                csv_header.append(f'{reasoner.name}: {field}')
 
         self._csv_writer.write_row(csv_header)
 
@@ -117,13 +117,13 @@ class OntologyReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
         fail: List[str] = []
 
         for iteration in range(config.Evaluation.ITERATIONS):
-            self._logger.log('Run {}:'.format(iteration + 1), color=echo.Color.YELLOW)
+            self._logger.log(f'Run {iteration + 1}:', color=echo.Color.YELLOW)
             self._logger.indent_level += 1
 
             csv_row = [entry.name]
 
             for reasoner in self._usable_reasoners():
-                self._logger.log('{}: '.format(reasoner.name), endl=False)
+                self._logger.log(f'{reasoner.name}: ', endl=False)
                 ontology = entry.ontology(self._syntax_for_reasoner(reasoner))
 
                 # Skip already failed or timed out.
@@ -170,12 +170,12 @@ class OntologyReasoningPerformanceEvaluator(OntologyReasoningMeasurementEvaluato
         if not results.has_performance_stats:
             raise ValueError('Missing performance stats.')
 
-        self._logger.log('{:.0f} ms'.format(results.total_ms))
+        self._logger.log(f'{results.total_ms:.0f} ms')
 
         self._logger.indent_level += 1
-        self._logger.log('Parsing: {:.0f} ms'.format(results.parsing_ms))
-        self._logger.log('Reasoning: {:.0f} ms'.format(results.reasoning_ms))
-        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(results.max_memory)))
+        self._logger.log(f'Parsing: {results.parsing_ms:.0f} ms')
+        self._logger.log(f'Reasoning: {results.reasoning_ms:.0f} ms')
+        self._logger.log(f'Memory: {fileutils.human_readable_bytes(results.max_memory)}')
         self._logger.indent_level -= 1
 
         return [results.parsing_ms, results.reasoning_ms, results.max_memory]

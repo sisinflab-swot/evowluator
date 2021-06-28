@@ -57,7 +57,7 @@ class Visualizer:
         elif EvaluationMode.ENERGY.value in eval_name:
             return EnergyVisualizer(results_dir, cfg, index_columns=cols)
         else:
-            raise NotImplementedError('Visualizer not implemented for "{}"'.format(eval_name))
+            raise NotImplementedError(f'Visualizer not implemented for "{eval_name}"')
 
     @property
     def results_path(self) -> str:
@@ -120,7 +120,7 @@ class Visualizer:
 
     def plot_results(self, gui: bool = True, plots: Optional[List[int]] = None) -> None:
         self.configure_plotters()
-        self.figure.title += ' ({})'.format(path.basename(self._results_dir))
+        self.figure.title += f' ({path.basename(self._results_dir)})'
         self.figure.draw(plots=plots)
         self.figure.save(path.join(self.output_dir, 'figure.pdf'))
 

@@ -51,4 +51,4 @@ def _import_modules(directory: str):
     package = directory[len(Paths.ROOT_DIR) + 1:].replace(os.path.sep, '.')
 
     for module in modules:
-        import_module('.{}'.format(module), package)
+        import_module(f'.{module}', package)

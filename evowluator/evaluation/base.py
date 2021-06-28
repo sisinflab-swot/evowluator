@@ -50,7 +50,7 @@ class Evaluator(ABC):
         """Work directory."""
         name = re.sub(r"[^\w\s]", '', self.name)
         name = re.sub(r"\s+", '_', name)
-        prefix = time.strftime('{}_%Y%m%d_%H%M%S_'.format(name))
+        prefix = time.strftime(f'{name}_%Y%m%d_%H%M%S_')
         fileutils.create_dir(Paths.RESULTS_DIR)
         return tempfile.mkdtemp(dir=Paths.RESULTS_DIR, prefix=prefix)
 
@@ -78,7 +78,7 @@ class Evaluator(ABC):
         self._dataset = Dataset.with_name(dataset) if dataset else Dataset.first()
 
         if syntax and syntax not in self._dataset.syntaxes:
-            msg = '"{}" syntax not available for "{}" dataset.'.format(syntax, self._dataset.name)
+            msg = f'"{syntax}" syntax not available for "{self._dataset.name}" dataset.'
             raise ValueError(msg)
 
         self._loader = Loader()
@@ -142,11 +142,11 @@ class Evaluator(ABC):
 
     def _start(self, resume_ontology: Optional[str] = None) -> None:
         for entry in self._dataset.get_entries(resume_after=resume_ontology):
-            sizes = sorted('{}: {}'.format(o.syntax, o.readable_size) for o in entry.ontologies())
+            sizes = sorted(f'{o.syntax}: {o.readable_size}' for o in entry.ontologies())
             size_str = ' | '.join(sizes)
 
-            self._logger.log('{}'.format(entry.name), color=echo.Color.YELLOW, endl=False)
-            self._logger.log(' ({})'.format(size_str))
+            self._logger.log(f'{entry.name}', color=echo.Color.YELLOW, endl=False)
+            self._logger.log(f' ({size_str})')
             self._logger.indent_level += 1
 
             try:
@@ -180,21 +180,21 @@ class Evaluator(ABC):
 
         self._logger.log('\nSelected dataset: ', color=echo.Color.GREEN)
         self._logger.indent_level += 1
-        self._logger.log('{}: {} ontologies'.format(self._dataset.name, self._dataset.size))
+        self._logger.log(f'{self._dataset.name}: {self._dataset.size} ontologies')
         self._logger.indent_level -= 1
 
-        self._logger.log('\nStarting {} evaluation...\n'.format(self.name), color=echo.Color.GREEN)
+        self._logger.log(f'\nStarting {self.name} evaluation...\n', color=echo.Color.GREEN)
 
     def __log_syntaxes(self, reasoner: Reasoner) -> None:
         syntaxes = sorted(self._syntaxes_for_reasoner(reasoner), key=lambda s: s.value)
 
         if not syntaxes:
-            self._logger.log('{}: no syntaxes'.format(reasoner.name))
+            self._logger.log(f'{reasoner.name}: no syntaxes')
             return
 
         syntax = self._syntax_for_reasoner(reasoner)
-        syntaxes = ['[{}]'.format(s) if s == syntax else s.value for s in syntaxes]
-        self._logger.log('{}: {}'.format(reasoner.name, ' '.join(syntaxes)))
+        syntaxes = [f'[{s}]' if s == syntax else s.value for s in syntaxes]
+        self._logger.log(f'{reasoner.name}: {" ".join(syntaxes)}')
 
     def __save_config(self) -> None:
 
@@ -223,7 +223,7 @@ class ReasoningEvaluator(Evaluator):
 
     @property
     def name(self) -> str:
-        return '{} {}'.format(self.task, self.mode)
+        return f'{self.task} {self.mode}'
 
     def __init__(self,
                  task: ReasoningTask,
@@ -263,7 +263,7 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator, ABC):
         if not results.has_energy_stats:
             raise ValueError('Missing energy stats.')
 
-        self._logger.log('{:.2f}'.format(results.energy_score))
+        self._logger.log(f'{results.energy_score:.2f}')
         return [results.energy_score]
 
     # Private
