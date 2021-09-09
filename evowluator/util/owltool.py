@@ -1,15 +1,15 @@
 from typing import List
 
 from pyutils import exc
-from pyutils.proc.task import Jar, OutputAction
+from pyutils.proc.task import OutputAction, Task
 
 from evowluator.config import OWLTool
 
 
 def _spawn_owltool(args: List[str]) -> bool:
     exc.raise_if_not_found(OWLTool.PATH, file_type=exc.FileType.FILE)
-    return Jar.spawn(OWLTool.PATH, jar_args=args, vm_opts=OWLTool.VM_OPTS,
-                     output_action=OutputAction.DISCARD).exit_code == 0
+    return Task.jar(OWLTool.PATH, jar_args=args, jvm_opts=OWLTool.VM_OPTS,
+                    output_action=OutputAction.DISCARD).run().exit_code == 0
 
 
 def convert(source_path: str, target_path: str, target_syntax: str) -> bool:

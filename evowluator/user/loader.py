@@ -46,7 +46,7 @@ def _all_subclasses(cls):
 def _import_modules(directory: str):
     modules = [file.rsplit(sep='.', maxsplit=1)[0]
                for file in os.listdir(directory)
-               if file.endswith('.py') and file != '__init__.py']
+               if file.endswith('.py') and not file.startswith('_')]
 
     package = directory[len(Paths.ROOT_DIR) + 1:].replace(os.path.sep, '.')
 

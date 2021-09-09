@@ -41,7 +41,7 @@ class Visualizer:
         cfg = json.load(os.path.join(results_dir, Paths.CONFIG_FILE_NAME))
         eval_name = cfg[ConfigKey.NAME]
 
-        if ReasoningTask.MATCHMAKING.value in eval_name:
+        if ReasoningTask.MATCHMAKING.name in eval_name:
             cols = ['Resource', 'Request']
         else:
             cols = ['Ontology']

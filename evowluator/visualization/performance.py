@@ -144,6 +144,7 @@ class PerformanceVisualizer(Visualizer):
             reasoning /= 1000.0
             time_unit = 's'
 
+        self._time_unit = time_unit
         time_unit = f' ({time_unit})'
 
         data = pd.DataFrame({
@@ -159,4 +160,3 @@ class PerformanceVisualizer(Visualizer):
         data.to_csv(file_path, float_format='%.2f')
 
         self._summary = data
-        self._time_unit = time_unit

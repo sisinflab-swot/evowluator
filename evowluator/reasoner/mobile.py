@@ -1,22 +1,18 @@
+from __future__ import annotations
+
 import errno
 import os
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from os import path
+from typing import List
 
 from pyutils import exc
 from pyutils.proc.task import OutputAction, Task
 from pyutils.proc.util import find_executable
-from evowluator.config import Paths
-from os import path
 
+from evowluator.config import Paths
 from evowluator.evaluation.mode import EvaluationMode
-from .base import (
-    MatchmakingResults,
-    MetaArgs,
-    Reasoner,
-    ReasoningResults,
-    ReasoningTask
-)
+from .base import Reasoner, ReasoningTask
 
 
 class MobileReasoner(Reasoner, ABC):
@@ -28,42 +24,9 @@ class MobileReasoner(Reasoner, ABC):
     def is_template(cls) -> bool:
         return cls == MobileReasoner
 
-    def classify(self,
-                 input_file: str,
-                 output_file: Optional[str] = None,
-                 timeout: Optional[float] = None,
-                 mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> ReasoningResults:
-        args = MetaArgs.replace(args=self.args(task=ReasoningTask.CLASSIFICATION, mode=mode),
-                                input_arg=os.path.basename(input_file))
-        task = self._run(args=args, timeout=timeout, mode=mode)
-        return self.results_parser.parse_classification_results(task)
-
-    def consistency(self,
-                    input_file: str,
-                    timeout: Optional[float] = None,
-                    mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> ReasoningResults:
-        args = MetaArgs.replace(args=self.args(task=ReasoningTask.CONSISTENCY, mode=mode),
-                                input_arg=os.path.basename(input_file))
-        task = self._run(args, timeout=timeout, mode=mode)
-        return self.results_parser.parse_consistency_results(task)
-
-    def matchmaking(self,
-                    resource_file: str,
-                    request_file: str,
-                    output_file: Optional[str] = None,
-                    timeout: Optional[float] = None,
-                    mode: EvaluationMode = EvaluationMode.CORRECTNESS) -> MatchmakingResults:
-        args = MetaArgs.replace(args=self.args(task=ReasoningTask.MATCHMAKING, mode=mode),
-                                input_arg=os.path.basename(resource_file),
-                                request_arg=os.path.basename(request_file))
-        task = self._run(args, timeout=timeout, mode=mode)
-        return self.results_parser.parse_matchmaking_results(task)
-
-    def _run(self, args: List[str], timeout: Optional[float], mode: EvaluationMode) -> Task:
-        exc.raise_if_not_found(self._absolute_path(self.path), file_type=exc.FileType.FILE)
-        task = Task(self._absolute_path(self.path), args=args)
-        task.run(timeout=timeout)
-        return task
+    @property
+    def is_remote(self) -> bool:
+        return True
 
 
 class AndroidReasoner(MobileReasoner, ABC):
@@ -98,11 +61,12 @@ class AndroidReasoner(MobileReasoner, ABC):
     def path(self) -> str:
         return find_executable('adb')
 
-    def args(self, task: ReasoningTask, mode: EvaluationMode) -> List[str]:
-        instrument_env = [('task', task.value), ('resource', MetaArgs.INPUT)]
+    def args(self, task: ReasoningTask, mode: EvaluationMode,
+             inputs: List[str], output: str | None) -> List[str]:
+        instrument_env = [('task', task.name), ('resource', inputs[0])]
 
         if task == ReasoningTask.MATCHMAKING:
-            instrument_env.append(('request', MetaArgs.REQUEST))
+            instrument_env.append(('request', inputs[1]))
 
         instrument_env = ' '.join([f'{env_kv[0]}:{env_kv[1]}' for env_kv in instrument_env])
         shell_cmds = [
@@ -200,15 +164,16 @@ class IOSReasoner(MobileReasoner, ABC):
         args = self._common_args() + ['build-for-testing']
         Task.spawn(self.path, args=args, output_action=OutputAction.DISCARD)
 
-    def args(self, task: ReasoningTask, mode: EvaluationMode) -> List[str]:
+    def args(self, task: ReasoningTask, mode: EvaluationMode,
+             inputs: List[str], output: str | None) -> List[str]:
         args = self._common_args() + [
             f'-only-testing:{self.test_name_for_task(task)}',
             f'test-without-building',
-            f'RESOURCE={MetaArgs.INPUT}'
+            f'RESOURCE={inputs[0]}'
         ]
 
         if task == ReasoningTask.MATCHMAKING:
-            args.append(f'REQUEST={MetaArgs.REQUEST}')
+            args.append(f'REQUEST={inputs[1]}')
 
         return args
 
@@ -216,16 +181,13 @@ class IOSReasoner(MobileReasoner, ABC):
 
     def _common_args(self) -> List[str]:
         """Common arguments used in xcodebuild invocations."""
-        return ['-project', self._absolute_path(self.project),
+        return ['-project', Paths.absolute(self.project),
                 '-scheme', self.scheme,
                 '-destination', f'platform=iOS,name={self._detect_connected_device()}']
 
     def _detect_connected_device(self) -> str:
         """Returns the name of a connected device."""
-        task = Task('instruments', args=['-s', 'devices'])
-        task.run()
-
-        for line in task.stdout.splitlines():
+        for line in Task.spawn('instruments', args=['-s', 'devices']).stdout.splitlines():
             components = line.split(' (', 1)
 
             if len(components) == 2 and not components[1].endswith('(Simulator)'):

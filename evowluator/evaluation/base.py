@@ -17,7 +17,7 @@ from evowluator.data.csv import CSVWriter
 from evowluator.data.dataset import Dataset
 from evowluator.data.ontology import Syntax
 from evowluator.reasoner.base import Reasoner, ReasoningTask
-from evowluator.reasoner.results import ReasoningResults
+from evowluator.reasoner.results import Results
 from evowluator.user.loader import Loader
 from .mode import EvaluationMode
 
@@ -237,7 +237,63 @@ class ReasoningEvaluator(Evaluator):
             self._reasoners = self._loader.reasoners_supporting_task(task)
 
 
-class ReasoningEnergyEvaluator(ReasoningEvaluator, ABC):
+class ReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
+    """Evaluates stats of reasoning tasks."""
+
+    # Override
+
+    @property
+    @abstractmethod
+    def result_fields(self) -> List[str]:
+        """Names for the columns of the CSV results."""
+        pass
+
+    @abstractmethod
+    def extract_results(self, results: Results) -> List:
+        """Extracts and logs relevant results."""
+        pass
+
+    # Overrides
+
+    def setup(self):
+        csv_header = ['Ontology']
+
+        for reasoner in self._usable_reasoners():
+            for field in self.result_fields:
+                csv_header.append('{}: {}'.format(reasoner.name, field))
+
+        self._csv_writer.write_row(csv_header)
+
+
+class ReasoningPerformanceEvaluator(ReasoningMeasurementEvaluator, ABC):
+    """Evaluates the performance of reasoning tasks."""
+
+    # Overrides
+
+    @property
+    def mode(self) -> EvaluationMode:
+        return EvaluationMode.PERFORMANCE
+
+    @property
+    def result_fields(self) -> List[str]:
+        return ['parsing', 'reasoning', 'memory']
+
+    def extract_results(self, results: Results) -> List:
+        if not results.has_performance_stats:
+            raise ValueError('Missing performance stats.')
+
+        self._logger.log('{:.0f} ms'.format(results.total_ms))
+
+        self._logger.indent_level += 1
+        self._logger.log('Parsing: {:.0f} ms'.format(results.parsing_ms))
+        self._logger.log('Reasoning: {:.0f} ms'.format(results.reasoning_ms))
+        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(results.max_memory)))
+        self._logger.indent_level -= 1
+
+        return [results.parsing_ms, results.reasoning_ms, results.max_memory]
+
+
+class ReasoningEnergyEvaluator(ReasoningMeasurementEvaluator, ABC):
     """Abstract reasoning energy evaluator class."""
 
     @property
@@ -259,7 +315,7 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator, ABC):
         super().__init__(task=task, dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.__configure_reasoners(probe)
 
-    def extract_results(self, results: ReasoningResults) -> List:
+    def extract_results(self, results: Results) -> List:
         if not results.has_energy_stats:
             raise ValueError('Missing energy stats.')
 

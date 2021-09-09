@@ -35,6 +35,12 @@ class Paths:
         except FileNotFoundError:
             raise FileNotFoundError('No available results')
 
+    @staticmethod
+    def absolute(rel_path: str) -> str:
+        """Absolute path for the specified relative path."""
+        rel_path = path.normpath(rel_path)
+        return rel_path if path.isabs(rel_path) else path.join(Paths.BIN_DIR, rel_path)
+
 
 class OWLTool:
     """OWLTool config namespace."""

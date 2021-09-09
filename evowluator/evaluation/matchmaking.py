@@ -1,16 +1,20 @@
 import os
-from abc import ABC, abstractmethod
+from abc import ABC
 from subprocess import TimeoutExpired
 from typing import List, Optional
 
-from pyutils.io import echo, fileutils
+from pyutils.io import echo
 
 from evowluator import config
 from evowluator.data.dataset import Dataset
 from evowluator.data.ontology import Syntax
 from evowluator.reasoner.base import ReasoningTask
-from evowluator.reasoner.results import MatchmakingResults
-from .base import ReasoningEnergyEvaluator, ReasoningEvaluator
+from .base import (
+    ReasoningEnergyEvaluator,
+    ReasoningEvaluator,
+    ReasoningMeasurementEvaluator,
+    ReasoningPerformanceEvaluator
+)
 from .mode import EvaluationMode
 
 
@@ -30,7 +34,7 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
 
     def setup(self):
         reasoners = self._usable_reasoners()
-        csv_header = ['Resource', 'Request'] + ['f{r.name}: match' for r in reasoners[1:]]
+        csv_header = ['Resource', 'Request'] + [f'{r.name}: match' for r in reasoners[1:]]
         self._csv_writer.write_row(csv_header)
 
     def run(self, entry):
@@ -58,11 +62,9 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
             csv_row = [entry.name, request.name]
 
             try:
-                ref_resource, ref_request = entry.ontology(ref_syntax), request.ontology(ref_syntax)
-                ref_result = reference.matchmaking(ref_resource.path, ref_request.path,
-                                                   output_file=ref_out,
-                                                   timeout=config.Evaluation.TIMEOUT,
-                                                   mode=self.mode)
+                inputs = [entry.ontology(ref_syntax).path, request.ontology(ref_syntax).path]
+                ref_result = self.task.run(reference, inputs, output=ref_out, mode=self.mode,
+                                           timeout=config.Evaluation.TIMEOUT)
             except Exception as e:
                 if config.DEBUG:
                     raise e
@@ -80,10 +82,9 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
                     resource_onto, request_onto = entry.ontology(syntax), request.ontology(syntax)
 
                     try:
-                        r_result = reasoner.matchmaking(resource_onto.path, request_onto.path,
-                                                        output_file=r_out,
-                                                        timeout=config.Evaluation.TIMEOUT,
-                                                        mode=self.mode)
+                        r_result = self.task.run(reasoner, [resource_onto.path, request_onto.path],
+                                                 output=r_out, mode=self.mode,
+                                                 timeout=config.Evaluation.TIMEOUT)
                     except TimeoutExpired:
                         result = 'timeout'
                         color = echo.Color.RED
@@ -111,23 +112,8 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
         self._logger.log('')
 
 
-class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
+class MatchmakingMeasurementEvaluator(ReasoningMeasurementEvaluator, ABC):
     """Measures stats of matchmaking tasks."""
-
-    # Override
-
-    @property
-    @abstractmethod
-    def result_fields(self) -> List[str]:
-        """Names for the columns of the CSV results."""
-        pass
-
-    @abstractmethod
-    def extract_results(self, stats: MatchmakingResults) -> List:
-        """Extract and log relevant results."""
-        pass
-
-    # Overrides
 
     def __init__(self,
                  dataset: Optional[str] = None,
@@ -170,10 +156,9 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
                     request_onto = request.ontology(syntax)
 
                     try:
-                        stats = reasoner.matchmaking(resource_onto.path, request_onto.path,
-                                                     timeout=config.Evaluation.TIMEOUT,
-                                                     mode=self.mode)
-                        csv_row.extend(self.extract_results(stats))
+                        results = self.task.run(reasoner, [resource_onto.path, request_onto.path],
+                                                mode=self.mode, timeout=config.Evaluation.TIMEOUT)
+                        csv_row.extend(self.extract_results(results))
                     except TimeoutExpired:
                         csv_row.extend(['timeout'] * len(self.result_fields))
                         self._logger.log('timeout', color=echo.Color.RED)
@@ -191,36 +176,14 @@ class MatchmakingMeasurementEvaluator(ReasoningEvaluator, ABC):
             self._logger.log('')
 
 
-class MatchmakingPerformanceEvaluator(MatchmakingMeasurementEvaluator):
+class MatchmakingPerformanceEvaluator(MatchmakingMeasurementEvaluator,
+                                      ReasoningPerformanceEvaluator):
     """Evaluates the performance of non-standard reasoning tasks."""
-
-    # Overrides
-
-    @property
-    def mode(self) -> EvaluationMode:
-        return EvaluationMode.PERFORMANCE
-
-    @property
-    def result_fields(self) -> List[str]:
-        return ['parsing', 'init', 'reasoning', 'memory']
-
-    def extract_results(self, results: MatchmakingResults) -> List:
-        if not results.has_performance_stats:
-            raise ValueError('Missing performance stats.')
-
-        self._logger.log(f'{results.total_ms:.0f} ms')
-
-        self._logger.indent_level += 1
-        self._logger.log(f'Parsing: {results.parsing_ms:.0f} ms')
-        self._logger.log(f'Init: {results.init_ms:.0f} ms')
-        self._logger.log(f'Matchmaking: {results.matchmaking_ms:.0f} ms')
-        self._logger.log(f'Memory: {fileutils.human_readable_bytes(results.max_memory)}')
-        self._logger.indent_level -= 1
-
-        return [results.parsing_ms, results.init_ms, results.matchmaking_ms, results.max_memory]
+    pass
 
 
-class MatchmakingEnergyEvaluator(ReasoningEnergyEvaluator, MatchmakingMeasurementEvaluator):
+class MatchmakingEnergyEvaluator(MatchmakingMeasurementEvaluator,
+                                 ReasoningEnergyEvaluator):
     """Evaluates the energy usage of non-standard reasoning tasks."""
 
     def __init__(self,
@@ -228,5 +191,5 @@ class MatchmakingEnergyEvaluator(ReasoningEnergyEvaluator, MatchmakingMeasuremen
                  dataset: Optional[str] = None,
                  reasoners: Optional[List[str]] = None,
                  syntax: Optional[Syntax] = None):
-        super().__init__(ReasoningTask.MATCHMAKING,
-                         probe=probe, dataset=dataset, reasoners=reasoners, syntax=syntax)
+        super().__init__(ReasoningTask.MATCHMAKING, probe,
+                         dataset=dataset, reasoners=reasoners, syntax=syntax)
