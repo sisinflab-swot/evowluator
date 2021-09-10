@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import os
 from importlib import import_module
-from typing import List, Optional
+from typing import List
 
 from pyutils.proc.bench import EnergyProbe
 
@@ -22,7 +24,7 @@ class Loader:
         self.probes = [subclass() for subclass in _all_subclasses(EnergyProbe)]
         self.probes.sort(key=lambda p: p.__class__.__name__)
 
-    def reasoner_with_name(self, name: str) -> Optional[Reasoner]:
+    def reasoner_with_name(self, name: str) -> Reasoner | None:
         """Returns the reasoner having the specified name."""
         lower_name = name.lower()
         return next((r for r in self.reasoners if r.name.lower() == lower_name), None)
@@ -31,7 +33,7 @@ class Loader:
         """Returns the reasoners that support the specified reasoning task."""
         return [r for r in self.reasoners if task in r.supported_tasks]
 
-    def probe_with_name(self, name: str) -> Optional[EnergyProbe]:
+    def probe_with_name(self, name: str) -> EnergyProbe | None:
         """Returns the energy probe having the specified name."""
         lower_name = name.lower()
         possible = [lower_name, lower_name + 'probe']

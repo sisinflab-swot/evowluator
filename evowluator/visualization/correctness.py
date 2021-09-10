@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from os import path
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -14,10 +16,10 @@ class CorrectnessVisualizer(Visualizer):
 
     # Overrides
 
-    def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
+    def __init__(self, results_dir: str, cfg, index_columns: List[str] | None = None) -> None:
         super().__init__(results_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
         self._reasoners = self._reasoners[1:]
-        self._summary: Optional[pd.DataFrame] = None
+        self._summary: pd.DataFrame | None = None
 
     def configure_plotters(self) -> None:
         super().configure_plotters()

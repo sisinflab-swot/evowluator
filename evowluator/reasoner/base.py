@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import re
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Union
+from typing import Dict, List
 
 from pyutils import exc
 from pyutils.io import fileutils
@@ -196,7 +196,7 @@ class ReasoningTask:
         return self.name
 
     def extract_results(self, task: Task, reasoner: Reasoner,
-                        output: Optional[str], mode: EvaluationMode) -> Results:
+                        output: str | None, mode: EvaluationMode) -> Results:
         results = reasoner.parse_results(self, task)
 
         if not results.output:
@@ -204,10 +204,10 @@ class ReasoningTask:
 
         return results
 
-    def run(self, reasoner: Reasoner, inputs: Union[str, List[str]],
-            output: Optional[str] = None,
+    def run(self, reasoner: Reasoner, inputs: str | List[str],
+            output: str | None = None,
             mode: EvaluationMode = EvaluationMode.CORRECTNESS,
-            energy_probe: Optional[EnergyProbe] = None,
+            energy_probe: EnergyProbe | None = None,
             timeout: float = 0.0) -> Results:
         if not isinstance(inputs, list):
             inputs = [inputs]
@@ -240,7 +240,7 @@ class ClassificationTask(ReasoningTask):
     """Ontology classification reasoning task."""
 
     def extract_results(self, task: Task, reasoner: Reasoner,
-                        output: Optional[str], mode: EvaluationMode) -> Results:
+                        output: str | None, mode: EvaluationMode) -> Results:
         results = super().extract_results(task, reasoner, output, mode).update_output(output, True)
 
         if (mode == EvaluationMode.CORRECTNESS and
@@ -256,7 +256,7 @@ class ConsistencyTask(ReasoningTask):
     """Ontology consistency reasoning task."""
 
     def extract_results(self, task: Task, reasoner: Reasoner,
-                        output: Optional[str], mode: EvaluationMode) -> Results:
+                        output: str | None, mode: EvaluationMode) -> Results:
         results = super().extract_results(task, reasoner, output, mode)
 
         if re.search(r'(not |in)consistent', results.output, re.IGNORECASE):
@@ -273,7 +273,7 @@ class MatchmakingTask(ReasoningTask):
     """Matchmaking reasoning task."""
 
     def extract_results(self, task: Task, reasoner: Reasoner,
-                        output: Optional[str], mode: EvaluationMode) -> Results:
+                        output: str | None, mode: EvaluationMode) -> Results:
         return super().extract_results(task, reasoner, output, mode).update_output(output, True)
 
 

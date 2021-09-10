@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import re
 import tempfile
 import time
 from abc import ABC, abstractmethod
 from os import path
-from typing import List, Optional
+from typing import List
 
 from pyutils import exc
 from pyutils.decorators import cached_property
@@ -72,9 +74,9 @@ class Evaluator(ABC):
         return self._csv_writer.file_path
 
     def __init__(self,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Syntax] = None) -> None:
+                 dataset: str | None = None,
+                 reasoners: List[str] | None = None,
+                 syntax: Syntax | None = None) -> None:
         self._dataset = Dataset.with_name(dataset) if dataset else Dataset.first()
 
         if syntax and syntax not in self._dataset.syntaxes:
@@ -83,8 +85,8 @@ class Evaluator(ABC):
 
         self._loader = Loader()
         self._syntax = syntax
-        self._logger: Optional[Logger] = None
-        self._csv_writer: Optional[CSVWriter] = None
+        self._logger: Logger | None = None
+        self._csv_writer: CSVWriter | None = None
 
         if reasoners:
             try:
@@ -98,7 +100,7 @@ class Evaluator(ABC):
         """Clears temporary files."""
         fileutils.remove_dir_contents(self.temp_dir)
 
-    def start(self, resume_ontology: Optional[str] = None) -> None:
+    def start(self, resume_ontology: str | None = None) -> None:
         """Starts the evaluation."""
         self._logger = Logger(path.join(self.work_dir, config.Paths.LOG_FILE_NAME))
         self._csv_writer = CSVWriter(path.join(self.work_dir, config.Paths.RESULTS_FILE_NAME))
@@ -124,7 +126,7 @@ class Evaluator(ABC):
         available = self._dataset.syntaxes
         return [s for s in reasoner.supported_syntaxes if s in available]
 
-    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Optional[Syntax]:
+    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Syntax | None:
         supported = reasoner.supported_syntaxes
 
         if self._syntax in supported:
@@ -140,7 +142,7 @@ class Evaluator(ABC):
     def _usable_reasoners(self) -> List[Reasoner]:
         return [r for r in self._reasoners if self._syntaxes_for_reasoner(r)]
 
-    def _start(self, resume_ontology: Optional[str] = None) -> None:
+    def _start(self, resume_ontology: str | None = None) -> None:
         for entry in self._dataset.get_entries(resume_after=resume_ontology):
             sizes = sorted(f'{o.syntax}: {o.readable_size}' for o in entry.ontologies())
             size_str = ' | '.join(sizes)
@@ -227,9 +229,9 @@ class ReasoningEvaluator(Evaluator):
 
     def __init__(self,
                  task: ReasoningTask,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Syntax] = None) -> None:
+                 dataset: str | None = None,
+                 reasoners: List[str] | None = None,
+                 syntax: Syntax | None = None) -> None:
         super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.task = task
 
@@ -306,9 +308,9 @@ class ReasoningEnergyEvaluator(ReasoningMeasurementEvaluator, ABC):
 
     def __init__(self,
                  task: ReasoningTask, probe: str,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Syntax] = None):
+                 dataset: str | None = None,
+                 reasoners: List[str] | None = None,
+                 syntax: Syntax | None = None):
         if not probe:
             raise ValueError('No probe specified.')
 
@@ -334,5 +336,5 @@ class ReasoningEnergyEvaluator(ReasoningMeasurementEvaluator, ABC):
 class NotImplementedEvaluator:
     """Not implemented evaluator."""
 
-    def start(self, resume_ontology: Optional[str] = None):
+    def start(self, resume_ontology: str | None = None):
         raise NotImplementedError('Not implemented.')

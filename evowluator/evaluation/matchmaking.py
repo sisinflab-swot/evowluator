@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import os
 from abc import ABC
 from subprocess import TimeoutExpired
-from typing import List, Optional
+from typing import List
 
 from pyutils.io import echo
 
@@ -26,9 +28,9 @@ class MatchmakingCorrectnessEvaluator(ReasoningEvaluator):
         return EvaluationMode.CORRECTNESS
 
     def __init__(self,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Syntax] = None):
+                 dataset: str | None = None,
+                 reasoners: List[str] | None = None,
+                 syntax: Syntax | None = None):
         super().__init__(ReasoningTask.MATCHMAKING,
                          dataset=dataset, reasoners=reasoners, syntax=syntax)
 
@@ -116,9 +118,9 @@ class MatchmakingMeasurementEvaluator(ReasoningMeasurementEvaluator, ABC):
     """Measures stats of matchmaking tasks."""
 
     def __init__(self,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Syntax] = None):
+                 dataset: str | None = None,
+                 reasoners: List[str] | None = None,
+                 syntax: Syntax | None = None):
         super().__init__(ReasoningTask.MATCHMAKING,
                          dataset=dataset, reasoners=reasoners, syntax=syntax)
 
@@ -188,8 +190,8 @@ class MatchmakingEnergyEvaluator(MatchmakingMeasurementEvaluator,
 
     def __init__(self,
                  probe: str,
-                 dataset: Optional[str] = None,
-                 reasoners: Optional[List[str]] = None,
-                 syntax: Optional[Syntax] = None):
+                 dataset: str | None = None,
+                 reasoners: List[str] | None = None,
+                 syntax: Syntax | None = None):
         super().__init__(ReasoningTask.MATCHMAKING, probe,
                          dataset=dataset, reasoners=reasoners, syntax=syntax)

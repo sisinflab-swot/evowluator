@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from math import ceil
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 from matplotlib import colors, pyplot as plt, ticker
@@ -54,9 +54,9 @@ class Plot:
         self.legend_handle_length = 0.7
         self.legend_only = False
         self.show_titles = True
-        self.title: Optional[str] = None
-        self.xlabel: Optional[str] = None
-        self.ylabel: Optional[str] = None
+        self.title: str | None = None
+        self.xlabel: str | None = None
+        self.ylabel: str | None = None
         self.xtick_rot = 0.0
         self.ytick_rot = 0.0
 
@@ -155,9 +155,9 @@ class HistogramPlot(Plot):
         super().__init__(ax)
         self.data: Dict[str, List[float]] = {}
         self.grid_axis = 'y'
-        self.label_fmt: Optional[str] = None
+        self.label_fmt: str | None = None
         self.label_rot = 0.0
-        self.metric: Optional[Metric] = None
+        self.metric: Metric | None = None
         self.show_labels = True
         self._labels: List[plt.Annotation] = []
 
@@ -349,8 +349,8 @@ class ScatterPlot(Plot):
         self.line_styles: Dict[str, LineStyle] = {}
         self.legend_handle_length = 2.5
         self.marker_size = 0.0
-        self.xmetric: Optional[Metric] = None
-        self.ymetric: Optional[Metric] = None
+        self.xmetric: Metric | None = None
+        self.ymetric: Metric | None = None
 
     def draw_plot(self) -> None:
         labels = list(self.data.keys())
@@ -403,8 +403,8 @@ class ScatterPlot(Plot):
         self.ylabel = self.ymetric.to_string(capitalize=True)
         super().draw_plot()
 
-    def draw_polyline(self, x: List[float], y: List[float], color: Optional[str] = None,
-                      style: Optional[Union[str, tuple]] = None) -> None:
+    def draw_polyline(self, x: List[float], y: List[float], color: str | None = None,
+                      style: str | tuple | None = None) -> None:
         count = len(x)
         weights = [1.0] * count
 
@@ -448,10 +448,10 @@ class Figure:
 
     def __init__(self):
         self.title = 'evOWLuator - results'
-        self.size: Optional[Tuple[float, float]] = None
+        self.size: Tuple[float, float] | None = None
         self.show_titles = True
         self.show_labels = True
-        self.label_fmt: Optional[str] = None
+        self.label_fmt: str | None = None
         self.label_rot = 0.0
         self.legend_loc = LegendLocation.BEST
         self.legend_cols = 1
@@ -478,7 +478,7 @@ class Figure:
 
         self._plotters.append(Plotter(plot_type, **kwargs))
 
-    def draw(self, plots: Optional[List[int]] = None) -> None:
+    def draw(self, plots: List[int] | None = None) -> None:
         if self._is_drawn:
             return
 

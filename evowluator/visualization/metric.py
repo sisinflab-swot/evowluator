@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 
 class Metric:
@@ -7,7 +7,7 @@ class Metric:
     def capitalized_name(self) -> str:
         return self.name[0].upper() + self.name[1:]
 
-    def __init__(self, name: str, unit: Optional[str] = None, fmt: Optional[str] = None):
+    def __init__(self, name: str, unit: str | None = None, fmt: str | None = None):
         self.name = name
         self.unit = unit
         self.fmt = fmt

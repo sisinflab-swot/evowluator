@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import csv
-from typing import List, Optional, TextIO
+from typing import List, TextIO
 
 
 class _CSVIO:
@@ -14,7 +16,7 @@ class _CSVIO:
 
     def __init__(self, file_path: str) -> None:
         self._file_path = file_path
-        self._file: Optional[TextIO] = None
+        self._file: TextIO | None = None
 
     def __enter__(self):
         self.open()

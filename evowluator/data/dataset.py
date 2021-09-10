@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Iterable, List, Optional
+from typing import Iterable, Iterator, List
 
 from evowluator.config import Paths
 from .ontology import Ontology, Syntax
@@ -24,25 +24,25 @@ class Dataset:
         def ontology(self, syntax: Syntax) -> Ontology:
             return Ontology(os.path.join(self.dataset_dir, syntax.value, self.name), syntax)
 
-        def ontologies(self, syntaxes: Optional[Iterable[Syntax]] = None) -> Iterable[Ontology]:
+        def ontologies(self, syntaxes: Iterable[Syntax] | None = None) -> Iterator[Ontology]:
             if not syntaxes:
                 syntaxes = _available_syntaxes(self.dataset_dir)
 
-            return (self.ontology(s) for s in syntaxes)
+            for s in syntaxes:
+                yield self.ontology(s)
 
-        def requests(self, syntax: Optional[Syntax] = None) -> Iterable[Dataset.Entry]:
+        def requests(self, syntax: Syntax | None = None) -> Iterator[Dataset.Entry]:
             req_dir = os.path.join(self.dataset_dir, 'requests', os.path.splitext(self.name)[0])
 
             try:
                 if not syntax:
                     syntax = _available_syntaxes(req_dir)[0]
 
-                req_names = sorted(f for f in os.listdir(os.path.join(req_dir, syntax.value))
-                                   if not f.startswith('.'))
+                for n in sorted(f for f in os.listdir(os.path.join(req_dir, syntax.value))
+                                if not f.startswith('.')):
+                    yield Dataset.Entry(req_dir, n)
             except (IndexError, FileNotFoundError):
-                req_names = []
-
-            return (Dataset.Entry(req_dir, n) for n in req_names)
+                return
 
         def request_count(self) -> int:
             return sum(1 for _ in self.requests())
@@ -52,7 +52,7 @@ class Dataset:
         return Dataset(os.path.join(Paths.DATA_DIR, name))
 
     @classmethod
-    def with_names(cls, names: Optional[List[str]] = None) -> List[Dataset]:
+    def with_names(cls, names: List[str] | None = None) -> List[Dataset]:
         return [Dataset.with_name(d) for d in names] if names else cls.all()
 
     @classmethod
@@ -65,7 +65,7 @@ class Dataset:
         return [Dataset(d) for d in datasets]
 
     @classmethod
-    def first(cls) -> Optional[Dataset]:
+    def first(cls) -> Dataset:
         all_datasets = cls.all()
 
         if not all_datasets:
@@ -106,8 +106,8 @@ class Dataset:
     def get_max_ontology_size(self) -> int:
         return max(e.max_size for e in self.get_entries())
 
-    def get_ontologies(self, syntax: Syntax, names: Optional[Iterable[str]] = None,
-                       sort_by_size: bool = False) -> Iterable[Ontology]:
+    def get_ontologies(self, syntax: Syntax, names: Iterable[str] | None = None,
+                       sort_by_size: bool = False) -> Iterator[Ontology]:
         entries = self.get_entries()
 
         if names is not None:
@@ -116,7 +116,7 @@ class Dataset:
         ontologies = (e.ontology(syntax) for e in entries)
         return sorted(ontologies, key=lambda o: o.size) if sort_by_size else ontologies
 
-    def get_entries(self, resume_after: Optional[str] = None) -> Iterable[Entry]:
+    def get_entries(self, resume_after: str | None = None) -> Iterator[Entry]:
         onto_dir = self.get_dir(self.syntaxes[0])
         onto_names = sorted(f for f in os.listdir(onto_dir) if not f.startswith('.'))
 

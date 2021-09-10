@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from os import path
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
@@ -34,7 +34,7 @@ class Visualizer:
     # Public
 
     @classmethod
-    def from_dir(cls, results_dir: str, reasoners: Optional[List[str]] = None) -> Visualizer:
+    def from_dir(cls, results_dir: str, reasoners: List[str] | None = None) -> Visualizer:
         from .correctness import CorrectnessVisualizer
         from .performance import EnergyVisualizer, PerformanceVisualizer
 
@@ -72,7 +72,7 @@ class Visualizer:
         return os.path.join(self._results_dir, Paths.CONFIG_FILE_NAME)
 
     def __init__(self, results_dir: str, cfg, index_columns: List[str] = None,
-                 non_numeric_columns: Union[bool, List[str]] = False) -> None:
+                 non_numeric_columns: bool | List[str] = False) -> None:
         self._results_dir = results_dir
         self._index_columns = index_columns if index_columns else ['Ontology']
         self._dataset_name = cfg[ConfigKey.DATASET]
@@ -94,7 +94,7 @@ class Visualizer:
         return self._results.index.values
 
     def results_for_reasoner(self, reasoner: str,
-                             col_filter: Optional[Callable[[str], bool]] = None,
+                             col_filter: Callable[[str], bool] | None = None,
                              drop_missing: bool = True) -> pd.DataFrame:
         results = self._results.dropna() if drop_missing else self._results
 
@@ -118,7 +118,7 @@ class Visualizer:
 
         return results.groupby(lambda x: x.split(':', maxsplit=1)[0], axis=1)
 
-    def plot_results(self, gui: bool = True, plots: Optional[List[int]] = None) -> None:
+    def plot_results(self, gui: bool = True, plots: List[int] | None = None) -> None:
         self.configure_plotters()
         self.figure.title += f' ({path.basename(self._results_dir)})'
         self.figure.draw(plots=plots)
@@ -127,7 +127,7 @@ class Visualizer:
         if gui:
             self.figure.show()
 
-    def load_results(self, non_numeric_columns: Union[bool, List[str]] = False) -> pd.DataFrame:
+    def load_results(self, non_numeric_columns: bool | List[str] = False) -> pd.DataFrame:
         res = pd.read_csv(self.results_path, index_col=self._index_columns)
 
         columns = [c for c in res.columns if c.split(':', maxsplit=1)[0] in self._reasoners]
@@ -178,7 +178,7 @@ class Visualizer:
         self.figure.add_plotter(plot_type, **kwargs)
 
     def add_scatter_plotter(self, metric: Metric,
-                            col_filter: Optional[Callable[[str], bool]] = None) -> None:
+                            col_filter: Callable[[str], bool] | None = None) -> None:
         dataset = Dataset(os.path.join(Paths.DATA_DIR, self._dataset_name))
 
         xscale, xunit = fileutils.human_readable_scale_and_unit(dataset.get_max_ontology_size())
@@ -210,7 +210,7 @@ class Visualizer:
         self.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric)
 
     def add_min_max_avg_plotter(self, data: pd.DataFrame, metric: Metric,
-                                col_filter: Optional[Callable[[str], bool]] = None) -> None:
+                                col_filter: Callable[[str], bool] | None = None) -> None:
         if col_filter:
             cols = [c for c in data.columns if col_filter(c)]
             data = data[cols]
