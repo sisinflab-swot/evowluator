@@ -5,9 +5,8 @@ from importlib import import_module
 from typing import List
 
 from pyutils.proc.bench import EnergyProbe
-
-from evowluator.config import Paths
-from evowluator.reasoner.base import Reasoner, ReasoningTask
+from ..config import Paths
+from ..reasoner.base import Reasoner, ReasoningTask
 
 
 class Loader:

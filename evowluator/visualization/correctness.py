@@ -5,8 +5,8 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from pyutils.io import fileutils
 
+from pyutils.io import fileutils
 from .base import Visualizer
 from .metric import Metric
 from .plot import GroupedHistogramPlot

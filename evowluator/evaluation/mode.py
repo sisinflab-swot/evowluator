@@ -1,4 +1,4 @@
-from evowluator.util.strenum import StrEnum
+from ..util.strenum import StrEnum
 
 
 class EvaluationMode(StrEnum):

@@ -3,9 +3,8 @@ from __future__ import annotations
 import os
 
 from pyutils.io import fileutils
-
-from evowluator.util import owltool
-from evowluator.util.strenum import StrEnum
+from ..util import owltool
+from ..util.strenum import StrEnum
 
 
 class Syntax(StrEnum):

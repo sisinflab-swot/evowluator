@@ -6,17 +6,16 @@ from typing import Callable, Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
+
 from pyutils.io import fileutils
-
-from evowluator.config import ConfigKey, Paths
-from evowluator.data import json
-from evowluator.data.dataset import Dataset
-from evowluator.data.ontology import Syntax
-from evowluator.reasoner.base import ReasoningTask
-from evowluator.evaluation.mode import EvaluationMode
-
 from .metric import Metric
 from .plot import Figure, LineStyle, MinMaxAvgHistogramPlot, ScatterPlot
+from ..config import ConfigKey, Paths
+from ..data import json
+from ..data.dataset import Dataset
+from ..data.ontology import Syntax
+from ..evaluation.mode import EvaluationMode
+from ..reasoner.base import ReasoningTask
 
 
 class Visualizer:
@@ -41,10 +40,10 @@ class Visualizer:
         cfg = json.load(os.path.join(results_dir, Paths.CONFIG_FILE_NAME))
         eval_name = cfg[ConfigKey.NAME]
 
-        if ReasoningTask.MATCHMAKING.name in eval_name:
-            cols = ['Resource', 'Request']
-        else:
-            cols = ['Ontology']
+        cols = ['Ontology']
+
+        if any(t.name in eval_name for t in ReasoningTask.all() if t.requires_additional_inputs):
+            cols.append('Input')
 
         if reasoners:
             reasoner_cfg = {r[ConfigKey.NAME]: r for r in cfg[ConfigKey.REASONERS]}

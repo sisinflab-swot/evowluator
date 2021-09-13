@@ -9,14 +9,13 @@ from pyutils import exc
 from pyutils.io import fileutils
 from pyutils.proc.bench import Benchmark, EnergyProbe, EnergyProfiler
 from pyutils.proc.task import Task
-
-from evowluator.config import Paths
-from evowluator.data.ontology import Syntax
-from evowluator.evaluation.mode import EvaluationMode
-from evowluator.util import owltool
-from evowluator.util.strenum import StrEnum
 from .results import EnergyStats, EvaluationTask
 from .results import Results
+from ..config import Paths
+from ..data.ontology import Syntax
+from ..evaluation.mode import EvaluationMode
+from ..util import owltool
+from ..util.strenum import StrEnum
 
 
 class OutputFormat(StrEnum):
@@ -192,6 +191,11 @@ class ReasoningTask:
 
         return name.lower()
 
+    @property
+    def requires_additional_inputs(self) -> bool:
+        """True if the task requires additional input ontologies (other than the root ontology)."""
+        return False
+
     def __repr__(self) -> str:
         return self.name
 
@@ -271,6 +275,10 @@ class ConsistencyTask(ReasoningTask):
 
 class MatchmakingTask(ReasoningTask):
     """Matchmaking reasoning task."""
+
+    @property
+    def requires_additional_inputs(self) -> bool:
+        return True
 
     def extract_results(self, task: Task, reasoner: Reasoner,
                         output: str | None, mode: EvaluationMode) -> Results:

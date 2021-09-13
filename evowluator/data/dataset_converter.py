@@ -1,9 +1,9 @@
 import os
 
 from pyutils.io import echo, fileutils
-
-from evowluator.data.ontology import Ontology, Syntax
 from .dataset import Dataset
+from ..data.ontology import Ontology, Syntax
+from ..reasoner.base import ReasoningTask
 
 
 def convert(dataset: Dataset, syntax: Syntax) -> None:
@@ -18,15 +18,13 @@ def convert(dataset: Dataset, syntax: Syntax) -> None:
         echo.pretty(f'{target_ontology.name}: ', color=echo.Color.YELLOW, endl=False)
         fileutils.create_dir(os.path.dirname(target_ontology.path))
         result = entry.ontology(source_syntax).convert(target_ontology)
-
         _print_conversion_result(result)
 
-        for request in entry.requests(source_syntax):
-            target_request = request.ontology(syntax)
-            echo.pretty(f'    {target_request.name}: ', color=echo.Color.YELLOW, endl=False)
-            fileutils.create_dir(os.path.dirname(target_request.path))
-            result = request.ontology(source_syntax).convert(target_request)
-
+        for i_entry in (e for t in ReasoningTask.all() for e in entry.inputs_for_task(t)):
+            target = i_entry.ontology(syntax)
+            echo.pretty(f'    {target.name}: ', color=echo.Color.YELLOW, endl=False)
+            fileutils.create_dir(os.path.dirname(target.path))
+            result = i_entry.ontology(source_syntax).convert(target)
             _print_conversion_result(result)
 
         echo.info('')

@@ -9,10 +9,9 @@ from typing import List
 from pyutils import exc
 from pyutils.proc.task import OutputAction, Task
 from pyutils.proc.util import find_executable
-
-from evowluator.config import Paths
-from evowluator.evaluation.mode import EvaluationMode
 from .base import Reasoner, ReasoningTask
+from ..config import Paths
+from ..evaluation.mode import EvaluationMode
 
 
 class MobileReasoner(Reasoner, ABC):

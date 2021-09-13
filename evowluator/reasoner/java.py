@@ -4,10 +4,9 @@ from abc import ABC, abstractmethod
 from typing import List
 
 from pyutils.proc.task import find_executable, java_args
-
-from evowluator.config import Paths
-from evowluator.evaluation.mode import EvaluationMode
 from .base import Reasoner, ReasoningTask
+from ..config import Paths
+from ..evaluation.mode import EvaluationMode
 
 
 class JavaReasoner(Reasoner, ABC):

@@ -1,27 +1,25 @@
 from __future__ import annotations
 
+import os
 import re
 import tempfile
 import time
 from abc import ABC, abstractmethod
+from functools import cached_property
 from os import path
 from typing import List
 
 from pyutils import exc
-from pyutils.decorators import cached_property
 from pyutils.io import echo, fileutils
 from pyutils.io.logger import Logger
-
-from evowluator import config
-from evowluator.config import ConfigKey, Paths
-from evowluator.data import json
-from evowluator.data.csv import CSVWriter
-from evowluator.data.dataset import Dataset
-from evowluator.data.ontology import Syntax
-from evowluator.reasoner.base import Reasoner, ReasoningTask
-from evowluator.reasoner.results import Results
-from evowluator.user.loader import Loader
-from .mode import EvaluationMode
+from .. import config
+from ..config import ConfigKey, Paths
+from ..data import json
+from ..data.csv import CSVWriter
+from ..data.dataset import Dataset
+from ..data.ontology import Syntax
+from ..reasoner.base import Reasoner
+from ..user.loader import Loader
 
 
 class Evaluator(ABC):
@@ -122,6 +120,9 @@ class Evaluator(ABC):
 
     # Protected
 
+    def _output_path_for_reasoner(self, reasoner: Reasoner) -> str:
+        return os.path.join(self.temp_dir, reasoner.name.lower().replace(' ', '_'))
+
     def _syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[Syntax]:
         available = self._dataset.syntaxes
         return [s for s in reasoner.supported_syntaxes if s in available]
@@ -210,127 +211,6 @@ class Evaluator(ABC):
         }
 
         json.save(cfg, path.join(self.work_dir, config.Paths.CONFIG_FILE_NAME))
-
-
-class ReasoningEvaluator(Evaluator):
-    """Abstract reasoning evaluator class."""
-
-    @property
-    @abstractmethod
-    def mode(self) -> EvaluationMode:
-        """Evaluation mode."""
-        pass
-
-    # Overrides
-
-    @property
-    def name(self) -> str:
-        return f'{self.task} {self.mode}'
-
-    def __init__(self,
-                 task: ReasoningTask,
-                 dataset: str | None = None,
-                 reasoners: List[str] | None = None,
-                 syntax: Syntax | None = None) -> None:
-        super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
-        self.task = task
-
-        if not reasoners:
-            self._reasoners = self._loader.reasoners_supporting_task(task)
-
-
-class ReasoningMeasurementEvaluator(ReasoningEvaluator, ABC):
-    """Evaluates stats of reasoning tasks."""
-
-    # Override
-
-    @property
-    @abstractmethod
-    def result_fields(self) -> List[str]:
-        """Names for the columns of the CSV results."""
-        pass
-
-    @abstractmethod
-    def extract_results(self, results: Results) -> List:
-        """Extracts and logs relevant results."""
-        pass
-
-    # Overrides
-
-    def setup(self):
-        csv_header = ['Ontology']
-
-        for reasoner in self._usable_reasoners():
-            for field in self.result_fields:
-                csv_header.append('{}: {}'.format(reasoner.name, field))
-
-        self._csv_writer.write_row(csv_header)
-
-
-class ReasoningPerformanceEvaluator(ReasoningMeasurementEvaluator, ABC):
-    """Evaluates the performance of reasoning tasks."""
-
-    # Overrides
-
-    @property
-    def mode(self) -> EvaluationMode:
-        return EvaluationMode.PERFORMANCE
-
-    @property
-    def result_fields(self) -> List[str]:
-        return ['parsing', 'reasoning', 'memory']
-
-    def extract_results(self, results: Results) -> List:
-        if not results.has_performance_stats:
-            raise ValueError('Missing performance stats.')
-
-        self._logger.log('{:.0f} ms'.format(results.total_ms))
-
-        self._logger.indent_level += 1
-        self._logger.log('Parsing: {:.0f} ms'.format(results.parsing_ms))
-        self._logger.log('Reasoning: {:.0f} ms'.format(results.reasoning_ms))
-        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(results.max_memory)))
-        self._logger.indent_level -= 1
-
-        return [results.parsing_ms, results.reasoning_ms, results.max_memory]
-
-
-class ReasoningEnergyEvaluator(ReasoningMeasurementEvaluator, ABC):
-    """Abstract reasoning energy evaluator class."""
-
-    @property
-    def mode(self) -> EvaluationMode:
-        return EvaluationMode.ENERGY
-
-    @property
-    def result_fields(self) -> List[str]:
-        return ['energy']
-
-    def __init__(self,
-                 task: ReasoningTask, probe: str,
-                 dataset: str | None = None,
-                 reasoners: List[str] | None = None,
-                 syntax: Syntax | None = None):
-        if not probe:
-            raise ValueError('No probe specified.')
-
-        super().__init__(task=task, dataset=dataset, reasoners=reasoners, syntax=syntax)
-        self.__configure_reasoners(probe)
-
-    def extract_results(self, results: Results) -> List:
-        if not results.has_energy_stats:
-            raise ValueError('Missing energy stats.')
-
-        self._logger.log(f'{results.energy_score:.2f}')
-        return [results.energy_score]
-
-    # Private
-
-    def __configure_reasoners(self, probe_name: str) -> None:
-        probe = self._loader.probe_with_name(probe_name)
-
-        for reasoner in self._reasoners:
-            reasoner.energy_probe = probe
 
 
 class NotImplementedEvaluator:

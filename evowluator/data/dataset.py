@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 from typing import Iterable, Iterator, List
 
-from evowluator.config import Paths
 from .ontology import Ontology, Syntax
+from ..config import Paths
+from ..reasoner.base import ReasoningTask
 
 
 class Dataset:
@@ -31,21 +32,22 @@ class Dataset:
             for s in syntaxes:
                 yield self.ontology(s)
 
-        def requests(self, syntax: Syntax | None = None) -> Iterator[Dataset.Entry]:
-            req_dir = os.path.join(self.dataset_dir, 'requests', os.path.splitext(self.name)[0])
+        def inputs_for_task(self, task: ReasoningTask,
+                            syntax: Syntax | None = None) -> Iterator[Dataset.Entry]:
+            input_dir = os.path.join(self.dataset_dir, task.name, os.path.splitext(self.name)[0])
 
             try:
                 if not syntax:
-                    syntax = _available_syntaxes(req_dir)[0]
+                    syntax = _available_syntaxes(input_dir)[0]
 
-                for n in sorted(f for f in os.listdir(os.path.join(req_dir, syntax.value))
+                for n in sorted(f for f in os.listdir(os.path.join(input_dir, syntax.value))
                                 if not f.startswith('.')):
-                    yield Dataset.Entry(req_dir, n)
+                    yield Dataset.Entry(input_dir, n)
             except (IndexError, FileNotFoundError):
                 return
 
-        def request_count(self) -> int:
-            return sum(1 for _ in self.requests())
+        def inputs_count_for_task(self, task: ReasoningTask) -> int:
+            return sum(1 for _ in self.inputs_for_task(task))
 
     @classmethod
     def with_name(cls, name: str) -> Dataset:

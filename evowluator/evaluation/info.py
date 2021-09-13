@@ -1,6 +1,5 @@
-from evowluator.data.ontology import Syntax
-
 from .base import Evaluator
+from ..data.ontology import Syntax
 
 
 class InfoEvaluator(Evaluator):

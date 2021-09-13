@@ -10,9 +10,8 @@ from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
-from evowluator.util.strenum import StrEnum
 from .metric import Metric
-
+from ..util.strenum import StrEnum
 
 LineStyle = Union[str, tuple]
 
