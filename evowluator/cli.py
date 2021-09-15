@@ -2,6 +2,7 @@ import argparse
 import os
 
 from functools import cache
+from pyutils.proc.bench import EnergyProbe
 
 from . import config
 from .config import EXE_NAME
@@ -11,6 +12,7 @@ from .data.ontology import Syntax
 from .evaluation.info import InfoEvaluator
 from .evaluation.mode import EvaluationMode
 from .evaluation.reasoning import (
+    CorrectnessStrategy,
     ReasoningCorrectnessEvaluator,
     ReasoningEnergyEvaluator,
     ReasoningPerformanceEvaluator
@@ -91,8 +93,12 @@ def add_evaluation_parsers(subparsers) -> None:
                        default=modes[0],
                        help='Evaluation mode.')
     group.add_argument('-e', '--energy-probe',
-                       metavar='CLASS_NAME',
+                       choices=[p.name.lower() for p in EnergyProbe.all()],
                        help='Probe to use for energy measurements.')
+    group.add_argument('-c', '--strategy',
+                       choices=[s.name for s in CorrectnessStrategy.all()],
+                       default=CorrectnessStrategy.all()[0].name,
+                       help='Strategy to use for correctness evaluation.')
 
     for name in (t.name for t in ReasoningTask.all()):
         desc = f'Evaluates the {name} reasoning task.'
@@ -232,6 +238,7 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
 
     if args.mode == EvaluationMode.CORRECTNESS:
         evaluator = ReasoningCorrectnessEvaluator(task,
+                                                  CorrectnessStrategy.with_name(args.strategy),
                                                   dataset=args.dataset,
                                                   reasoners=args.reasoners,
                                                   syntax=args.syntax)

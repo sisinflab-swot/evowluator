@@ -18,7 +18,6 @@ class CorrectnessVisualizer(Visualizer):
 
     def __init__(self, results_dir: str, cfg, index_columns: List[str] | None = None) -> None:
         super().__init__(results_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
-        self._reasoners = self._reasoners[1:]
         self._summary: pd.DataFrame | None = None
 
     def configure_plotters(self) -> None:

@@ -19,7 +19,6 @@ from ..data.csv import CSVWriter
 from ..data.dataset import Dataset
 from ..data.ontology import Syntax
 from ..reasoner.base import Reasoner
-from ..user.loader import Loader
 
 
 class Evaluator(ABC):
@@ -81,18 +80,17 @@ class Evaluator(ABC):
             msg = f'"{syntax}" syntax not available for "{self._dataset.name}" dataset.'
             raise ValueError(msg)
 
-        self._loader = Loader()
         self._syntax = syntax
         self._logger: Logger | None = None
         self._csv_writer: CSVWriter | None = None
 
         if reasoners:
             try:
-                self._reasoners = [self._loader.reasoner_with_name(n) for n in reasoners]
+                self._reasoners = [Reasoner.with_name(n) for n in reasoners]
             except KeyError as e:
                 exc.re_raise_new_message(e, 'No such reasoner: ' + str(e))
         else:
-            self._reasoners = self._loader.reasoners
+            self._reasoners = Reasoner.all()
 
     def clear_temp(self) -> None:
         """Clears temporary files."""

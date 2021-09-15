@@ -15,9 +15,6 @@ class Paths:
     DATA_DIR = path.join(ROOT_DIR, 'data')
     LIB_DIR = path.join(ROOT_DIR, 'lib')
     RESULTS_DIR = path.join(ROOT_DIR, 'results')
-    USER_DIR = path.join(SRC_DIR, 'user')
-    REASONERS_DIR = path.join(USER_DIR, 'reasoners')
-    PROBES_DIR = path.join(USER_DIR, 'probes')
 
     LOG_FILE_NAME = 'log.txt'
     RESULTS_FILE_NAME = 'results.csv'
@@ -60,3 +57,9 @@ class Evaluation:
     """Evaluation config namespace."""
     TIMEOUT = 1200.0
     ITERATIONS = 5
+
+
+class User:
+    """User config namespace."""
+    BASE_PACKAGE = 'evowluator.user'
+    PACKAGES = [f'{BASE_PACKAGE}.probes', f'{BASE_PACKAGE}.reasoners']

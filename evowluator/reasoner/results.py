@@ -3,6 +3,8 @@ from __future__ import annotations
 import filecmp
 from typing import Dict, List, Union
 
+from pyutils.io.fileutils import file_hash
+from pyutils.stringutils import string_hash
 from pyutils.proc.bench import Benchmark, EnergyProfiler
 from pyutils.proc.task import Task
 
@@ -137,6 +139,9 @@ class Results:
         self.time_stats = time_stats if time_stats else {}
         self.max_memory = max_memory
         self.energy_stats = energy_stats
+
+    def output_hash(self) -> str:
+        return file_hash(self.output) if self.output_is_file else string_hash(self.output)
 
     def output_matches(self, results: Results) -> bool:
         if self.output_is_file != results.output_is_file:

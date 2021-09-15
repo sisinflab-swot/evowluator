@@ -7,6 +7,7 @@ from typing import Dict, List
 
 from pyutils import exc
 from pyutils.io import fileutils
+from pyutils.inspectutils import get_subclasses
 from pyutils.proc.bench import Benchmark, EnergyProbe, EnergyProfiler
 from pyutils.proc.task import Task
 from .results import EnergyStats, EvaluationTask
@@ -30,6 +31,30 @@ class OutputFormat(StrEnum):
 
 class Reasoner(ABC):
     """Abstract reasoner interface."""
+
+    __ALL: List[Reasoner] = None
+
+    @classmethod
+    def all(cls) -> List[Reasoner]:
+        """Returns all the available reasoners."""
+        if cls.__ALL is None:
+            cls.__ALL = list(sorted((s() for s in get_subclasses(cls) if not s.is_template()),
+                                    key=lambda r: r.name))
+        return cls.__ALL
+
+    @classmethod
+    def with_name(cls, name: str) -> Reasoner:
+        """Returns the reasoner that has the specified name."""
+        try:
+            name = name.lower()
+            return next(r for r in cls.all() if r.name.lower() == name)
+        except StopIteration:
+            raise ValueError(f'No reasoner named "{name}"')
+
+    @classmethod
+    def supporting_task(cls, task: ReasoningTask) -> List[Reasoner]:
+        """Returns the reasoners that support the specified reasoning task."""
+        return [r for r in cls.all() if task in r.supported_tasks]
 
     # Override
 

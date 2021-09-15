@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import cached_property
+from random import shuffle
 from subprocess import TimeoutExpired
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Union
 
 from pyutils.io import echo, fileutils
 from pyutils.io.echo import Color
+from pyutils.proc.bench import EnergyProbe
+from pyutils.stringutils import camel_case_split
 from .base import Evaluator
 from .mode import EvaluationMode
 from .. import config
@@ -13,6 +17,16 @@ from ..data.dataset import Dataset
 from ..data.ontology import Syntax
 from ..reasoner.base import Reasoner, ReasoningTask
 from ..reasoner.results import Results
+
+
+class Status:
+    OK = 'ok'
+    INCORRECT = 'incorrect'
+    ERROR = 'error'
+    TIMEOUT = 'timeout'
+    UNKNOWN = 'unknown'
+
+    NOT_OK = [INCORRECT, ERROR, TIMEOUT]
 
 
 class ReasoningEvaluator(Evaluator, ABC):
@@ -50,7 +64,7 @@ class ReasoningEvaluator(Evaluator, ABC):
         self.task = task
 
         if not reasoners:
-            self._reasoners = self._loader.reasoners_supporting_task(task)
+            self._reasoners = Reasoner.supporting_task(task)
 
     def setup(self):
         csv_header = ['Ontology']
@@ -124,12 +138,87 @@ class ReasoningEvaluator(Evaluator, ABC):
             except Exception as e:
                 if config.DEBUG:
                     raise e
-                fail_reason = 'timeout' if isinstance(e, TimeoutExpired) else 'error'
+                fail_reason = Status.TIMEOUT if isinstance(e, TimeoutExpired) else Status.ERROR
                 self._logger.log(fail_reason, color=echo.Color.RED)
                 results[reasoner] = fail_reason
                 fail.add(reasoner.name)
 
         return [e.name for e in entries] + self.extract_results(results)
+
+
+class CorrectnessStrategy(ABC):
+
+    __ALL: List[CorrectnessStrategy] = None
+
+    @classmethod
+    def all(cls) -> List[CorrectnessStrategy]:
+        if cls.__ALL is None:
+            cls.__ALL = [OracleStrategy(), RandomMajorityStrategy()]
+        return cls.__ALL
+
+    @classmethod
+    def with_name(cls, name: str) -> CorrectnessStrategy:
+        try:
+            return next(s for s in cls.all() if s.name == name)
+        except StopIteration:
+            raise ValueError(f'No correctness strategy named "{name}"')
+
+    @cached_property
+    def name(self) -> str:
+        return '_'.join(t.lower() for t in camel_case_split(type(self).__name__)[:-1])
+
+    @abstractmethod
+    def evaluate(self, results: Dict[Reasoner, Union[Results, str]]) -> Dict[Reasoner, str]:
+        pass
+
+
+class OracleStrategy(CorrectnessStrategy):
+
+    def evaluate(self, results: Dict[Reasoner, Union[Results, str]]) -> Dict[Reasoner, str]:
+        ref_reasoner, ref_results = next(iter(results.items()))
+        del results[ref_reasoner]
+
+        out = {}
+
+        if not isinstance(ref_results, Results):
+            out[ref_reasoner] = ref_results
+            out.update({r: Status.UNKNOWN for r in results.keys()})
+            return out
+
+        out[ref_reasoner] = Status.OK
+
+        for reasoner, res in results.items():
+            if isinstance(res, Results):
+                res = Status.OK if res.output_matches(ref_results) else Status.INCORRECT
+            out[reasoner] = res
+
+        return out
+
+
+class RandomMajorityStrategy(CorrectnessStrategy):
+
+    def evaluate(self, results: Dict[Reasoner, Union[Results, str]]) -> Dict[Reasoner, str]:
+        out, groups = {}, {}
+
+        for reasoner, res in results.items():
+            if not isinstance(res, Results):
+                out[reasoner] = res
+                continue
+
+            ohash = res.output_hash()
+            if ohash in groups:
+                groups[ohash].append(reasoner)
+            else:
+                groups[ohash] = [reasoner]
+
+        groups = list(groups.values())
+        shuffle(groups)
+
+        correct = max((len(g), g) for g in groups)[1]
+        out.update({r: Status.OK for r in correct})
+        out.update({r: Status.INCORRECT for g in groups for r in g if g is not correct})
+
+        return out
 
 
 class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
@@ -146,27 +235,17 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
         self._logger.log('done')
 
     def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
-        # Ensure reference output is valid
-        ref_reasoner, ref_results = next(iter(results.items()))
-        del results[ref_reasoner]
+        reasoners = list(results.keys())  # Needed to keep results in the original order
+        results = self.strategy.evaluate(results)
+        csv_row = [results[r] for r in reasoners]
 
-        if not isinstance(ref_results, Results):
-            return [ref_results] + ['unknown'] * len(results)
-
-        # Populate correctness results
-        csv_row = ['reference']
         ok, wrong = [], []
 
-        for reasoner, res in results.items():
-            if isinstance(res, Results):
-                res = 'ok' if res.output_matches(ref_results) else 'incorrect'
-
-            if res == 'ok':
-                ok.append(reasoner.name)
-            else:
-                wrong.append(reasoner.name)
-
-            csv_row.append(res)
+        for r, v in results.items():
+            if v == Status.OK:
+                ok.append(r.name)
+            elif v in Status.NOT_OK:
+                wrong.append(r.name)
 
         if ok:
             self._logger.log('Correct: ', color=Color.GREEN, endl=False)
@@ -181,6 +260,14 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
         self._logger.log('')
 
         return csv_row
+
+    def __init__(self,
+                 task: ReasoningTask, strategy: CorrectnessStrategy,
+                 dataset: str | None = None,
+                 reasoners: List[str] | None = None,
+                 syntax: Syntax | None = None) -> None:
+        super().__init__(task, dataset=dataset, reasoners=reasoners, syntax=syntax)
+        self.strategy = strategy
 
 
 class ReasoningPerformanceEvaluator(ReasoningEvaluator):
@@ -257,7 +344,7 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator):
     # Private
 
     def __configure_reasoners(self, probe_name: str) -> None:
-        probe = self._loader.probe_with_name(probe_name)
+        probe = EnergyProbe.with_name(probe_name)
 
         for reasoner in self._reasoners:
             reasoner.energy_probe = probe

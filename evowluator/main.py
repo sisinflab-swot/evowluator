@@ -2,6 +2,7 @@ import sys
 
 from pyutils.io import echo
 from . import cli, config
+from .user import loader
 
 
 # Main
@@ -9,6 +10,7 @@ from . import cli, config
 
 def main() -> int:
     try:
+        loader.import_user_modules()
         ret_val = cli.process_args()
     except KeyboardInterrupt:
         echo.error('Interrupted by user.')
