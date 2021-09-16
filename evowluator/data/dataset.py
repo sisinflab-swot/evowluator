@@ -3,51 +3,78 @@ from __future__ import annotations
 import os
 from typing import Iterable, Iterator, List
 
-from .ontology import Ontology, Syntax
+from pyutils.io import fileutils
+from .syntax import Syntax
 from ..config import Paths
 from ..reasoner.base import ReasoningTask
 
 
+class Ontology:
+    """Models ontology files."""
+
+    @property
+    def path(self) -> str:
+        """Path of the ontology."""
+        return os.path.join(self.entry.base_path, self.syntax.value, self.entry.name)
+
+    @property
+    def name(self) -> str:
+        """File name of the ontology."""
+        return self.entry.name
+
+    @property
+    def size(self) -> int:
+        """File size of the ontology."""
+        return os.path.getsize(self.path)
+
+    @property
+    def readable_size(self) -> str:
+        """Human readable string for the ontology size."""
+        return fileutils.human_readable_bytes(self.size)
+
+    def __init__(self, entry: DatasetEntry, syntax: Syntax):
+        self.entry = entry
+        self.syntax = syntax
+
+
+class DatasetEntry:
+    """Represents an ontology in any of its provided serializations."""
+
+    @property
+    def max_size(self) -> int:
+        return max(o.size for o in self.ontologies())
+
+    def __init__(self, base_path: str, name: str) -> None:
+        self.base_path = base_path
+        self.name = name
+
+    def ontology(self, syntax: Syntax) -> Ontology:
+        return Ontology(self, syntax)
+
+    def ontologies(self, syntaxes: Iterable[Syntax] | None = None) -> Iterator[Ontology]:
+        if not syntaxes:
+            syntaxes = _available_syntaxes(self.base_path)
+
+        for s in syntaxes:
+            yield self.ontology(s)
+
+    def inputs_for_task(self, task: ReasoningTask) -> Iterator[DatasetEntry]:
+        input_dir = os.path.join(self.base_path, task.name, os.path.splitext(self.name)[0])
+
+        try:
+            syntax = _available_syntaxes(input_dir)[0]
+            for n in sorted(f for f in os.listdir(os.path.join(input_dir, syntax.value))
+                            if not f.startswith('.')):
+                yield DatasetEntry(input_dir, n)
+        except (IndexError, FileNotFoundError):
+            return
+
+    def inputs_count_for_task(self, task: ReasoningTask) -> int:
+        return sum(1 for _ in self.inputs_for_task(task))
+
+
 class Dataset:
     """Models a dataset containing multiple ontologies."""
-
-    class Entry:
-        """Represents an ontology in any of its provided serializations."""
-
-        @property
-        def max_size(self) -> int:
-            return max(o.size for o in self.ontologies())
-
-        def __init__(self, dataset_dir: str, name: str) -> None:
-            self.dataset_dir = dataset_dir
-            self.name = name
-
-        def ontology(self, syntax: Syntax) -> Ontology:
-            return Ontology(os.path.join(self.dataset_dir, syntax.value, self.name), syntax)
-
-        def ontologies(self, syntaxes: Iterable[Syntax] | None = None) -> Iterator[Ontology]:
-            if not syntaxes:
-                syntaxes = _available_syntaxes(self.dataset_dir)
-
-            for s in syntaxes:
-                yield self.ontology(s)
-
-        def inputs_for_task(self, task: ReasoningTask,
-                            syntax: Syntax | None = None) -> Iterator[Dataset.Entry]:
-            input_dir = os.path.join(self.dataset_dir, task.name, os.path.splitext(self.name)[0])
-
-            try:
-                if not syntax:
-                    syntax = _available_syntaxes(input_dir)[0]
-
-                for n in sorted(f for f in os.listdir(os.path.join(input_dir, syntax.value))
-                                if not f.startswith('.')):
-                    yield Dataset.Entry(input_dir, n)
-            except (IndexError, FileNotFoundError):
-                return
-
-        def inputs_count_for_task(self, task: ReasoningTask) -> int:
-            return sum(1 for _ in self.inputs_for_task(task))
 
     @classmethod
     def with_name(cls, name: str) -> Dataset:
@@ -80,7 +107,7 @@ class Dataset:
         return os.path.basename(self.path)
 
     @property
-    def size(self) -> int:
+    def count(self) -> int:
         return sum(1 for _ in self.get_entries())
 
     @property
@@ -99,26 +126,13 @@ class Dataset:
     def get_dir(self, syntax: Syntax) -> str:
         return os.path.join(self.path, syntax.value)
 
-    def get_entry(self, name: str) -> Entry:
-        return Dataset.Entry(self.path, name)
+    def get_entry(self, name: str) -> DatasetEntry:
+        return DatasetEntry(self.path, name)
 
     def get_ontology(self, name: str, syntax: Syntax) -> Ontology:
         return self.get_entry(name).ontology(syntax)
 
-    def get_max_ontology_size(self) -> int:
-        return max(e.max_size for e in self.get_entries())
-
-    def get_ontologies(self, syntax: Syntax, names: Iterable[str] | None = None,
-                       sort_by_size: bool = False) -> Iterator[Ontology]:
-        entries = self.get_entries()
-
-        if names is not None:
-            entries = (e for e in entries if e.name in names)
-
-        ontologies = (e.ontology(syntax) for e in entries)
-        return sorted(ontologies, key=lambda o: o.size) if sort_by_size else ontologies
-
-    def get_entries(self, resume_after: str | None = None) -> Iterator[Entry]:
+    def get_entries(self, resume_after: str | None = None) -> Iterator[DatasetEntry]:
         onto_dir = self.get_dir(self.syntaxes[0])
         onto_names = sorted(f for f in os.listdir(onto_dir) if not f.startswith('.'))
 
@@ -128,7 +142,7 @@ class Dataset:
                     resume_after = None
                 continue
 
-            yield Dataset.Entry(self.path, onto_name)
+            yield DatasetEntry(self.path, onto_name)
 
 
 # Private

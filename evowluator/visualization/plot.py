@@ -445,8 +445,8 @@ class Plotter:
 
 class Figure:
 
-    def __init__(self):
-        self.title = 'evOWLuator - results'
+    def __init__(self, title: str = 'evOWLuator'):
+        self.title = title
         self.size: Tuple[float, float] | None = None
         self.show_titles = True
         self.show_labels = True

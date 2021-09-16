@@ -6,7 +6,7 @@ sys.path.extend([
     os.path.abspath('../lib/pyutils')
 ])
 
-from evowluator.data.ontology import Syntax
+from evowluator.data.syntax import Syntax
 
 # Project metadata
 

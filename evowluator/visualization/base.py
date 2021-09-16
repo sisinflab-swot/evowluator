@@ -12,8 +12,8 @@ from .metric import Metric
 from .plot import Figure, LineStyle, MinMaxAvgHistogramPlot, ScatterPlot
 from ..config import ConfigKey, Paths
 from ..data import json
-from ..data.dataset import Dataset
-from ..data.ontology import Syntax
+from ..data.info import DatasetInfo
+from ..data.syntax import Syntax
 from ..evaluation.mode import EvaluationMode
 from ..reasoner.base import ReasoningTask
 
@@ -74,7 +74,7 @@ class Visualizer:
                  non_numeric_columns: bool | List[str] = False) -> None:
         self._results_dir = results_dir
         self._index_columns = index_columns if index_columns else ['Ontology']
-        self._dataset_name = cfg[ConfigKey.DATASET]
+        self._dataset = DatasetInfo.from_dict(cfg[ConfigKey.DATASET])
 
         self._syntaxes_by_reasoner: Dict[str, Syntax] = {
             r[ConfigKey.NAME]: Syntax(r[ConfigKey.SYNTAX])
@@ -87,7 +87,9 @@ class Visualizer:
         self.colors: Dict[str, str] = {}
         self.markers: Dict[str, str] = {}
         self.line_styles: Dict[str, str] = {}
-        self.figure = Figure()
+        self.figure = Figure(f'evOWLuator: {cfg[ConfigKey.NAME]} '
+                             f'on "{self._dataset.name}" dataset '
+                             f'({path.basename(self._results_dir)})')
 
     def ontologies(self) -> Iterable[str]:
         return self._results.index.values
@@ -119,7 +121,6 @@ class Visualizer:
 
     def plot_results(self, gui: bool = True, plots: List[int] | None = None) -> None:
         self.configure_plotters()
-        self.figure.title += f' ({path.basename(self._results_dir)})'
         self.figure.draw(plots=plots)
         self.figure.save(path.join(self.output_dir, 'figure.pdf'))
 
@@ -178,18 +179,16 @@ class Visualizer:
 
     def add_scatter_plotter(self, metric: Metric,
                             col_filter: Callable[[str], bool] | None = None) -> None:
-        dataset = Dataset(os.path.join(Paths.DATA_DIR, self._dataset_name))
-
-        xscale, xunit = fileutils.human_readable_scale_and_unit(dataset.get_max_ontology_size())
+        xscale, xunit = fileutils.human_readable_scale_and_unit(self._dataset.max_ontology_size())
         xmetric = Metric('ontology size', xunit, '.2f')
 
         data = []
 
         for reasoner in self._reasoners:
             results = self.results_for_reasoner(reasoner, col_filter=col_filter, drop_missing=False)
-            ontologies = dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
-                                                names=results.index,
-                                                sort_by_size=True)
+            ontologies = self._dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
+                                                      names=results.index,
+                                                      sort_by_size=True)
 
             if isinstance(results.index, pd.MultiIndex):
                 results = results.groupby(level=0).mean()

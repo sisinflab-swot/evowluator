@@ -1,5 +1,5 @@
 from .base import Evaluator
-from ..data.ontology import Syntax
+from ..data.syntax import Syntax
 
 
 class InfoEvaluator(Evaluator):

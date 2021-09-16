@@ -13,7 +13,7 @@ from pyutils.proc.task import Task
 from .results import EnergyStats, EvaluationTask
 from .results import Results
 from ..config import Paths
-from ..data.ontology import Syntax
+from ..data.syntax import Syntax
 from ..evaluation.mode import EvaluationMode
 from ..util import owltool
 from ..util.strenum import StrEnum

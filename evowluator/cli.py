@@ -6,9 +6,8 @@ from pyutils.proc.bench import EnergyProbe
 
 from . import config
 from .config import EXE_NAME
-from .data import dataset_converter
-from .data.dataset import Dataset
-from .data.ontology import Syntax
+from .data import converter
+from .data.dataset import Dataset, Syntax
 from .evaluation.info import InfoEvaluator
 from .evaluation.mode import EvaluationMode
 from .evaluation.reasoning import (
@@ -324,7 +323,7 @@ def visualize_sub(args) -> int:
 
 def convert_sub(args) -> int:
     dataset_path = os.path.join(config.Paths.DATA_DIR, args.dataset)
-    dataset_converter.convert(Dataset(dataset_path), args.syntax)
+    converter.convert_dataset(Dataset(dataset_path), args.syntax)
     return 0
 
 

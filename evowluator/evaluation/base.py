@@ -16,8 +16,8 @@ from .. import config
 from ..config import ConfigKey, Paths
 from ..data import json
 from ..data.csv import CSVWriter
-from ..data.dataset import Dataset
-from ..data.ontology import Syntax
+from ..data.dataset import Dataset, DatasetEntry, Syntax
+from ..data.info import DatasetInfo
 from ..reasoner.base import Reasoner
 
 
@@ -38,7 +38,7 @@ class Evaluator(ABC):
         pass
 
     @abstractmethod
-    def run(self, entry: Dataset.Entry) -> None:
+    def run(self, entry: DatasetEntry) -> None:
         """Runs the evaluator over a single ontology."""
         pass
 
@@ -125,7 +125,7 @@ class Evaluator(ABC):
         available = self._dataset.syntaxes
         return [s for s in reasoner.supported_syntaxes if s in available]
 
-    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Syntax | None:
+    def _syntax_for_reasoner(self, reasoner: Reasoner) -> Syntax:
         supported = reasoner.supported_syntaxes
 
         if self._syntax in supported:
@@ -136,7 +136,13 @@ class Evaluator(ABC):
         if reasoner.preferred_syntax in available:
             return reasoner.preferred_syntax
 
-        return available[0] if available else None
+        if available:
+            return available[0]
+
+        raise ValueError(f'No available syntax for reasoner "{reasoner.name}"')
+
+    def _syntaxes(self) -> List[Syntax]:
+        return list({self._syntax_for_reasoner(r) for r in self._usable_reasoners()})
 
     def _usable_reasoners(self) -> List[Reasoner]:
         return [r for r in self._reasoners if self._syntaxes_for_reasoner(r)]
@@ -181,7 +187,7 @@ class Evaluator(ABC):
 
         self._logger.log('\nSelected dataset: ', color=echo.Color.GREEN)
         self._logger.indent_level += 1
-        self._logger.log(f'{self._dataset.name}: {self._dataset.size} ontologies')
+        self._logger.log(f'{self._dataset.name}: {self._dataset.count} ontologies')
         self._logger.indent_level -= 1
 
         self._logger.log(f'\nStarting {self.name} evaluation...\n', color=echo.Color.GREEN)
@@ -198,10 +204,9 @@ class Evaluator(ABC):
         self._logger.log(f'{reasoner.name}: {" ".join(syntaxes)}')
 
     def __save_config(self) -> None:
-
         cfg = {
             ConfigKey.NAME: self.name,
-            ConfigKey.DATASET: self._dataset.name,
+            ConfigKey.DATASET: DatasetInfo.with_dataset(self._dataset).to_dict(self._syntaxes()),
             ConfigKey.REASONERS: [{
                 ConfigKey.NAME: r.name,
                 ConfigKey.SYNTAX: self._syntax_for_reasoner(r).value

@@ -13,8 +13,7 @@ from pyutils.stringutils import camel_case_split
 from .base import Evaluator
 from .mode import EvaluationMode
 from .. import config
-from ..data.dataset import Dataset
-from ..data.ontology import Syntax
+from ..data.dataset import DatasetEntry, Syntax
 from ..reasoner.base import Reasoner, ReasoningTask
 from ..reasoner.results import Results
 
@@ -78,7 +77,7 @@ class ReasoningEvaluator(Evaluator, ABC):
 
         self._csv_writer.write_row(csv_header)
 
-    def run(self, entry: Dataset.Entry) -> None:
+    def run(self, entry: DatasetEntry) -> None:
         if self.task.requires_additional_inputs and entry.inputs_count_for_task(self.task) == 0:
             self._logger.log('No additional input files.\n', color=echo.Color.YELLOW)
             return
@@ -96,7 +95,7 @@ class ReasoningEvaluator(Evaluator, ABC):
             self._iterate(entry, fail)
             self._logger.indent_level -= 1
 
-    def _iterate(self, entry: Dataset.Entry, fail: Set[str] | None = None) -> None:
+    def _iterate(self, entry: DatasetEntry, fail: Set[str] | None = None) -> None:
         self.clear_temp()
 
         if not self.task.requires_additional_inputs:
@@ -110,7 +109,7 @@ class ReasoningEvaluator(Evaluator, ABC):
             self._csv_writer.write_row(self._run_reasoners([entry, input_entry], fail))
             self._logger.indent_level -= 1
 
-    def _run_reasoners(self, entries: List[Dataset.Entry], fail: Set[str]) -> List:
+    def _run_reasoners(self, entries: List[DatasetEntry], fail: Set[str]) -> List:
         results = {}
 
         for reasoner in self._usable_reasoners():

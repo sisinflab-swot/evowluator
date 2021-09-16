@@ -48,8 +48,10 @@ class OWLTool:
 class ConfigKey:
     """Evaluation config dictionary keys."""
     DATASET = 'dataset'
-    REASONERS = 'reasoners'
     NAME = 'name'
+    ONTOLOGIES = 'ontologies'
+    REASONERS = 'reasoners'
+    SIZE = 'size'
     SYNTAX = 'syntax'
 
 
