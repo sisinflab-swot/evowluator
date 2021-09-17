@@ -167,7 +167,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument('path',
                         nargs='?',
-                        default=config.Paths.last_results_dir(),
                         help='Path of the dir containing the results to visualize.')
     parser.add_argument('-s', '--size',
                         metavar=('WIDTH', 'HEIGHT'),
@@ -317,7 +316,8 @@ def info_sub(args) -> int:
 
 
 def visualize_sub(args) -> int:
-    visualizer = Visualizer.from_dir(args.path, reasoners=args.reasoners)
+    path = args.path if args.path else config.Paths.last_results_dir()
+    visualizer = Visualizer.from_dir(path, reasoners=args.reasoners)
     figure = visualizer.figure
 
     if args.size:

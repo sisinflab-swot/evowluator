@@ -27,10 +27,13 @@ class Paths:
 
     @staticmethod
     def last_results_dir() -> str:
-        return max((p for p in (path.join(Paths.RESULTS_DIR, d)
-                                for d in os.listdir(Paths.RESULTS_DIR))
-                    if path.isdir(p)),
-                   key=path.getmtime, default=None)
+        try:
+            return max((p for p in (path.join(Paths.RESULTS_DIR, d)
+                                    for d in os.listdir(Paths.RESULTS_DIR))
+                        if path.isdir(p)),
+                       key=path.getmtime, default=None)
+        except FileNotFoundError:
+            raise FileNotFoundError('No available results')
 
 
 class OWLTool:
