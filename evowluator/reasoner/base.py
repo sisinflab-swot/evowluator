@@ -74,25 +74,6 @@ class Reasoner(ABC):
         pass
 
     @property
-    def is_remote(self) -> bool:
-        """True if the reasoner runs on a remote device, false otherwise."""
-        return False
-
-    @abstractmethod
-    def args(self, task: ReasoningTask, mode: EvaluationMode,
-             inputs: List[str], output: str | None) -> List[str]:
-        """
-        Command line arguments to pass to the reasoner executable for each task and evaluation mode.
-
-        :param task: Reasoning task.
-        :param mode: Evaluation mode.
-        :param inputs: Input arguments.
-        :param output: Output argument.
-        :return: Command line arguments.
-        """
-        pass
-
-    @property
     def supported_syntaxes(self) -> List[Syntax]:
         """
         OWL syntaxes supported by the reasoner.
@@ -118,9 +99,32 @@ class Reasoner(ABC):
         return self.supported_syntaxes[0]
 
     @property
-    def classification_output_format(self) -> OutputFormat:
-        """Output format of the classification task."""
-        return OutputFormat.ONTOLOGY
+    def is_remote(self) -> bool:
+        """True if the reasoner runs on a remote device, false otherwise."""
+        return False
+
+    @abstractmethod
+    def args(self, task: ReasoningTask, mode: EvaluationMode,
+             inputs: List[str], output: str | None) -> List[str]:
+        """
+        Command line arguments to pass to the reasoner executable for each task and evaluation mode.
+
+        :param task: Reasoning task.
+        :param mode: Evaluation mode.
+        :param inputs: Input arguments.
+        :param output: Output argument.
+        :return: Command line arguments.
+        """
+        pass
+
+    def output_format_for_task(self, task: ReasoningTask) -> OutputFormat:
+        """
+        Output format for each reasoning task.
+
+        :param task: Reasoning task.
+        :return: Output format.
+        """
+        return OutputFormat.ONTOLOGY if task == ReasoningTask.CLASSIFICATION else OutputFormat.TEXT
 
     def setup(self) -> None:
         """Called at the beginning of the evaluation."""
@@ -273,7 +277,7 @@ class ClassificationTask(ReasoningTask):
         results = super().extract_results(task, reasoner, output, mode).update_output(output, True)
 
         if (mode == EvaluationMode.CORRECTNESS and
-                reasoner.classification_output_format == OutputFormat.ONTOLOGY):
+                reasoner.output_format_for_task(self) == OutputFormat.ONTOLOGY):
             temp_path = os.path.splitext(output)[0]
             os.rename(output, temp_path)
             owltool.print_tbox(temp_path, output)
