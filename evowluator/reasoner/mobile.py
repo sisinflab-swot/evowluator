@@ -14,21 +14,7 @@ from ..config import Paths
 from ..evaluation.mode import EvaluationMode
 
 
-class MobileReasoner(Reasoner, ABC):
-    """Abstract mobile reasoner interface."""
-
-    # Overrides
-
-    @classmethod
-    def is_template(cls) -> bool:
-        return cls == MobileReasoner
-
-    @property
-    def is_remote(self) -> bool:
-        return True
-
-
-class AndroidReasoner(MobileReasoner, ABC):
+class AndroidReasoner(Reasoner, ABC):
     """Abstract Android reasoner interface."""
 
     PACKAGE = 'it.poliba.sisinflab.owl.evowluator'
@@ -122,7 +108,7 @@ class AndroidReasoner(MobileReasoner, ABC):
         adb.raise_if_failed(message='Cannot uninstall instrumentation from device')
 
 
-class IOSReasoner(MobileReasoner, ABC):
+class IOSReasoner(Reasoner, ABC):
     """Abstract iOS reasoner interface."""
 
     # Override
@@ -165,6 +151,8 @@ class IOSReasoner(MobileReasoner, ABC):
 
     def args(self, task: ReasoningTask, mode: EvaluationMode,
              inputs: List[str], output: str | None) -> List[str]:
+        inputs = [os.path.basename(f) for f in inputs]
+
         args = self._common_args() + [
             f'-only-testing:{self.test_name_for_task(task)}',
             f'test-without-building',

@@ -98,11 +98,6 @@ class Reasoner(ABC):
         """
         return self.supported_syntaxes[0]
 
-    @property
-    def is_remote(self) -> bool:
-        """True if the reasoner runs on a remote device, false otherwise."""
-        return False
-
     @abstractmethod
     def args(self, task: ReasoningTask, mode: EvaluationMode,
              inputs: List[str], output: str | None) -> List[str]:
@@ -269,15 +264,11 @@ class ReasoningTask:
         if not isinstance(inputs, list):
             inputs = [inputs]
 
+        for i in inputs:
+            exc.raise_if_not_found(i, file_type=exc.FileType.FILE)
+
         if output:
             fileutils.remove(output)
-
-        if reasoner.is_remote:
-            inputs = [os.path.basename(f) for f in inputs]
-            output = os.path.basename(output) if output else None
-        else:
-            for i in inputs:
-                exc.raise_if_not_found(i, file_type=exc.FileType.FILE)
 
         # Run reasoner
 
