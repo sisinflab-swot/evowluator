@@ -130,6 +130,30 @@ class Reasoner(ABC):
         """Called at the beginning of the evaluation."""
         pass
 
+    def pre_run(self, task: ReasoningTask, mode: EvaluationMode,
+                inputs: List[str], output: str | None) -> None:
+        """
+        Called before running each reasoning task.
+
+        :param task: Reasoning task.
+        :param mode: Evaluation mode.
+        :param inputs: Input arguments.
+        :param output: Output arguments.
+        """
+        pass
+
+    def post_run(self, task: ReasoningTask, mode: EvaluationMode,
+                 inputs: List[str], output: str | None) -> None:
+        """
+        Called after running each reasoning task.
+
+        :param task: Reasoning task.
+        :param mode: Evaluation mode.
+        :param inputs: Input arguments.
+        :param output: Output arguments.
+        """
+        pass
+
     def teardown(self) -> None:
         """Called at the end of the evaluation."""
         pass
@@ -245,18 +269,19 @@ class ReasoningTask:
         if not isinstance(inputs, list):
             inputs = [inputs]
 
-        for i in inputs:
-            exc.raise_if_not_found(i, file_type=exc.FileType.FILE)
-
         if output:
             fileutils.remove(output)
 
         if reasoner.is_remote:
             inputs = [os.path.basename(f) for f in inputs]
             output = os.path.basename(output) if output else None
+        else:
+            for i in inputs:
+                exc.raise_if_not_found(i, file_type=exc.FileType.FILE)
 
         # Run reasoner
 
+        reasoner.pre_run(self, mode, inputs, output)
         task = Task(Paths.absolute(reasoner.path), args=reasoner.args(self, mode, inputs, output))
 
         if mode == EvaluationMode.PERFORMANCE:
@@ -265,8 +290,10 @@ class ReasoningTask:
             task = EnergyProfiler(task, energy_probe, sampling_interval=500)
 
         task.run(timeout=timeout if timeout else None).raise_if_failed()
+        results = self.extract_results(task, reasoner, output, mode)
+        reasoner.post_run(self, mode, inputs, output)
 
-        return self.extract_results(task, reasoner, output, mode)
+        return results
 
 
 class ClassificationTask(ReasoningTask):
