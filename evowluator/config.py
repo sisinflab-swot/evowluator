@@ -59,6 +59,10 @@ class Evaluation:
     """Evaluation config namespace."""
     TIMEOUT = 1200.0
     ITERATIONS = 5
+    ENERGY_POLLING_INTERVALS = {
+        'powertop': 1000,
+        'powermetrics': 500
+    }
 
 
 class User:

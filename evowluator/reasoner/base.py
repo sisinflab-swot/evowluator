@@ -12,7 +12,7 @@ from pyutils.proc.bench import Benchmark, EnergyProbe, EnergyProfiler
 from pyutils.proc.task import Task
 from .results import EnergyStats, EvaluationTask
 from .results import Results
-from ..config import Paths
+from ..config import Evaluation, Paths
 from ..data.syntax import Syntax
 from ..evaluation.mode import EvaluationMode
 from ..util import owltool
@@ -201,7 +201,7 @@ class Reasoner(ABC):
 
     def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
         if isinstance(task, EnergyProfiler):
-            return EnergyStats(task.samples, task.sampling_interval)
+            return EnergyStats(task.samples, task.interval)
 
         res = re.search(r'Energy sampling interval: (.*) ms', task.stdout)
         interval = int(res.group(1)) if res else 0
@@ -278,7 +278,8 @@ class ReasoningTask:
         if mode == EvaluationMode.PERFORMANCE:
             task = Benchmark(task)
         elif mode == EvaluationMode.ENERGY:
-            task = EnergyProfiler(task, energy_probe, sampling_interval=500)
+            interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
+            task = EnergyProfiler(task, energy_probe, interval=interval)
 
         task.run(timeout=timeout if timeout else None).raise_if_failed()
         results = self.extract_results(task, reasoner, output, mode)
