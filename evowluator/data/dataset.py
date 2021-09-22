@@ -132,17 +132,24 @@ class Dataset:
     def get_ontology(self, name: str, syntax: Syntax) -> Ontology:
         return self.get_entry(name).ontology(syntax)
 
-    def get_entries(self, resume_after: str | None = None) -> Iterator[DatasetEntry]:
-        onto_dir = self.get_dir(self.syntaxes[0])
-        onto_names = sorted(f for f in os.listdir(onto_dir) if not f.startswith('.'))
+    def get_entries(self, sort_by_size: bool = False,
+                    resume_after: str | None = None) -> Iterator[DatasetEntry]:
+        entries = (self.get_entry(n)
+                   for n in os.listdir(self.get_dir(self.syntaxes[0]))
+                   if not n.startswith('.'))
 
-        for onto_name in onto_names:
+        if sort_by_size:
+            entries = sorted(entries, key=lambda e: e.max_size)
+        else:
+            entries = sorted(entries, key=lambda e: e.name)
+
+        for entry in entries:
             if resume_after:
-                if onto_name == resume_after:
+                if entry.name == resume_after:
                     resume_after = None
                 continue
 
-            yield DatasetEntry(self.path, onto_name)
+            yield entry
 
 
 # Private

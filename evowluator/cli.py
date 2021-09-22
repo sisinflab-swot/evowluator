@@ -78,6 +78,9 @@ def config_parser() -> argparse.ArgumentParser:
     group.add_argument('--resume-after',
                        metavar='ONTOLOGY_NAME',
                        help='Resume the evaluation after the specified ontology.')
+    group.add_argument('--sort-by-size',
+                       action='store_true',
+                       help='Sort the ontologies by size.')
     return parser
 
 
@@ -145,13 +148,16 @@ def add_visualize_parser(subparsers) -> None:
                         nargs='+',
                         help='Reasoners to show.')
     parser.add_argument('--no-gui',
-                        action='store_true',
+                        dest='gui',
+                        action='store_false',
                         help='Do not show the interactive GUI.')
     parser.add_argument('--no-titles',
-                        action='store_true',
+                        dest='titles',
+                        action='store_false',
                         help='Omit titles for figures and axes.')
     parser.add_argument('--no-labels',
-                        action='store_true',
+                        dest='labels',
+                        action='store_false',
                         help='Omit value labels when plotting.')
     parser.add_argument('--label-fmt',
                         help='Float format of value labels.')
@@ -251,7 +257,7 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
                                              dataset=args.dataset,
                                              reasoners=args.reasoners,
                                              syntax=args.syntax)
-    evaluator.start(args.resume_after)
+    evaluator.start(sort_by_size=args.sort_by_size, resume_ontology=args.resume_after)
     return 0
 
 
@@ -270,7 +276,8 @@ def matchmaking_sub(args) -> int:
 def info_sub(args) -> int:
     InfoEvaluator(dataset=args.dataset,
                   reasoners=args.reasoners,
-                  syntax=args.syntax).start(args.resume_after)
+                  syntax=args.syntax).start(sort_by_size=args.sort_by_size,
+                                            resume_ontology=args.resume_after)
     return 0
 
 
@@ -306,17 +313,16 @@ def visualize_sub(args) -> int:
     if args.marker_size:
         figure.marker_size = args.marker_size
 
-    figure.show_labels = not args.no_labels
-    figure.show_titles = not args.no_titles
+    figure.show_labels = args.labels
+    figure.show_titles = args.titles
     figure.legend_loc = args.legend_loc
     figure.legend_cols = args.legend_cols
     figure.legend_only = args.legend_only
 
     plots = [p - 1 for p in args.plots] if args.plots else None
-    show_gui = not args.no_gui
 
     visualizer.write_results()
-    visualizer.plot_results(gui=show_gui, plots=plots)
+    visualizer.plot_results(gui=args.gui, plots=plots)
 
     return 0
 
