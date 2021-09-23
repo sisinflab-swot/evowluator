@@ -307,7 +307,9 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator):
 
     @property
     def mode(self) -> EvaluationMode:
-        return EvaluationMode.ENERGY
+        m = EvaluationMode.ENERGY
+        m.probe = self._probe
+        return m
 
     @property
     def result_fields(self) -> List[str]:
@@ -338,12 +340,4 @@ class ReasoningEnergyEvaluator(ReasoningEvaluator):
             raise ValueError('No probe specified.')
 
         super().__init__(task, dataset=dataset, reasoners=reasoners, syntax=syntax)
-        self.__configure_reasoners(probe)
-
-    # Private
-
-    def __configure_reasoners(self, probe_name: str) -> None:
-        probe = EnergyProbe.with_name(probe_name)
-
-        for reasoner in self._reasoners:
-            reasoner.energy_probe = probe
+        self._probe = EnergyProbe.with_name(probe)

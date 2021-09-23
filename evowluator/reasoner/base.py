@@ -259,7 +259,6 @@ class ReasoningTask:
     def run(self, reasoner: Reasoner, inputs: str | List[str],
             output: str | None = None,
             mode: EvaluationMode = EvaluationMode.CORRECTNESS,
-            energy_probe: EnergyProbe | None = None,
             timeout: float = 0.0) -> Results:
         if not isinstance(inputs, list):
             inputs = [inputs]
@@ -278,6 +277,7 @@ class ReasoningTask:
         if mode == EvaluationMode.PERFORMANCE:
             task = Benchmark(task)
         elif mode == EvaluationMode.ENERGY:
+            energy_probe: EnergyProbe = mode.probe
             interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
             task = EnergyProfiler(task, energy_probe, interval=interval)
 
