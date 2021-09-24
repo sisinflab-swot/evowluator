@@ -22,6 +22,9 @@ class EnergyStats:
         self.samples = samples
         self.interval = interval
 
+    def __bool__(self) -> bool:
+        return True if self.samples and self.interval else False
+
     def score(self, task_duration: float) -> float:
         """
         Returns an energy impact score for a reasoning task of the specified duration.
@@ -117,7 +120,7 @@ class Results:
 
     @property
     def has_time_stats(self) -> bool:
-        return True if self.time_stats else False
+        return True if self.time_stats and self.reasoning_ms else False
 
     @property
     def has_memory_stats(self) -> bool:
