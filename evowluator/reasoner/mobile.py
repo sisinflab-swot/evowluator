@@ -9,12 +9,12 @@ from typing import List
 from pyutils import exc
 from pyutils.proc.task import OutputAction, Task
 from pyutils.proc.util import find_executable
-from .base import Reasoner, ReasoningTask
+from .base import ReasoningTask, RemoteReasoner
 from ..config import Paths
 from ..evaluation.mode import EvaluationMode
 
 
-class AndroidReasoner(Reasoner, ABC):
+class AndroidReasoner(RemoteReasoner, ABC):
     """Abstract Android reasoner interface."""
 
     PACKAGE = 'it.poliba.sisinflab.owl.evowluator'
@@ -108,7 +108,7 @@ class AndroidReasoner(Reasoner, ABC):
         adb.raise_if_failed(message='Cannot uninstall instrumentation from device')
 
 
-class IOSReasoner(Reasoner, ABC):
+class IOSReasoner(RemoteReasoner, ABC):
     """Abstract iOS reasoner interface."""
 
     # Override

@@ -193,16 +193,26 @@ class Reasoner(ABC):
         return times
 
     def _parse_memory(self, task: EvaluationTask) -> int:
-        if hasattr(task, 'max_memory'):
-            return task.max_memory
-
-        res = re.search(r'Memory: (.*) B', task.stdout)
-        return int(res.group(1)) if res else 0
+        return task.max_memory if hasattr(task, 'max_memory') else 0
 
     def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
         if hasattr(task, 'samples') and hasattr(task, 'interval'):
             return EnergyStats(task.samples, task.interval)
+        return EnergyStats([], 0)
 
+
+class RemoteReasoner(Reasoner, ABC):
+    """Abstract class for reasoners running on remote devices."""
+
+    @classmethod
+    def is_template(cls) -> bool:
+        return cls == RemoteReasoner
+
+    def _parse_memory(self, task: EvaluationTask) -> int:
+        res = re.search(r'Memory: (.*) B', task.stdout)
+        return int(res.group(1)) if res else 0
+
+    def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
         res = re.search(r'Energy sampling interval: (.*) ms', task.stdout)
         interval = int(res.group(1)) if res else 0
 
@@ -276,8 +286,8 @@ class ReasoningTask:
         task = Task(Paths.absolute(reasoner.path), args=reasoner.args(self, mode, inputs, output))
 
         if mode == EvaluationMode.PERFORMANCE:
-            task = Benchmark(task)
-
+            if not isinstance(reasoner, RemoteReasoner):
+                task = Benchmark(task)
             if energy_probe:
                 interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
                 task = EnergyProfiler(task, energy_probe, interval=interval)
