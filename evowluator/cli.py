@@ -13,7 +13,6 @@ from .evaluation.mode import EvaluationMode
 from .evaluation.reasoning import (
     CorrectnessStrategy,
     ReasoningCorrectnessEvaluator,
-    ReasoningEnergyEvaluator,
     ReasoningPerformanceEvaluator
 )
 from .reasoner.base import ReasoningTask
@@ -251,12 +250,8 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
         evaluator = ReasoningPerformanceEvaluator(task,
                                                   dataset=args.dataset,
                                                   reasoners=args.reasoners,
-                                                  syntax=args.syntax)
-    elif args.mode == EvaluationMode.ENERGY:
-        evaluator = ReasoningEnergyEvaluator(task, args.energy_probe,
-                                             dataset=args.dataset,
-                                             reasoners=args.reasoners,
-                                             syntax=args.syntax)
+                                                  syntax=args.syntax,
+                                                  energy_probe=args.energy_probe)
     evaluator.start(sort_by_size=args.sort_by_size, resume_ontology=args.resume_after)
     return 0
 

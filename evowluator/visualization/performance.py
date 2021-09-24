@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import cached_property
 from os import path
 from typing import List
 
@@ -11,64 +12,22 @@ from .metric import Metric
 from .plot import GroupedHistogramPlot
 
 
-class SingleValueVisualizer(Visualizer):
-
-    # Override
-
-    @property
-    def metric(self) -> Metric:
-        raise NotImplementedError()
-
-    # Overrides
-
-    def configure_plotters(self) -> None:
-        super().configure_plotters()
-        self.add_min_max_avg_plotter(self._summary, self.metric)
-        self.add_scatter_plotter(self.metric)
-
-    def write_results(self):
-        super().write_results()
-        self._write_summary(path.join(self.output_dir, 'summary.csv'))
-
-    def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
-        super().__init__(results_dir, cfg, index_columns)
-        self._summary: pd.DataFrame | None = None
-
-    # Private
-
-    def _write_summary(self, file_path: str) -> None:
-        results = np.array([self.results_for_reasoner(r).values for r in self._reasoners])
-        metric_str = self.metric.to_string()
-
-        self._summary = pd.DataFrame({
-            'Reasoner': self._reasoners,
-            'Min ' + metric_str: np.min(results, axis=1).flatten(),
-            'Avg ' + metric_str: np.mean(results, axis=1).flatten(),
-            'Max ' + metric_str: np.max(results, axis=1).flatten()
-        }).set_index('Reasoner')
-
-        self._summary.to_csv(file_path, float_format='%.2f')
-
-
-class EnergyVisualizer(SingleValueVisualizer):
-
-    @property
-    def metric(self):
-        return Metric('energy', None, '.2f')
-
-
 class PerformanceVisualizer(Visualizer):
 
     # Overrides
 
     def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
         super().__init__(results_dir, cfg, index_columns)
-        self._results[self._memory_cols()] /= (1024 * 1024)
+        self._results[self._memory_cols] /= (1024 * 1024)
         self._summary: pd.DataFrame | None = None
         self._time_unit: str = 'ms'
 
     def configure_plotters(self) -> None:
         super().configure_plotters()
+
+        time_metric = Metric('time', 'ms', '.0f')
+        memory_metric = Metric('memory peak', 'MiB', '.2f')
+        energy_metric = metric = Metric('energy', None, '.2f')
 
         # Time histogram
         data = self._summary.iloc[:, :2]
@@ -81,63 +40,69 @@ class PerformanceVisualizer(Visualizer):
                          metric=Metric('time', self._time_unit, '.0f'),
                          groups=reasoners)
 
-        # Time scatter
-        metric = Metric('time', 'ms', '.0f')
-        self.add_scatter_plotter(metric, col_filter=lambda c: 'memory' not in c)
-
         # Memory histogram
-        metric = Metric('memory peak', 'MiB', '.2f')
-        self.add_min_max_avg_plotter(self._summary, metric, col_filter=lambda c: metric.name in c)
+        self.add_min_max_avg_plotter(self._summary, memory_metric,
+                                     col_filter=lambda c: 'memory' in c)
+
+        if self._has_energy:
+            # Energy histogram
+            self.add_min_max_avg_plotter(self._summary, metric, col_filter=lambda c: 'energy' in c)
+
+        # Time scatter
+        self.add_scatter_plotter(time_metric, col_filter=lambda c: c not in ('memory', 'energy'))
 
         # Memory scatter
-        metric = Metric('memory peak', 'MiB', '.2f')
-        self.add_scatter_plotter(metric, col_filter=lambda c: 'memory' in c)
+        self.add_scatter_plotter(memory_metric, col_filter=lambda c: c == 'memory')
+
+        if self._has_energy:
+            # Energy scatter
+            self.add_scatter_plotter(energy_metric, col_filter=lambda c: c == 'energy')
 
     def write_results(self):
         super().write_results()
         self._write_total_times(path.join(self.output_dir, 'total_times.csv'))
-        self._write_memory(path.join(self.output_dir, 'memory.csv'))
         self._write_summary(path.join(self.output_dir, 'summary.csv'))
 
     # Private
 
+    @cached_property
     def _memory_cols(self) -> List:
         return [c for c in self._results.columns if 'memory' in c.lower()]
 
+    @cached_property
+    def _energy_cols(self) -> List:
+        return [c for c in self._results.columns if 'energy' in c.lower()]
+
+    @cached_property
     def _parsing_cols(self) -> List:
         return [c for c in self._results.columns if 'parsing' in c.lower()]
 
+    @cached_property
     def _reasoning_cols(self) -> List:
-        other_cols = self._memory_cols() + self._parsing_cols()
+        other_cols = self._memory_cols + self._energy_cols + self._parsing_cols
         return [c for c in self._results.columns if c not in other_cols]
 
-    def _write_total_times(self, file_path: str) -> None:
-        cols = self._memory_cols()
-        cols = [c for c in self._results.columns if c not in cols]
-        totals = self.results_grouped_by_reasoner(cols).sum()
-        totals.to_csv(file_path, float_format='%.2f')
+    @cached_property
+    def _time_cols(self) -> List:
+        return self._parsing_cols + self._reasoning_cols
 
-    def _write_memory(self, file_path: str) -> None:
-        totals = self.results_grouped_by_reasoner(self._memory_cols()).sum()
+    @property
+    def _has_energy(self) -> bool:
+        return True if self._energy_cols else False
+
+    def _write_total_times(self, file_path: str) -> None:
+        totals = self.results_grouped_by_reasoner(self._time_cols,
+                                                  drop_missing=False).sum(min_count=1)
         totals.to_csv(file_path, float_format='%.2f')
 
     def _write_summary(self, file_path: str) -> None:
         reasoners = self._reasoners
-        parsing_cols = self._parsing_cols()
-        reasoning_cols = self._reasoning_cols()
-        memory_cols = self._memory_cols()
 
-        parsing = self.results_grouped_by_reasoner(parsing_cols).sum().sum()
-        reasoning = self.results_grouped_by_reasoner(reasoning_cols).sum().sum()
-
-        memory = self.results_grouped_by_reasoner(memory_cols).sum()
-        memory_min, memory_mean, memory_max = memory.min(), memory.mean(), memory.max()
+        parsing = self.results_grouped_by_reasoner(self._parsing_cols).sum().sum()
+        reasoning = self.results_grouped_by_reasoner(self._reasoning_cols).sum().sum()
 
         parsing = np.array([parsing[r] for r in reasoners])
         reasoning = np.array([reasoning[r] for r in reasoners])
-        memory_min = np.array([memory_min[r] for r in reasoners])
-        memory_mean = np.array([memory_mean[r] for r in reasoners])
-        memory_max = np.array([memory_max[r] for r in reasoners])
 
         if np.min(np.append(parsing, reasoning)) < 1000.0:
             time_unit = 'ms'
@@ -153,11 +118,19 @@ class PerformanceVisualizer(Visualizer):
             'Reasoner': reasoners,
             'Total parsing time' + time_unit: parsing,
             'Total reasoning time' + time_unit: reasoning,
-            'Total time' + time_unit: parsing + reasoning,
-            'Min memory peak (MiB)': memory_min,
-            'Avg memory peak (MiB)': memory_mean,
-            'Max memory peak (MiB)': memory_max
+            'Total time' + time_unit: parsing + reasoning
         }).set_index('Reasoner')
+
+        for metric, cols in (('memory peak (MiB)', self._memory_cols),
+                             ('energy score', self._energy_cols)):
+            res = self.results_grouped_by_reasoner(cols).sum()
+            res_min, res_avg, res_max = res.min(), res.mean(), res.max()
+            res_min = np.array([res_min[r] for r in reasoners])
+            res_avg = np.array([res_avg[r] for r in reasoners])
+            res_max = np.array([res_max[r] for r in reasoners])
+            data[f'Min {metric}'] = res_min
+            data[f'Avg {metric}'] = res_avg
+            data[f'Max {metric}'] = res_max
 
         data.to_csv(file_path, float_format='%.2f')
 

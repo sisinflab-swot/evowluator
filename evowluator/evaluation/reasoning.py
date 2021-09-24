@@ -48,19 +48,23 @@ class ReasoningEvaluator(Evaluator, ABC):
     def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
         pass
 
-    # Overrides
-
-    @property
+    @cached_property
     def name(self) -> str:
         return f'{self.task} {self.mode}'
+
+    @property
+    def should_measure_energy(self) -> bool:
+        return self.energy_probe is not None
 
     def __init__(self,
                  task: ReasoningTask,
                  dataset: str | None = None,
                  reasoners: List[str] | None = None,
-                 syntax: Syntax | None = None) -> None:
+                 syntax: Syntax | None = None,
+                 energy_probe: str | None = None) -> None:
         super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.task = task
+        self.energy_probe = EnergyProbe.with_name(energy_probe) if energy_probe else None
 
         if not reasoners:
             self._reasoners = Reasoner.supporting_task(task)
@@ -131,7 +135,8 @@ class ReasoningEvaluator(Evaluator, ABC):
 
             try:
                 res = self.task.run(reasoner, inputs, output=output,
-                                    mode=self.mode, timeout=config.Evaluation.TIMEOUT)
+                                    mode=self.mode, timeout=config.Evaluation.TIMEOUT,
+                                    energy_probe=self.energy_probe)
                 self.log_results(res)
                 results[reasoner] = res
             except Exception as e:
@@ -222,13 +227,13 @@ class RandomMajorityStrategy(CorrectnessStrategy):
 
 class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
-    @property
+    @cached_property
     def mode(self) -> EvaluationMode:
         return EvaluationMode.CORRECTNESS
 
-    @property
+    @cached_property
     def result_fields(self) -> List[str]:
-        return ['match']
+        return ['correct']
 
     def log_results(self, results: Results) -> None:
         self._logger.log('done')
@@ -271,24 +276,37 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
 class ReasoningPerformanceEvaluator(ReasoningEvaluator):
 
-    @property
+    @cached_property
     def mode(self) -> EvaluationMode:
         return EvaluationMode.PERFORMANCE
 
-    @property
+    @cached_property
     def result_fields(self) -> List[str]:
-        return ['parsing', 'reasoning', 'memory']
+        fields = ['parsing', 'reasoning', 'memory']
+
+        if self.should_measure_energy:
+            fields.append('energy')
+
+        return fields
 
     def log_results(self, results: Results) -> None:
         if not results.has_performance_stats:
             raise ValueError('Missing performance stats.')
 
+        if self.should_measure_energy and not results.has_energy_stats:
+            raise ValueError('Missing energy stats.')
+
         self._logger.log('{:.0f} ms'.format(results.total_ms))
 
         self._logger.indent_level += 1
-        self._logger.log('Parsing: {:.0f} ms'.format(results.parsing_ms))
-        self._logger.log('Reasoning: {:.0f} ms'.format(results.reasoning_ms))
-        self._logger.log('Memory: {}'.format(fileutils.human_readable_bytes(results.max_memory)))
+
+        self._logger.log(f'Parsing: {results.parsing_ms:.0f} ms')
+        self._logger.log(f'Reasoning: {results.reasoning_ms:.0f} ms')
+        self._logger.log(f'Memory: {fileutils.human_readable_bytes(results.max_memory)}')
+
+        if self.should_measure_energy:
+            self._logger.log(f'Energy: {results.energy_score:.2f}')
+
         self._logger.indent_level -= 1
 
     def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
@@ -298,46 +316,8 @@ class ReasoningPerformanceEvaluator(ReasoningEvaluator):
             if isinstance(res, str):
                 csv_row.extend([res] * len(self.result_fields))
             else:
-                csv_row.extend([res.parsing_ms, res.reasoning_ms, res.max_memory])
+                csv_row.extend((res.parsing_ms, res.reasoning_ms, res.max_memory))
+                if self.should_measure_energy:
+                    csv_row.append(res.energy_score)
 
         return csv_row
-
-
-class ReasoningEnergyEvaluator(ReasoningEvaluator):
-
-    @property
-    def mode(self) -> EvaluationMode:
-        m = EvaluationMode.ENERGY
-        m.probe = self._probe
-        return m
-
-    @property
-    def result_fields(self) -> List[str]:
-        return ['energy']
-
-    def log_results(self, results: Results) -> None:
-        if not results.has_energy_stats:
-            raise ValueError('Missing energy stats.')
-        self._logger.log(f'{results.energy_score:.2f}')
-
-    def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
-        csv_row = []
-
-        for res in results.values():
-            if isinstance(res, str):
-                csv_row.append(res)
-            else:
-                csv_row.append(res.energy_score)
-
-        return csv_row
-
-    def __init__(self,
-                 task: ReasoningTask, probe: str,
-                 dataset: str | None = None,
-                 reasoners: List[str] | None = None,
-                 syntax: Syntax | None = None):
-        if not probe:
-            raise ValueError('No probe specified.')
-
-        super().__init__(task, dataset=dataset, reasoners=reasoners, syntax=syntax)
-        self._probe = EnergyProbe.with_name(probe)

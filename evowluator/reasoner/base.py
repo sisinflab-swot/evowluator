@@ -193,14 +193,14 @@ class Reasoner(ABC):
         return times
 
     def _parse_memory(self, task: EvaluationTask) -> int:
-        if isinstance(task, Benchmark):
+        if hasattr(task, 'max_memory'):
             return task.max_memory
 
         res = re.search(r'Memory: (.*) B', task.stdout)
         return int(res.group(1)) if res else 0
 
     def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
-        if isinstance(task, EnergyProfiler):
+        if hasattr(task, 'samples') and hasattr(task, 'interval'):
             return EnergyStats(task.samples, task.interval)
 
         res = re.search(r'Energy sampling interval: (.*) ms', task.stdout)
@@ -259,7 +259,8 @@ class ReasoningTask:
     def run(self, reasoner: Reasoner, inputs: str | List[str],
             output: str | None = None,
             mode: EvaluationMode = EvaluationMode.CORRECTNESS,
-            timeout: float = 0.0) -> Results:
+            timeout: float = 0.0,
+            energy_probe: EnergyProbe | None = None) -> Results:
         if not isinstance(inputs, list):
             inputs = [inputs]
 
@@ -276,10 +277,10 @@ class ReasoningTask:
 
         if mode == EvaluationMode.PERFORMANCE:
             task = Benchmark(task)
-        elif mode == EvaluationMode.ENERGY:
-            energy_probe: EnergyProbe = mode.probe
-            interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
-            task = EnergyProfiler(task, energy_probe, interval=interval)
+
+            if energy_probe:
+                interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
+                task = EnergyProfiler(task, energy_probe, interval=interval)
 
         task.run(timeout=timeout if timeout else None).raise_if_failed()
         results = self.extract_results(task, reasoner, output, mode)

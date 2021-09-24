@@ -9,6 +9,3 @@ class EvaluationMode(StrEnum):
 
     PERFORMANCE = 'performance'
     """Performance evaluation."""
-
-    ENERGY = 'energy'
-    """Energy impact evaluation."""

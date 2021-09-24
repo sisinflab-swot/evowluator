@@ -35,7 +35,7 @@ class Visualizer:
     @classmethod
     def from_dir(cls, results_dir: str, reasoners: List[str] | None = None) -> Visualizer:
         from .correctness import CorrectnessVisualizer
-        from .performance import EnergyVisualizer, PerformanceVisualizer
+        from .performance import PerformanceVisualizer
 
         cfg = json.load(os.path.join(results_dir, Paths.CONFIG_FILE_NAME))
         eval_name = cfg[ConfigKey.NAME]
@@ -53,8 +53,6 @@ class Visualizer:
             return CorrectnessVisualizer(results_dir, cfg, index_columns=cols)
         elif EvaluationMode.PERFORMANCE.value in eval_name:
             return PerformanceVisualizer(results_dir, cfg, index_columns=cols)
-        elif EvaluationMode.ENERGY.value in eval_name:
-            return EnergyVisualizer(results_dir, cfg, index_columns=cols)
         else:
             raise NotImplementedError(f'Visualizer not implemented for "{eval_name}"')
 

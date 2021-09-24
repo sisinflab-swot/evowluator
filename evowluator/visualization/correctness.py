@@ -37,7 +37,7 @@ class CorrectnessVisualizer(Visualizer):
         fileutils.create_dir(self.output_dir)
 
         reasoners = self._reasoners
-        results = [self.results_for_reasoner(r)['match'].value_counts(sort=False)
+        results = [self.results_for_reasoner(r)['correct'].value_counts(sort=False)
                    for r in reasoners]
 
         stats = ['ok', 'incorrect', 'timeout', 'error']
