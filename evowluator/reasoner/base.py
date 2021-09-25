@@ -269,7 +269,6 @@ class ReasoningTask:
     def run(self, reasoner: Reasoner, inputs: str | List[str],
             output: str | None = None,
             mode: EvaluationMode = EvaluationMode.CORRECTNESS,
-            timeout: float = 0.0,
             energy_probe: EnergyProbe | None = None) -> Results:
         if not isinstance(inputs, list):
             inputs = [inputs]
@@ -292,7 +291,7 @@ class ReasoningTask:
                 interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
                 task = EnergyProfiler(task, energy_probe, interval=interval)
 
-        task.run(timeout=timeout if timeout else None).raise_if_failed()
+        task.run(timeout=Evaluation.TIMEOUT if Evaluation.TIMEOUT else None).raise_if_failed()
         results = self.extract_results(task, reasoner, output, mode)
         reasoner.post_run(self, mode, inputs, output)
 

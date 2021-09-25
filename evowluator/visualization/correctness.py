@@ -40,7 +40,7 @@ class CorrectnessVisualizer(Visualizer):
         results = [self.results_for_reasoner(r)['correct'].value_counts(sort=False)
                    for r in reasoners]
 
-        stats = ['ok', 'incorrect', 'timeout', 'error']
+        stats = ['y', 'n', 'timeout', 'error']
         correct, incorrect, timeout, error = [np.array([r.get(s, default=0) for r in results])
                                               for s in stats]
 

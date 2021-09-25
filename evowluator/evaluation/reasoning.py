@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
 from random import shuffle
 from subprocess import TimeoutExpired
+from threading import Lock
 from typing import Dict, List, Set, Union
 
 from pyutils.io import echo, fileutils
@@ -19,8 +21,8 @@ from ..reasoner.results import Results
 
 
 class Status:
-    OK = 'ok'
-    INCORRECT = 'incorrect'
+    OK = 'y'
+    INCORRECT = 'n'
     ERROR = 'error'
     TIMEOUT = 'timeout'
     UNKNOWN = 'unknown'
@@ -63,6 +65,7 @@ class ReasoningEvaluator(Evaluator, ABC):
                  syntax: Syntax | None = None,
                  energy_probe: str | None = None) -> None:
         super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
+        self._lock = Lock()
         self.task = task
         self.energy_probe = EnergyProbe.with_name(energy_probe) if energy_probe else None
 
@@ -86,8 +89,8 @@ class ReasoningEvaluator(Evaluator, ABC):
             self._logger.log('No additional input files.\n', color=echo.Color.YELLOW)
             return
 
-        fail = set()
         iterations = config.Evaluation.ITERATIONS
+        fail = set()
 
         if self.mode == EvaluationMode.CORRECTNESS or iterations == 1:
             self._iterate(entry, fail)
@@ -99,21 +102,26 @@ class ReasoningEvaluator(Evaluator, ABC):
             self._iterate(entry, fail)
             self._logger.indent_level -= 1
 
-    def _iterate(self, entry: DatasetEntry, fail: Set[str] | None = None) -> None:
+    def _iterate(self, entry: DatasetEntry, fail: Set[str]) -> None:
         self.clear_temp()
 
+        if self.mode == EvaluationMode.CORRECTNESS:
+            run_reasoners = self._run_reasoners_correctness
+        else:
+            run_reasoners = self._run_reasoners_performance
+
         if not self.task.requires_additional_inputs:
-            self._csv_writer.write_row(self._run_reasoners([entry], fail))
+            self._csv_writer.write_row(run_reasoners([entry], fail))
             return
 
         for input_entry in entry.inputs_for_task(self.task):
             self._logger.log('Input: ', color=echo.Color.YELLOW, endl=False)
             self._logger.log(input_entry.name)
             self._logger.indent_level += 1
-            self._csv_writer.write_row(self._run_reasoners([entry, input_entry], fail))
+            self._csv_writer.write_row(run_reasoners([entry, input_entry], fail))
             self._logger.indent_level -= 1
 
-    def _run_reasoners(self, entries: List[DatasetEntry], fail: Set[str]) -> List:
+    def _run_reasoners_performance(self, entries: List[DatasetEntry], fail: Set[str]) -> List:
         results = {}
 
         for reasoner in self._usable_reasoners():
@@ -128,17 +136,10 @@ class ReasoningEvaluator(Evaluator, ABC):
             syntax = self._syntax_for_reasoner(reasoner)
             inputs = [e.ontology(syntax).path for e in entries]
 
-            if self.mode == EvaluationMode.CORRECTNESS:
-                output = self._output_path_for_reasoner(reasoner)
-            else:
-                output = None
-
             try:
-                res = self.task.run(reasoner, inputs, output=output,
-                                    mode=self.mode, timeout=config.Evaluation.TIMEOUT,
-                                    energy_probe=self.energy_probe)
-                self.log_results(res)
-                results[reasoner] = res
+                r = self.task.run(reasoner, inputs, mode=self.mode, energy_probe=self.energy_probe)
+                self.log_results(r)
+                results[reasoner] = r
             except Exception as e:
                 if config.DEBUG:
                     raise e
@@ -148,6 +149,37 @@ class ReasoningEvaluator(Evaluator, ABC):
                 fail.add(reasoner.name)
 
         return [e.name for e in entries] + self.extract_results(results)
+
+    # noinspection PyUnusedLocal
+    def _run_reasoners_correctness(self, entries: List[DatasetEntry], fail: Set[str]) -> List:
+        results = {}
+
+        self._logger.log('Done: ', endl=False)
+
+        with ThreadPoolExecutor() as pool:
+            for reasoner in self._usable_reasoners():
+                syntax = self._syntax_for_reasoner(reasoner)
+                inputs = [e.ontology(syntax).path for e in entries]
+                output = self._output_path_for_reasoner(reasoner)
+                pool.submit(self._run_reasoner_correctness, reasoner, inputs, output, results)
+
+        self._logger.log('')
+
+        return [e.name for e in entries] + self.extract_results(results)
+
+    def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[str], output: str,
+                                  results: Dict) -> None:
+        try:
+            res = self.task.run(reasoner, inputs, output)
+        except Exception as e:
+            if config.DEBUG:
+                raise e
+            res = Status.TIMEOUT if isinstance(e, TimeoutExpired) else Status.ERROR
+
+        with self._lock:
+            results[reasoner] = res
+            self._logger.log(reasoner.name if len(results) == 1 else ', ' + reasoner.name,
+                             endl=False)
 
 
 class CorrectnessStrategy(ABC):
@@ -239,9 +271,8 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
         self._logger.log('done')
 
     def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
-        reasoners = list(results.keys())  # Needed to keep results in the original order
+        results = {r: results[r] for r in self._usable_reasoners()}
         results = self.strategy.evaluate(results)
-        csv_row = [results[r] for r in reasoners]
 
         ok, wrong = [], []
 
@@ -263,7 +294,7 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
         self._logger.log('')
 
-        return csv_row
+        return list(results.values())
 
     def __init__(self,
                  task: ReasoningTask, strategy: CorrectnessStrategy,
