@@ -6,7 +6,6 @@ from typing import List
 from pyutils.proc.task import find_executable, java_args
 from .base import Reasoner, ReasoningTask
 from ..config import Paths
-from ..evaluation.mode import EvaluationMode
 
 
 class JavaReasoner(Reasoner, ABC):
@@ -24,13 +23,12 @@ class JavaReasoner(Reasoner, ABC):
 
     @property
     @abstractmethod
-    def vm_opts(self) -> List[str] | None:
+    def vm_opts(self) -> List[str]:
         """Options to pass to the Java VM."""
         pass
 
     @abstractmethod
-    def jar_args(self, task: ReasoningTask, mode: EvaluationMode,
-                 inputs: List[str], output: str | None) -> List[str] | None:
+    def jar_args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
         """Args to pass to the Jar."""
         pass
 
@@ -40,8 +38,7 @@ class JavaReasoner(Reasoner, ABC):
     def path(self) -> str:
         return find_executable('java')
 
-    def args(self, task: ReasoningTask, mode: EvaluationMode,
-             inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
         return java_args(Paths.absolute(self.jar_path),
-                         jar_args=self.jar_args(task, mode, inputs, output),
+                         jar_args=self.jar_args(task, inputs, output),
                          jvm_opts=self.vm_opts)

@@ -8,7 +8,7 @@ from typing import Dict, List
 from pyutils import exc
 from pyutils.io import fileutils
 from pyutils.inspectutils import get_subclasses
-from pyutils.proc.bench import Benchmark, EnergyProbe, EnergyProfiler
+from pyutils.proc.bench import Benchmark, EnergyProfiler
 from pyutils.proc.task import Task
 from .results import EnergyStats, EvaluationTask
 from .results import Results
@@ -99,13 +99,11 @@ class Reasoner(ABC):
         return self.supported_syntaxes[0]
 
     @abstractmethod
-    def args(self, task: ReasoningTask, mode: EvaluationMode,
-             inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
         """
-        Command line arguments to pass to the reasoner executable for each task and evaluation mode.
+        Command line arguments to pass to the reasoner executable for each task.
 
         :param task: Reasoning task.
-        :param mode: Evaluation mode.
         :param inputs: Input arguments.
         :param output: Output argument.
         :return: Command line arguments.
@@ -125,25 +123,21 @@ class Reasoner(ABC):
         """Called at the beginning of the evaluation."""
         pass
 
-    def pre_run(self, task: ReasoningTask, mode: EvaluationMode,
-                inputs: List[str], output: str | None) -> None:
+    def pre_run(self, task: ReasoningTask, inputs: List[str], output: str | None) -> None:
         """
         Called before running each reasoning task.
 
         :param task: Reasoning task.
-        :param mode: Evaluation mode.
         :param inputs: Input arguments.
         :param output: Output arguments.
         """
         pass
 
-    def post_run(self, task: ReasoningTask, mode: EvaluationMode,
-                 inputs: List[str], output: str | None) -> None:
+    def post_run(self, task: ReasoningTask, inputs: List[str], output: str | None) -> None:
         """
         Called after running each reasoning task.
 
         :param task: Reasoning task.
-        :param mode: Evaluation mode.
         :param inputs: Input arguments.
         :param output: Output arguments.
         """
@@ -257,8 +251,7 @@ class ReasoningTask:
     def __repr__(self) -> str:
         return self.name
 
-    def extract_results(self, task: Task, reasoner: Reasoner,
-                        output: str | None, mode: EvaluationMode) -> Results:
+    def extract_results(self, task: Task, reasoner: Reasoner, output: str | None) -> Results:
         results = reasoner.parse_results(self, task)
 
         if not results.output:
@@ -267,9 +260,7 @@ class ReasoningTask:
         return results
 
     def run(self, reasoner: Reasoner, inputs: str | List[str],
-            output: str | None = None,
-            mode: EvaluationMode = EvaluationMode.CORRECTNESS,
-            energy_probe: EnergyProbe | None = None) -> Results:
+            output: str | None = None) -> Results:
         if not isinstance(inputs, list):
             inputs = [inputs]
 
@@ -281,19 +272,22 @@ class ReasoningTask:
 
         # Run reasoner
 
-        reasoner.pre_run(self, mode, inputs, output)
-        task = Task(Paths.absolute(reasoner.path), args=reasoner.args(self, mode, inputs, output))
+        reasoner.pre_run(self, inputs, output)
+        task = Task(Paths.absolute(reasoner.path), args=reasoner.args(self, inputs, output))
 
-        if mode == EvaluationMode.PERFORMANCE:
+        if Evaluation.MODE == EvaluationMode.PERFORMANCE:
             if not isinstance(reasoner, RemoteReasoner):
                 task = Benchmark(task)
+
+            energy_probe = Evaluation.ENERGY_PROBE
+
             if energy_probe:
                 interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
                 task = EnergyProfiler(task, energy_probe, interval=interval)
 
         task.run(timeout=Evaluation.TIMEOUT if Evaluation.TIMEOUT else None).raise_if_failed()
-        results = self.extract_results(task, reasoner, output, mode)
-        reasoner.post_run(self, mode, inputs, output)
+        results = self.extract_results(task, reasoner, output)
+        reasoner.post_run(self, inputs, output)
 
         return results
 
@@ -301,11 +295,10 @@ class ReasoningTask:
 class ClassificationTask(ReasoningTask):
     """Ontology classification reasoning task."""
 
-    def extract_results(self, task: Task, reasoner: Reasoner,
-                        output: str | None, mode: EvaluationMode) -> Results:
-        results = super().extract_results(task, reasoner, output, mode).update_output(output, True)
+    def extract_results(self, task: Task, reasoner: Reasoner, output: str | None) -> Results:
+        results = super().extract_results(task, reasoner, output).update_output(output, True)
 
-        if (mode == EvaluationMode.CORRECTNESS and
+        if (Evaluation.MODE == EvaluationMode.CORRECTNESS and
                 reasoner.output_format_for_task(self) == OutputFormat.ONTOLOGY):
             temp_path = os.path.splitext(output)[0]
             os.rename(output, temp_path)
@@ -317,9 +310,8 @@ class ClassificationTask(ReasoningTask):
 class ConsistencyTask(ReasoningTask):
     """Ontology consistency reasoning task."""
 
-    def extract_results(self, task: Task, reasoner: Reasoner,
-                        output: str | None, mode: EvaluationMode) -> Results:
-        results = super().extract_results(task, reasoner, output, mode)
+    def extract_results(self, task: Task, reasoner: Reasoner, output: str | None) -> Results:
+        results = super().extract_results(task, reasoner, output)
 
         if re.search(r'(not |in)consistent', results.output, re.IGNORECASE):
             results.output = 'not consistent'
@@ -338,9 +330,8 @@ class MatchmakingTask(ReasoningTask):
     def requires_additional_inputs(self) -> bool:
         return True
 
-    def extract_results(self, task: Task, reasoner: Reasoner,
-                        output: str | None, mode: EvaluationMode) -> Results:
-        return super().extract_results(task, reasoner, output, mode).update_output(output, True)
+    def extract_results(self, task: Task, reasoner: Reasoner, output: str | None) -> Results:
+        return super().extract_results(task, reasoner, output).update_output(output, True)
 
 
 ReasoningTask.CLASSIFICATION = ClassificationTask()

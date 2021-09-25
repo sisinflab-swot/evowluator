@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 import os
 import sys
 from os import environ, path
+
+from pyutils.proc.bench import EnergyProbe
+from .evaluation.mode import EvaluationMode
 
 
 DEBUG = False
@@ -57,8 +62,10 @@ class ConfigKey:
 
 class Evaluation:
     """Evaluation config namespace."""
+    MODE = EvaluationMode.CORRECTNESS
     TIMEOUT = 1200.0
     ITERATIONS = 5
+    ENERGY_PROBE: EnergyProbe | None = None
     ENERGY_POLLING_INTERVALS = {
         'powertop': 1000,
         'powermetrics': 500

@@ -11,7 +11,6 @@ from pyutils.proc.task import OutputAction, Task
 from pyutils.proc.util import find_executable
 from .base import ReasoningTask, RemoteReasoner
 from ..config import Paths
-from ..evaluation.mode import EvaluationMode
 
 
 class AndroidReasoner(RemoteReasoner, ABC):
@@ -46,8 +45,7 @@ class AndroidReasoner(RemoteReasoner, ABC):
     def path(self) -> str:
         return find_executable('adb')
 
-    def args(self, task: ReasoningTask, mode: EvaluationMode,
-             inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
         instrument_env = [('task', task.name), ('resource', inputs[0])]
 
         if task == ReasoningTask.MATCHMAKING:
@@ -149,8 +147,7 @@ class IOSReasoner(RemoteReasoner, ABC):
         args = self._common_args() + ['build-for-testing']
         Task.spawn(self.path, args=args, output_action=OutputAction.DISCARD)
 
-    def args(self, task: ReasoningTask, mode: EvaluationMode,
-             inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
         inputs = [os.path.basename(f) for f in inputs]
 
         args = self._common_args() + [

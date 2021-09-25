@@ -10,11 +10,11 @@ from typing import Dict, List, Set, Union
 
 from pyutils.io import echo, fileutils
 from pyutils.io.echo import Color
-from pyutils.proc.bench import EnergyProbe
 from pyutils.stringutils import camel_case_split
 from .base import Evaluator
 from .mode import EvaluationMode
 from .. import config
+from ..config import Evaluation
 from ..data.dataset import DatasetEntry, Syntax
 from ..reasoner.base import Reasoner, ReasoningTask
 from ..reasoner.results import Results
@@ -34,11 +34,6 @@ class ReasoningEvaluator(Evaluator, ABC):
 
     @property
     @abstractmethod
-    def mode(self) -> EvaluationMode:
-        pass
-
-    @property
-    @abstractmethod
     def result_fields(self) -> List[str]:
         pass
 
@@ -52,22 +47,20 @@ class ReasoningEvaluator(Evaluator, ABC):
 
     @cached_property
     def name(self) -> str:
-        return f'{self.task} {self.mode}'
+        return f'{self.task} {Evaluation.MODE}'
 
     @property
     def should_measure_energy(self) -> bool:
-        return self.energy_probe is not None
+        return Evaluation.ENERGY_PROBE is not None
 
     def __init__(self,
                  task: ReasoningTask,
                  dataset: str | None = None,
                  reasoners: List[str] | None = None,
-                 syntax: Syntax | None = None,
-                 energy_probe: str | None = None) -> None:
+                 syntax: Syntax | None = None) -> None:
         super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
         self._lock = Lock()
         self.task = task
-        self.energy_probe = EnergyProbe.with_name(energy_probe) if energy_probe else None
 
         if not reasoners:
             self._reasoners = Reasoner.supporting_task(task)
@@ -92,7 +85,7 @@ class ReasoningEvaluator(Evaluator, ABC):
         iterations = config.Evaluation.ITERATIONS
         fail = set()
 
-        if self.mode == EvaluationMode.CORRECTNESS or iterations == 1:
+        if Evaluation.MODE == EvaluationMode.CORRECTNESS or iterations == 1:
             self._iterate(entry, fail)
             return
 
@@ -105,7 +98,7 @@ class ReasoningEvaluator(Evaluator, ABC):
     def _iterate(self, entry: DatasetEntry, fail: Set[str]) -> None:
         self.clear_temp()
 
-        if self.mode == EvaluationMode.CORRECTNESS:
+        if Evaluation.MODE == EvaluationMode.CORRECTNESS:
             run_reasoners = self._run_reasoners_correctness
         else:
             run_reasoners = self._run_reasoners_performance
@@ -137,7 +130,7 @@ class ReasoningEvaluator(Evaluator, ABC):
             inputs = [e.ontology(syntax).path for e in entries]
 
             try:
-                r = self.task.run(reasoner, inputs, mode=self.mode, energy_probe=self.energy_probe)
+                r = self.task.run(reasoner, inputs)
                 self.log_results(r)
                 results[reasoner] = r
             except Exception as e:
@@ -260,10 +253,6 @@ class RandomMajorityStrategy(CorrectnessStrategy):
 class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
     @cached_property
-    def mode(self) -> EvaluationMode:
-        return EvaluationMode.CORRECTNESS
-
-    @cached_property
     def result_fields(self) -> List[str]:
         return ['correct']
 
@@ -306,10 +295,6 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
 
 class ReasoningPerformanceEvaluator(ReasoningEvaluator):
-
-    @cached_property
-    def mode(self) -> EvaluationMode:
-        return EvaluationMode.PERFORMANCE
 
     @cached_property
     def result_fields(self) -> List[str]:

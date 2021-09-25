@@ -5,7 +5,7 @@ from functools import cache
 from pyutils.proc.bench import EnergyProbe
 
 from . import config
-from .config import EXE_NAME
+from .config import Evaluation, EXE_NAME
 from .data import converter
 from .data.dataset import Dataset, Syntax
 from .evaluation.info import InfoEvaluator
@@ -26,15 +26,13 @@ from .visualization.plot import LegendLocation
 def process_args() -> int:
     args = main_parser().parse_args()
 
-    if args.debug:
-        config.DEBUG = True
+    config.DEBUG = getattr(args, 'debug', config.DEBUG)
+    Evaluation.ITERATIONS = getattr(args, 'num_iterations', Evaluation.ITERATIONS)
+    Evaluation.MODE = getattr(args, 'mode', Evaluation.MODE)
+    Evaluation.TIMEOUT = getattr(args, 'timeout', Evaluation.TIMEOUT)
 
-    if args.subcommand in (t.name for t in ReasoningTask.all()):
-        if args.num_iterations:
-            config.Evaluation.ITERATIONS = args.num_iterations
-
-        if args.timeout:
-            config.Evaluation.TIMEOUT = args.timeout
+    energy_probe = getattr(args, 'energy_probe', None)
+    Evaluation.ENERGY_PROBE = EnergyProbe.with_name(energy_probe) if energy_probe else None
 
     return args.func(args)
 
@@ -64,11 +62,11 @@ def config_parser() -> argparse.ArgumentParser:
                        help='Desired reasoners.')
     group.add_argument('-n', '--num-iterations',
                        type=positive_int,
-                       default=config.Evaluation.ITERATIONS,
+                       default=Evaluation.ITERATIONS,
                        help='Number of iterations.')
     group.add_argument('-t', '--timeout',
                        type=positive_float,
-                       default=config.Evaluation.TIMEOUT,
+                       default=Evaluation.TIMEOUT,
                        help='Timeout in seconds.')
     group.add_argument('-s', '--syntax',
                        type=Syntax,
@@ -250,8 +248,7 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
         evaluator = ReasoningPerformanceEvaluator(task,
                                                   dataset=args.dataset,
                                                   reasoners=args.reasoners,
-                                                  syntax=args.syntax,
-                                                  energy_probe=args.energy_probe)
+                                                  syntax=args.syntax)
     evaluator.start(sort_by_size=args.sort_by_size, resume_ontology=args.resume_after)
     return 0
 
