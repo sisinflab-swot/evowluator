@@ -21,6 +21,7 @@ class AndroidReasoner(RemoteReasoner, ABC):
     LAUNCHER_DIR = path.join(Paths.LIB_DIR, 'android-launcher')
     APK_PATH = path.join(LAUNCHER_DIR, 'app', 'build', 'outputs',
                          'apk', 'release', 'app-release.apk')
+    DATASET_DIR = '/sdcard/evowluator'
 
     # Override
     @property
@@ -46,19 +47,22 @@ class AndroidReasoner(RemoteReasoner, ABC):
         return find_executable('adb')
 
     def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
-        instrument_env = [('task', task.name), ('resource', inputs[0])]
+        resource = self._ontology_path(inputs[0])
+        instrument_env = [('task', task.name), ('resource', resource)]
 
         if task == ReasoningTask.MATCHMAKING:
-            instrument_env.append(('request', inputs[1]))
+            request = self._ontology_path(inputs[1])
+            instrument_env.append(('request', request))
 
         instrument_env = ' '.join([f'{env_kv[0]}:{env_kv[1]}' for env_kv in instrument_env])
+
         shell_cmds = [
             f'logcat -c',
             f'am instrument -w -e "target" "{self.target_package}" '
             f'-e "args" "{instrument_env}" {self.LAUNCHER_CLASSPATH}',
             f'am force-stop {self.target_package}',
             f'am kill {self.target_package}',
-            f'logcat -d -s {self.log_prefix}'
+            f'logcat -v raw -d -s {self.log_prefix}'
         ]
 
         return ['shell', '-x', ';'.join(shell_cmds)]
@@ -71,9 +75,19 @@ class AndroidReasoner(RemoteReasoner, ABC):
             self._assemble_instrumentation()
 
         self._install_instrumentation()
+        self._create_dataset_dir()
 
     def teardown(self) -> None:
         self._uninstall_instrumentation()
+        self._delete_dataset_dir()
+
+    def pre_run(self, task: ReasoningTask, inputs: List[str], output: str | None) -> None:
+        for ontology in inputs:
+            self._push_ontology(ontology)
+
+    def post_run(self, task: ReasoningTask, inputs: List[str], output: str | None) -> None:
+        for ontology in inputs:
+            self._delete_ontology(ontology)
 
     # Protected
 
@@ -102,8 +116,27 @@ class AndroidReasoner(RemoteReasoner, ABC):
         adb.raise_if_failed(message='Cannot install instrumentation on device')
 
     def _uninstall_instrumentation(self) -> None:
-        adb = Task.spawn(self.path, args=['uninstall', self.PACKAGE])
+        adb = Task.spawn(self.path, args=['shell', '-x', f'pm remove {self.PACKAGE}'])
         adb.raise_if_failed(message='Cannot uninstall instrumentation from device')
+
+    def _push_ontology(self, ontology: str) -> None:
+        adb = Task.spawn(self.path, args=['push', ontology, f'{self.DATASET_DIR}/'])
+        adb.raise_if_failed(message='Cannot push ontology to device')
+
+    def _delete_ontology(self, ontology: str) -> None:
+        adb = Task.spawn(self.path, args=['shell', '-x', f'rm {self._ontology_path(ontology)}'])
+        adb.raise_if_failed(message='Cannot delete ontology from device')
+
+    def _create_dataset_dir(self) -> None:
+        adb = Task.spawn(self.path, args=['shell', '-x', f'mkdir -p {self.DATASET_DIR}'])
+        adb.raise_if_failed(message='Cannot create dataset dir on device')
+
+    def _delete_dataset_dir(self) -> None:
+        adb = Task.spawn(self.path, args=['shell', '-x', f'rm -r {self.DATASET_DIR}'])
+        adb.raise_if_failed(message='Cannot delete dataset dir from device')
+
+    def _ontology_path(self, ontology: str) -> str:
+        return f'{self.DATASET_DIR}/{os.path.basename(ontology)}'
 
 
 class IOSReasoner(RemoteReasoner, ABC):
