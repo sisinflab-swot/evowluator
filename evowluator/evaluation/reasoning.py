@@ -6,7 +6,7 @@ from functools import cached_property
 from random import shuffle
 from subprocess import TimeoutExpired
 from threading import Lock
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Set
 
 from pyutils.io import echo, fileutils
 from pyutils.io.echo import Color
@@ -171,8 +171,7 @@ class ReasoningEvaluator(Evaluator, ABC):
 
         with self._lock:
             results[reasoner] = res
-            self._logger.log(reasoner.name if len(results) == 1 else ', ' + reasoner.name,
-                             endl=False)
+            self._logger.log(('' if len(results) == 1 else ', ') + reasoner.name, endl=False)
 
 
 class CorrectnessStrategy(ABC):
@@ -197,28 +196,28 @@ class CorrectnessStrategy(ABC):
         return '_'.join(t.lower() for t in camel_case_split(type(self).__name__)[:-1])
 
     @abstractmethod
-    def evaluate(self, results: Dict[Reasoner, Union[Results, str]]) -> Dict[Reasoner, str]:
+    def evaluate(self, results: Dict[Reasoner]) -> Dict[Reasoner]:
         pass
 
 
 class OracleStrategy(CorrectnessStrategy):
 
-    def evaluate(self, results: Dict[Reasoner, Union[Results, str]]) -> Dict[Reasoner, str]:
-        ref_reasoner, ref_results = next(iter(results.items()))
+    def evaluate(self, results: Dict[Reasoner]) -> Dict[Reasoner]:
+        ref_reasoner, ref_res = next(iter(results.items()))
         del results[ref_reasoner]
 
         out = {}
 
-        if not isinstance(ref_results, Results):
-            out[ref_reasoner] = ref_results
+        if ref_res in Status.NOT_OK:
+            out[ref_reasoner] = ref_res
             out.update({r: Status.UNKNOWN for r in results.keys()})
             return out
 
         out[ref_reasoner] = Status.OK
 
         for reasoner, res in results.items():
-            if isinstance(res, Results):
-                res = Status.OK if res.output_matches(ref_results) else Status.INCORRECT
+            if res not in Status.NOT_OK:
+                res = Status.OK if res == ref_res else Status.INCORRECT
             out[reasoner] = res
 
         return out
@@ -226,19 +225,18 @@ class OracleStrategy(CorrectnessStrategy):
 
 class RandomMajorityStrategy(CorrectnessStrategy):
 
-    def evaluate(self, results: Dict[Reasoner, Union[Results, str]]) -> Dict[Reasoner, str]:
+    def evaluate(self, results: Dict[Reasoner]) -> Dict[Reasoner]:
         out, groups = {}, {}
 
         for reasoner, res in results.items():
-            if not isinstance(res, Results):
+            if res in Status.NOT_OK:
                 out[reasoner] = res
                 continue
 
-            ohash = res.output_hash()
-            if ohash in groups:
-                groups[ohash].append(reasoner)
+            if res in groups:
+                groups[res].append(reasoner)
             else:
-                groups[ohash] = [reasoner]
+                groups[res] = [reasoner]
 
         groups = list(groups.values())
         shuffle(groups)
@@ -260,8 +258,8 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
         self._logger.log('done')
 
     def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
+        results = self.strategy.evaluate(self._hash_results(results))
         results = {r: results[r] for r in self._usable_reasoners()}
-        results = self.strategy.evaluate(results)
 
         ok, wrong = [], []
 
@@ -292,6 +290,10 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
                  syntax: Syntax | None = None) -> None:
         super().__init__(task, dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.strategy = strategy
+
+    def _hash_results(self, results: Dict[Reasoner, Results | str]) -> Dict[Reasoner, str]:
+        return {k: v.output_hash() if isinstance(v, Results) else v
+                for k, v in ((r, results[r]) for r in self._usable_reasoners())}
 
 
 class ReasoningPerformanceEvaluator(ReasoningEvaluator):
