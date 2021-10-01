@@ -178,7 +178,7 @@ class Visualizer:
 
     def add_scatter_plotter(self, metric: Metric,
                             col_filter: Callable[[str], bool] | None = None) -> None:
-        xscale, xunit = fileutils.human_readable_scale_and_unit(self._dataset.max_ontology_size())
+        xscale, xunit = fileutils.readable_scale_and_unit(self._dataset.max_ontology_size())
         xmetric = Metric('ontology size', xunit, '.2f')
 
         data = []

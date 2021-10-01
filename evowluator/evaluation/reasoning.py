@@ -68,7 +68,7 @@ class ReasoningEvaluator(Evaluator, ABC):
 
     def run(self, entry: DatasetEntry) -> None:
         if self.task.requires_additional_inputs and entry.inputs_count_for_task(self.task) == 0:
-            self._logger.log('No additional input files.\n', color=echo.Color.YELLOW)
+            self._logger.log('No additional input files.', color=echo.Color.YELLOW)
             return
 
         iterations = config.Evaluation.ITERATIONS
@@ -107,7 +107,7 @@ class ReasoningEvaluator(Evaluator, ABC):
         results = {}
 
         for reasoner in self._usable_reasoners():
-            self._logger.log(f'{reasoner.name}: ', endl=False)
+            self._logger.log(f'{reasoner.name}: ', color=Color.YELLOW, endl=False)
 
             # Skip already failed or timed out.
             if reasoner.name in fail:
@@ -136,7 +136,7 @@ class ReasoningEvaluator(Evaluator, ABC):
     def _run_reasoners_correctness(self, entries: List[DatasetEntry], fail: Set[str]) -> List:
         results = {}
 
-        self._logger.log('Done: ', endl=False)
+        self._logger.log('Done: ', color=Color.YELLOW, endl=False)
 
         with ThreadPoolExecutor() as pool:
             for reasoner in self._usable_reasoners():
@@ -239,7 +239,7 @@ class ReasoningPerformanceEvaluator(ReasoningEvaluator):
 
         self._logger.log(f'Parsing: {results.parsing_ms:.0f} ms')
         self._logger.log(f'Reasoning: {results.reasoning_ms:.0f} ms')
-        self._logger.log(f'Memory: {fileutils.human_readable_bytes(results.max_memory)}')
+        self._logger.log(f'Memory: {fileutils.readable_bytes(results.max_memory)}')
 
         if self.should_measure_energy:
             self._logger.log(f'Energy: {results.energy_score:.2f}')

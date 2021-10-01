@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
+from functools import cache, cached_property
 from operator import attrgetter
 from typing import Iterable, Iterator, List
 
-from pyutils.io import fileutils
 from .syntax import Syntax
 from ..config import Paths
 from ..reasoner.base import ReasoningTask
@@ -40,15 +40,10 @@ class Ontology:
         """File name of the ontology."""
         return self.entry.name
 
-    @property
+    @cached_property
     def size(self) -> int:
         """File size of the ontology."""
         return os.path.getsize(self.path)
-
-    @property
-    def readable_size(self) -> str:
-        """Human readable string for the ontology size."""
-        return fileutils.human_readable_bytes(self.size)
 
     def __init__(self, entry: DatasetEntry, syntax: Syntax):
         self.entry = entry
@@ -65,6 +60,9 @@ class DatasetEntry:
     def __init__(self, base_path: str, name: str) -> None:
         self.base_path = base_path
         self.name = name
+
+    def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None) -> int:
+        return sum(o.size for o in self.ontologies(syntaxes=syntaxes))
 
     def ontology(self, syntax: Syntax) -> Ontology:
         return Ontology(self, syntax)
@@ -141,6 +139,9 @@ class Dataset:
         if not self.syntaxes:
             raise ValueError('Invalid dataset: ' + self.name)
 
+    def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None) -> int:
+        return sum(e.cumulative_size(syntaxes=syntaxes) for e in self.get_entries())
+
     def get_dir(self, syntax: Syntax) -> str:
         return os.path.join(self.path, syntax.value)
 
@@ -169,6 +170,7 @@ class Dataset:
 # Private
 
 
+@cache
 def _available_syntaxes(dataset_dir: str) -> List[Syntax]:
     syntaxes = []
 

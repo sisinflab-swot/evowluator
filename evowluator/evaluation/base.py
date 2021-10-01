@@ -11,6 +11,8 @@ from typing import List
 
 from pyutils import exc
 from pyutils.io import echo, fileutils
+from pyutils.io.echo import Color
+from pyutils.io.fileutils import readable_bytes, readable_scale_and_unit
 from pyutils.io.logger import Logger
 from .. import config
 from ..config import ConfigKey, Paths
@@ -148,12 +150,26 @@ class Evaluator(ABC):
         return [r for r in self._reasoners if self._syntaxes_for_reasoner(r)]
 
     def _start(self, sort_by: SortBy = SortBy.NAME, resume_ontology: str | None = None) -> None:
-        for entry in self._dataset.get_entries(sort_by=sort_by, resume_after=resume_ontology):
-            sizes = sorted(f'{o.syntax}: {o.readable_size}' for o in entry.ontologies())
-            size_str = ' | '.join(sizes)
+        used_syntaxes = self._syntaxes()
+        dataset_count = self._dataset.count
+        dataset_size = self._dataset.cumulative_size(syntaxes=used_syntaxes)
 
-            self._logger.log(f'{entry.name}', color=echo.Color.YELLOW, endl=False)
-            self._logger.log(f' ({size_str})')
+        scale, _ = readable_scale_and_unit(dataset_size)
+        dataset_size = readable_bytes(dataset_size)
+        cumulative_size = 0
+
+        for idx, entry in enumerate(self._dataset.get_entries(sort_by=sort_by,
+                                                              resume_after=resume_ontology)):
+            sizes = list(sorted((o.syntax, o.size) for o in entry.ontologies()))
+            size_str = ' | '.join(f'{syntax}: {readable_bytes(size)}' for syntax, size in sizes)
+            cumulative_size += sum(size for syntax, size in sizes if syntax in used_syntaxes)
+
+            self._logger.log(f'\n{entry.name}', color=Color.GREEN)
+            self._logger.log('Sizes: ', color=Color.YELLOW, endl=False)
+            self._logger.log(size_str, endl=False)
+            self._logger.log('  Progress: ', color=Color.YELLOW, endl=False)
+            self._logger.log((f'{idx + 1}/{dataset_count} | '
+                              f'{cumulative_size / scale:.1f}/{dataset_size}'))
             self._logger.indent_level += 1
 
             try:
@@ -179,18 +195,18 @@ class Evaluator(ABC):
             r.teardown()
 
     def __log_config(self) -> None:
-        self._logger.log('Selected reasoners and serializations:', color=echo.Color.GREEN)
+        self._logger.log('Selected reasoners and serializations:', color=Color.GREEN)
         self._logger.indent_level += 1
         for reasoner in self._reasoners:
             self.__log_syntaxes(reasoner)
         self._logger.indent_level -= 1
 
-        self._logger.log('\nSelected dataset: ', color=echo.Color.GREEN)
+        self._logger.log('\nSelected dataset: ', color=Color.GREEN)
         self._logger.indent_level += 1
         self._logger.log(f'{self._dataset.name}: {self._dataset.count} ontologies')
         self._logger.indent_level -= 1
 
-        self._logger.log(f'\nStarting {self.name} evaluation...\n', color=echo.Color.GREEN)
+        self._logger.log(f'\nStarting {self.name} evaluation...\n', color=Color.GREEN)
 
     def __log_syntaxes(self, reasoner: Reasoner) -> None:
         syntaxes = sorted(self._syntaxes_for_reasoner(reasoner), key=lambda s: s.value)

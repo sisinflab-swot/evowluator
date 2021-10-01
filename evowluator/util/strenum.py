@@ -18,3 +18,6 @@ class StrEnum(Enum):
 
     def __str__(self):
         return self.value
+
+    def __lt__(self, other) -> bool:
+        return self.value < other.value
