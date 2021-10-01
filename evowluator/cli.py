@@ -7,7 +7,7 @@ from pyutils.proc.bench import EnergyProbe
 from . import config
 from .config import Evaluation, EXE_NAME
 from .data import converter
-from .data.dataset import Dataset, Syntax
+from .data.dataset import Dataset, SortBy, Syntax
 from .evaluation.info import InfoEvaluator
 from .evaluation.mode import EvaluationMode
 from .evaluation.reasoning import ReasoningCorrectnessEvaluator, ReasoningPerformanceEvaluator
@@ -72,15 +72,17 @@ def config_parser() -> argparse.ArgumentParser:
     group.add_argument('--resume-after',
                        metavar='ONTOLOGY_NAME',
                        help='Resume the evaluation after the specified ontology.')
-    group.add_argument('--sort-by-size',
-                       action='store_true',
-                       help='Sort the ontologies by size.')
+    group.add_argument('--sort-by',
+                       type=SortBy,
+                       choices=SortBy.all(),
+                       default=SortBy.NAME,
+                       help='Sort the ontologies.')
     return parser
 
 
 def add_evaluation_parsers(subparsers) -> None:
     mode_parser = argparse.ArgumentParser(add_help=False)
-    modes = [m for m in EvaluationMode]
+    modes = EvaluationMode.all()
 
     group = mode_parser.add_argument_group('Mode')
     group.add_argument('-m', '--mode',
@@ -242,7 +244,7 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
         evaluator_class = ReasoningPerformanceEvaluator
 
     e = evaluator_class(task, dataset=args.dataset, reasoners=args.reasoners, syntax=args.syntax)
-    e.start(sort_by_size=args.sort_by_size, resume_ontology=args.resume_after)
+    e.start(sort_by=args.sort_by, resume_ontology=args.resume_after)
 
     return 0
 
@@ -263,8 +265,7 @@ def info_sub(args) -> int:
     e = InfoEvaluator(dataset=args.dataset,
                       reasoners=args.reasoners,
                       syntax=args.syntax)
-    e.start(sort_by_size=args.sort_by_size,
-            resume_ontology=args.resume_after)
+    e.start(sort_by=args.sort_by, resume_ontology=args.resume_after)
     return 0
 
 

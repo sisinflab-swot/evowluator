@@ -1,12 +1,30 @@
 from __future__ import annotations
 
 import os
+from operator import attrgetter
 from typing import Iterable, Iterator, List
 
 from pyutils.io import fileutils
 from .syntax import Syntax
 from ..config import Paths
 from ..reasoner.base import ReasoningTask
+from ..util.strenum import StrEnum
+
+
+class SortBy(StrEnum):
+    """Sort-by strategies."""
+    NAME_ASC = 'name'
+    NAME_DESC = 'name-desc'
+    SIZE_ASC = 'size'
+    SIZE_DESC = 'size-desc'
+
+    NAME = NAME_ASC
+    SIZE = SIZE_ASC
+
+    def sorted(self, what: Iterable, name_attr: str = 'name', size_attr: str = 'size'):
+        attr = size_attr if self in (SortBy.SIZE_ASC, SortBy.SIZE_DESC) else name_attr
+        reverse = self.value.endswith('-desc')
+        return sorted(what, key=attrgetter(attr), reverse=reverse)
 
 
 class Ontology:
@@ -132,16 +150,12 @@ class Dataset:
     def get_ontology(self, name: str, syntax: Syntax) -> Ontology:
         return self.get_entry(name).ontology(syntax)
 
-    def get_entries(self, sort_by_size: bool = False,
+    def get_entries(self, sort_by: SortBy = SortBy.NAME,
                     resume_after: str | None = None) -> Iterator[DatasetEntry]:
         entries = (self.get_entry(n)
                    for n in os.listdir(self.get_dir(self.syntaxes[0]))
                    if not n.startswith('.'))
-
-        if sort_by_size:
-            entries = sorted(entries, key=lambda e: e.max_size)
-        else:
-            entries = sorted(entries, key=lambda e: e.name)
+        entries = sort_by.sorted(entries, size_attr='max_size')
 
         for entry in entries:
             if resume_after:

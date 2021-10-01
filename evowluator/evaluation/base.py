@@ -16,7 +16,7 @@ from .. import config
 from ..config import ConfigKey, Paths
 from ..data import json
 from ..data.csv import CSVWriter
-from ..data.dataset import Dataset, DatasetEntry, Syntax
+from ..data.dataset import Dataset, DatasetEntry, SortBy, Syntax
 from ..data.info import DatasetInfo
 from ..reasoner.base import Reasoner
 
@@ -96,7 +96,7 @@ class Evaluator(ABC):
         """Clears temporary files."""
         fileutils.remove_dir_contents(self.temp_dir)
 
-    def start(self, sort_by_size: bool = False, resume_ontology: str | None = None) -> None:
+    def start(self, sort_by: SortBy = SortBy.NAME, resume_ontology: str | None = None) -> None:
         """Starts the evaluation."""
         self._logger = Logger(path.join(self.work_dir, config.Paths.LOG_FILE_NAME))
         self._csv_writer = CSVWriter(path.join(self.work_dir, config.Paths.RESULTS_FILE_NAME))
@@ -109,8 +109,7 @@ class Evaluator(ABC):
                 self._logger.clear()
                 self.__log_config()
                 self.setup()
-                self._start(sort_by_size=sort_by_size,
-                            resume_ontology=resume_ontology)
+                self._start(sort_by=sort_by, resume_ontology=resume_ontology)
         finally:
             fileutils.chmod(self.work_dir, 0o666, recursive=True, dir_mode=0o777)
             self.__teardown_reasoners()
@@ -148,9 +147,8 @@ class Evaluator(ABC):
     def _usable_reasoners(self) -> List[Reasoner]:
         return [r for r in self._reasoners if self._syntaxes_for_reasoner(r)]
 
-    def _start(self, sort_by_size: bool = False, resume_ontology: str | None = None) -> None:
-        for entry in self._dataset.get_entries(sort_by_size=sort_by_size,
-                                               resume_after=resume_ontology):
+    def _start(self, sort_by: SortBy = SortBy.NAME, resume_ontology: str | None = None) -> None:
+        for entry in self._dataset.get_entries(sort_by=sort_by, resume_after=resume_ontology):
             sizes = sorted(f'{o.syntax}: {o.readable_size}' for o in entry.ontologies())
             size_str = ' | '.join(sizes)
 

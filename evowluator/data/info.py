@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict, Iterable, List, Iterator
 
 from ..config import ConfigKey
-from ..data.dataset import Dataset, DatasetEntry, Syntax
+from ..data.dataset import Dataset, DatasetEntry, SortBy, Syntax
 
 
 class OntologyInfo:
@@ -71,11 +71,10 @@ class DatasetInfo:
         return max(e.max_size for e in self.entries)
 
     def get_ontologies(self, syntax: Syntax, names: Iterable[str] | None = None,
-                       sort_by_size: bool = False) -> Iterator[OntologyInfo]:
+                       sort_by: SortBy = SortBy.NAME) -> Iterator[OntologyInfo]:
         entries = self.entries
 
         if names is not None:
             entries = (e for e in entries if e.name in names)
 
-        ontos = (e.ontology(syntax) for e in entries)
-        return sorted(ontos, key=lambda o: o.size) if sort_by_size else ontos
+        return sort_by.sorted(e.ontology(syntax) for e in entries)

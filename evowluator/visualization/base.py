@@ -12,6 +12,7 @@ from .metric import Metric
 from .plot import Figure, LineStyle, MinMaxAvgHistogramPlot, ScatterPlot
 from ..config import ConfigKey, Paths
 from ..data import json
+from ..data.dataset import SortBy
 from ..data.info import DatasetInfo
 from ..data.syntax import Syntax
 from ..evaluation.mode import EvaluationMode
@@ -185,8 +186,7 @@ class Visualizer:
         for reasoner in self._reasoners:
             results = self.results_for_reasoner(reasoner, col_filter=col_filter, drop_missing=False)
             ontologies = self._dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
-                                                      names=results.index,
-                                                      sort_by_size=True)
+                                                      names=results.index, sort_by=SortBy.SIZE)
 
             if isinstance(results.index, pd.MultiIndex):
                 results = results.groupby(level=0).mean()
