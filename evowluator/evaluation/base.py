@@ -90,7 +90,7 @@ class Evaluator(ABC):
             except KeyError as e:
                 exc.re_raise_new_message(e, 'No such reasoner: ' + str(e))
         else:
-            self._reasoners = Reasoner.all()
+            self._reasoners = Reasoner.local()
 
     def clear_temp(self) -> None:
         """Clears temporary files."""

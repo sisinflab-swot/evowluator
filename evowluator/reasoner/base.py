@@ -43,6 +43,11 @@ class Reasoner(ABC):
         return cls.__ALL
 
     @classmethod
+    def local(cls) -> List[Reasoner]:
+        """Returns all the available local reasoners."""
+        return [r for r in cls.all() if not isinstance(r, RemoteReasoner)]
+
+    @classmethod
     def with_name(cls, name: str) -> Reasoner:
         """Returns the reasoner that has the specified name."""
         try:
