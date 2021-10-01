@@ -10,13 +10,10 @@ from .data import converter
 from .data.dataset import Dataset, Syntax
 from .evaluation.info import InfoEvaluator
 from .evaluation.mode import EvaluationMode
-from .evaluation.reasoning import (
-    CorrectnessStrategy,
-    ReasoningCorrectnessEvaluator,
-    ReasoningPerformanceEvaluator
-)
+from .evaluation.reasoning import ReasoningCorrectnessEvaluator, ReasoningPerformanceEvaluator
 from .reasoner.base import ReasoningTask
 from .visualization.base import Visualizer
+from .visualization.correctness import CorrectnessStrategy, OracleStrategy
 from .visualization.plot import LegendLocation
 
 
@@ -94,10 +91,6 @@ def add_evaluation_parsers(subparsers) -> None:
     group.add_argument('-e', '--energy-probe',
                        choices=[p.name.lower() for p in EnergyProbe.all()],
                        help='Probe to use for energy measurements.')
-    group.add_argument('-c', '--strategy',
-                       choices=[s.name for s in CorrectnessStrategy.all()],
-                       default=CorrectnessStrategy.all()[0].name,
-                       help='Strategy to use for correctness evaluation.')
 
     for name in (t.name for t in ReasoningTask.all()):
         desc = f'Evaluates the {name} reasoning task.'
@@ -130,6 +123,11 @@ def add_visualize_parser(subparsers) -> None:
     parser.add_argument('path',
                         nargs='?',
                         help='Path of the dir containing the results to visualize.')
+    strategies = [s.name for s in CorrectnessStrategy.all() if not isinstance(s, OracleStrategy)]
+    parser.add_argument('-c', '--correctness-strategy',
+                        metavar=f'{{{",".join(strategies)},<reasoner>}}',
+                        default=strategies[0],
+                        help='Strategy or reasoner to use for correctness evaluation.')
     parser.add_argument('-s', '--size',
                         metavar=('WIDTH', 'HEIGHT'),
                         nargs=2,
@@ -236,20 +234,16 @@ def main_parser() -> argparse.ArgumentParser:
 
 
 def reasoning_sub(args, task: ReasoningTask) -> int:
-    evaluator = None
+    evaluator_class = None
 
     if args.mode == EvaluationMode.CORRECTNESS:
-        evaluator = ReasoningCorrectnessEvaluator(task,
-                                                  CorrectnessStrategy.with_name(args.strategy),
-                                                  dataset=args.dataset,
-                                                  reasoners=args.reasoners,
-                                                  syntax=args.syntax)
+        evaluator_class = ReasoningCorrectnessEvaluator
     elif args.mode == EvaluationMode.PERFORMANCE:
-        evaluator = ReasoningPerformanceEvaluator(task,
-                                                  dataset=args.dataset,
-                                                  reasoners=args.reasoners,
-                                                  syntax=args.syntax)
-    evaluator.start(sort_by_size=args.sort_by_size, resume_ontology=args.resume_after)
+        evaluator_class = ReasoningPerformanceEvaluator
+
+    e = evaluator_class(task, dataset=args.dataset, reasoners=args.reasoners, syntax=args.syntax)
+    e.start(sort_by_size=args.sort_by_size, resume_ontology=args.resume_after)
+
     return 0
 
 
@@ -266,16 +260,21 @@ def matchmaking_sub(args) -> int:
 
 
 def info_sub(args) -> int:
-    InfoEvaluator(dataset=args.dataset,
-                  reasoners=args.reasoners,
-                  syntax=args.syntax).start(sort_by_size=args.sort_by_size,
-                                            resume_ontology=args.resume_after)
+    e = InfoEvaluator(dataset=args.dataset,
+                      reasoners=args.reasoners,
+                      syntax=args.syntax)
+    e.start(sort_by_size=args.sort_by_size,
+            resume_ontology=args.resume_after)
     return 0
 
 
 def visualize_sub(args) -> int:
     path = args.path if args.path else config.Paths.last_results_dir()
     visualizer = Visualizer.from_dir(path, reasoners=args.reasoners)
+
+    if hasattr(visualizer, 'set_strategy'):
+        visualizer.set_strategy(args.correctness_strategy)
+
     figure = visualizer.figure
 
     if args.size:

@@ -3,14 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
-from random import shuffle
 from subprocess import TimeoutExpired
 from threading import Lock
 from typing import Dict, List, Set
 
 from pyutils.io import echo, fileutils
 from pyutils.io.echo import Color
-from pyutils.stringutils import camel_case_split
 from .base import Evaluator
 from .mode import EvaluationMode
 from .. import config
@@ -18,16 +16,7 @@ from ..config import Evaluation
 from ..data.dataset import DatasetEntry, Syntax
 from ..reasoner.base import Reasoner, ReasoningTask
 from ..reasoner.results import Results
-
-
-class Status:
-    OK = 'y'
-    INCORRECT = 'n'
-    ERROR = 'error'
-    TIMEOUT = 'timeout'
-    UNKNOWN = 'unknown'
-
-    NOT_OK = [INCORRECT, ERROR, TIMEOUT]
+from ..visualization.correctness import CorrectnessStrategy, Status
 
 
 class ReasoningEvaluator(Evaluator, ABC):
@@ -174,96 +163,36 @@ class ReasoningEvaluator(Evaluator, ABC):
             self._logger.log(('' if len(results) == 1 else ', ') + reasoner.name, endl=False)
 
 
-class CorrectnessStrategy(ABC):
-
-    __ALL: List[CorrectnessStrategy] = None
-
-    @classmethod
-    def all(cls) -> List[CorrectnessStrategy]:
-        if cls.__ALL is None:
-            cls.__ALL = [OracleStrategy(), RandomMajorityStrategy()]
-        return cls.__ALL
-
-    @classmethod
-    def with_name(cls, name: str) -> CorrectnessStrategy:
-        try:
-            return next(s for s in cls.all() if s.name == name)
-        except StopIteration:
-            raise ValueError(f'No correctness strategy named "{name}"')
-
-    @cached_property
-    def name(self) -> str:
-        return '_'.join(t.lower() for t in camel_case_split(type(self).__name__)[:-1])
-
-    @abstractmethod
-    def evaluate(self, results: Dict[Reasoner]) -> Dict[Reasoner]:
-        pass
-
-
-class OracleStrategy(CorrectnessStrategy):
-
-    def evaluate(self, results: Dict[Reasoner]) -> Dict[Reasoner]:
-        ref_reasoner, ref_res = next(iter(results.items()))
-        del results[ref_reasoner]
-
-        out = {}
-
-        if ref_res in Status.NOT_OK:
-            out[ref_reasoner] = ref_res
-            out.update({r: Status.UNKNOWN for r in results.keys()})
-            return out
-
-        out[ref_reasoner] = Status.OK
-
-        for reasoner, res in results.items():
-            if res not in Status.NOT_OK:
-                res = Status.OK if res == ref_res else Status.INCORRECT
-            out[reasoner] = res
-
-        return out
-
-
-class RandomMajorityStrategy(CorrectnessStrategy):
-
-    def evaluate(self, results: Dict[Reasoner]) -> Dict[Reasoner]:
-        out, groups = {}, {}
-
-        for reasoner, res in results.items():
-            if res in Status.NOT_OK:
-                out[reasoner] = res
-                continue
-
-            if res in groups:
-                groups[res].append(reasoner)
-            else:
-                groups[res] = [reasoner]
-
-        groups = list(groups.values())
-        shuffle(groups)
-
-        correct = max((len(g), g) for g in groups)[1]
-        out.update({r: Status.OK for r in correct})
-        out.update({r: Status.INCORRECT for g in groups for r in g if g is not correct})
-
-        return out
-
-
 class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
     @cached_property
     def result_fields(self) -> List[str]:
-        return ['correct']
+        return ['output']
 
     def log_results(self, results: Results) -> None:
         self._logger.log('done')
 
     def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
-        results = self.strategy.evaluate(self._hash_results(results))
-        results = {r: results[r] for r in self._usable_reasoners()}
+        results = self._hash_results(results)
+        self._log_correctness(results)
+        return list(results.values())
+
+    def __init__(self,
+                 task: ReasoningTask,
+                 strategy: str | None = None,
+                 dataset: str | None = None,
+                 reasoners: List[str] | None = None,
+                 syntax: Syntax | None = None) -> None:
+        super().__init__(task, dataset=dataset, reasoners=reasoners, syntax=syntax)
+        self.strategy = CorrectnessStrategy.with_name(strategy if strategy else 'random_majority')
+
+    def _log_correctness(self, results: Dict[Reasoner]) -> None:
+        if not self.strategy:
+            return
 
         ok, wrong = [], []
 
-        for r, v in results.items():
+        for r, v in self.strategy.evaluate_dict(results).items():
             if v == Status.OK:
                 ok.append(r.name)
             elif v in Status.NOT_OK:
@@ -280,16 +209,6 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
             self._logger.log(', '.join(wrong), endl=False)
 
         self._logger.log('')
-
-        return list(results.values())
-
-    def __init__(self,
-                 task: ReasoningTask, strategy: CorrectnessStrategy,
-                 dataset: str | None = None,
-                 reasoners: List[str] | None = None,
-                 syntax: Syntax | None = None) -> None:
-        super().__init__(task, dataset=dataset, reasoners=reasoners, syntax=syntax)
-        self.strategy = strategy
 
     def _hash_results(self, results: Dict[Reasoner, Results | str]) -> Dict[Reasoner, str]:
         return {k: v.output_hash() if isinstance(v, Results) else v

@@ -79,7 +79,7 @@ class Visualizer:
             for r in cfg[ConfigKey.REASONERS]
         }
 
-        self._reasoners: List[str] = list(self._syntaxes_by_reasoner.keys())
+        self._reasoners: List[str] = [r[ConfigKey.NAME] for r in cfg[ConfigKey.REASONERS]]
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)
 
         self.colors: Dict[str, str] = {}
