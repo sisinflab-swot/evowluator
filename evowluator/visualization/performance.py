@@ -115,11 +115,11 @@ class PerformanceVisualizer(Visualizer):
         time_unit = f' ({time_unit})'
 
         data = pd.DataFrame({
-            'Reasoner': reasoners,
-            'Total parsing time' + time_unit: parsing,
-            'Total reasoning time' + time_unit: reasoning,
-            'Total time' + time_unit: parsing + reasoning
-        }).set_index('Reasoner')
+            'reasoner': reasoners,
+            'total parsing time' + time_unit: parsing,
+            'total reasoning time' + time_unit: reasoning,
+            'total time' + time_unit: parsing + reasoning
+        }).set_index('reasoner')
 
         for metric, cols in (('memory peak (MiB)', self._memory_cols),
                              ('energy score', self._energy_cols)):
@@ -128,9 +128,9 @@ class PerformanceVisualizer(Visualizer):
             res_min = np.array([res_min[r] for r in reasoners])
             res_avg = np.array([res_avg[r] for r in reasoners])
             res_max = np.array([res_max[r] for r in reasoners])
-            data[f'Min {metric}'] = res_min
-            data[f'Avg {metric}'] = res_avg
-            data[f'Max {metric}'] = res_max
+            data[f'min {metric}'] = res_min
+            data[f'avg {metric}'] = res_avg
+            data[f'max {metric}'] = res_max
 
         data.to_csv(file_path, float_format='%.2f')
 

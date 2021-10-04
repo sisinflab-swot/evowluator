@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
-import tempfile
-import time
 from abc import ABC, abstractmethod
 from functools import cached_property
 from os import path
@@ -49,11 +46,7 @@ class Evaluator(ABC):
     @cached_property
     def work_dir(self) -> str:
         """Work directory."""
-        name = re.sub(r"[^\w\s]", '', self.name)
-        name = re.sub(r"\s+", '_', name)
-        prefix = time.strftime(f'{name}_%Y%m%d_%H%M%S_')
-        fileutils.create_dir(Paths.RESULTS_DIR)
-        return tempfile.mkdtemp(dir=Paths.RESULTS_DIR, prefix=prefix)
+        return Paths.new_results_dir(self.name)
 
     @cached_property
     def temp_dir(self) -> str:

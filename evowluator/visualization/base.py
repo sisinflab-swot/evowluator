@@ -41,10 +41,10 @@ class Visualizer:
         cfg = json.load(os.path.join(results_dir, Paths.CONFIG_FILE_NAME))
         eval_name = cfg[ConfigKey.NAME]
 
-        cols = ['Ontology']
+        cols = ['ontology']
 
         if any(t.name in eval_name for t in ReasoningTask.all() if t.requires_additional_inputs):
-            cols.append('Input')
+            cols.append('input')
 
         if reasoners:
             reasoner_cfg = {r[ConfigKey.NAME]: r for r in cfg[ConfigKey.REASONERS]}

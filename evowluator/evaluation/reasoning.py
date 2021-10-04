@@ -55,10 +55,10 @@ class ReasoningEvaluator(Evaluator, ABC):
             self._reasoners = Reasoner.supporting_task(task)
 
     def setup(self):
-        csv_header = ['Ontology']
+        csv_header = ['ontology']
 
         if self.task.requires_additional_inputs:
-            csv_header.append('Input')
+            csv_header.append('input')
 
         for reasoner in self._usable_reasoners():
             for field in self.result_fields:
@@ -71,20 +71,23 @@ class ReasoningEvaluator(Evaluator, ABC):
             self._logger.log('No additional input files.', color=echo.Color.YELLOW)
             return
 
+        csv_rows = []
         iterations = config.Evaluation.ITERATIONS
         fail = set()
 
         if Evaluation.MODE == EvaluationMode.CORRECTNESS or iterations == 1:
-            self._iterate(entry, fail)
-            return
+            csv_rows.extend(self._iterate(entry, fail))
+        else:
+            for iteration in range(iterations):
+                self._logger.log(f'Run {iteration + 1}:', color=echo.Color.YELLOW)
+                self._logger.indent_level += 1
+                csv_rows.extend(self._iterate(entry, fail))
+                self._logger.indent_level -= 1
 
-        for iteration in range(iterations):
-            self._logger.log(f'Run {iteration + 1}:', color=echo.Color.YELLOW)
-            self._logger.indent_level += 1
-            self._iterate(entry, fail)
-            self._logger.indent_level -= 1
+        for row in csv_rows:
+            self._csv_writer.write_row(row)
 
-    def _iterate(self, entry: DatasetEntry, fail: Set[str]) -> None:
+    def _iterate(self, entry: DatasetEntry, fail: Set[str]) -> List[List]:
         self.clear_temp()
 
         if Evaluation.MODE == EvaluationMode.CORRECTNESS:
@@ -92,16 +95,19 @@ class ReasoningEvaluator(Evaluator, ABC):
         else:
             run_reasoners = self._run_reasoners_performance
 
-        if not self.task.requires_additional_inputs:
-            self._csv_writer.write_row(run_reasoners([entry], fail))
-            return
+        csv_rows = []
 
-        for input_entry in entry.inputs_for_task(self.task):
-            self._logger.log('Input: ', color=echo.Color.YELLOW, endl=False)
-            self._logger.log(input_entry.name)
-            self._logger.indent_level += 1
-            self._csv_writer.write_row(run_reasoners([entry, input_entry], fail))
-            self._logger.indent_level -= 1
+        if self.task.requires_additional_inputs:
+            for input_entry in entry.inputs_for_task(self.task):
+                self._logger.log('Input: ', color=echo.Color.YELLOW, endl=False)
+                self._logger.log(input_entry.name)
+                self._logger.indent_level += 1
+                csv_rows.append(run_reasoners([entry, input_entry], fail))
+                self._logger.indent_level -= 1
+        else:
+            csv_rows.append(run_reasoners([entry], fail))
+
+        return csv_rows
 
     def _run_reasoners_performance(self, entries: List[DatasetEntry], fail: Set[str]) -> List:
         results = {}

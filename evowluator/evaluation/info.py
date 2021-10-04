@@ -10,7 +10,7 @@ class InfoEvaluator(Evaluator):
         return 'info'
 
     def setup(self):
-        row = ['Ontology'] + [f'Size ({s.value})' for s in Syntax]
+        row = ['ontology'] + [f'size ({s.value})' for s in Syntax]
         self._csv_writer.write_row(row)
 
     def run(self, entry):

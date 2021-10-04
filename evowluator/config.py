@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
+import tempfile
+import time
 from os import environ, path
 
+from pyutils.io import fileutils
 from pyutils.proc.bench import EnergyProbe
 from .evaluation.mode import EvaluationMode
 
@@ -36,6 +40,14 @@ class Paths:
                        key=path.getmtime, default=None)
         except FileNotFoundError:
             raise FileNotFoundError('No available results')
+
+    @staticmethod
+    def new_results_dir(name: str) -> str:
+        name = re.sub(r"[^\w\s]", '', name)
+        name = re.sub(r"\s+", '_', name)
+        prefix = time.strftime(f'{name}_%Y%m%d_%H%M%S_')
+        fileutils.create_dir(Paths.RESULTS_DIR)
+        return tempfile.mkdtemp(dir=Paths.RESULTS_DIR, prefix=prefix)
 
     @staticmethod
     def absolute(rel_path: str) -> str:
