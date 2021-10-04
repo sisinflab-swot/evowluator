@@ -12,6 +12,7 @@ from .evaluation.info import InfoEvaluator
 from .evaluation.mode import EvaluationMode
 from .evaluation.reasoning import ReasoningCorrectnessEvaluator, ReasoningPerformanceEvaluator
 from .reasoner.base import ReasoningTask
+from .util.merge import merge
 from .visualization.base import Visualizer
 from .visualization.correctness import CorrectnessStrategy, OracleStrategy
 from .visualization.plot import LegendLocation
@@ -114,6 +115,21 @@ def add_info_parser(subparsers) -> None:
     parser.set_defaults(func=info_sub)
 
 
+def add_merge_parser(subparsers) -> None:
+    desc = 'Merges results from multiple evaluations.'
+    parser = subparsers.add_parser('merge',
+                                   description=desc,
+                                   help=desc,
+                                   parents=[help_parser()],
+                                   add_help=False)
+    parser.add_argument('path',
+                        nargs='+',
+                        help='Paths to the dirs containing the results to merge.')
+    parser.add_argument('-d', '--dataset',
+                        help='Override the name of the dataset.')
+    parser.set_defaults(func=merge_sub)
+
+
 def add_visualize_parser(subparsers) -> None:
     desc = 'Generates high level statistics and plots.'
     parser = subparsers.add_parser('visualize',
@@ -124,7 +140,7 @@ def add_visualize_parser(subparsers) -> None:
 
     parser.add_argument('path',
                         nargs='?',
-                        help='Path of the dir containing the results to visualize.')
+                        help='Path to the dir containing the results to visualize.')
     strategies = [s.name for s in CorrectnessStrategy.all() if not isinstance(s, OracleStrategy)]
     parser.add_argument('-c', '--correctness-strategy',
                         metavar=f'{{{",".join(strategies)},<reasoner>}}',
@@ -227,6 +243,7 @@ def main_parser() -> argparse.ArgumentParser:
                                        dest='subcommand', required=True)
     add_evaluation_parsers(subparsers)
     add_info_parser(subparsers)
+    add_merge_parser(subparsers)
     add_visualize_parser(subparsers)
     add_convert_parser(subparsers)
     return parser
@@ -266,6 +283,11 @@ def info_sub(args) -> int:
                       reasoners=args.reasoners,
                       syntax=args.syntax)
     e.start(sort_by=args.sort_by, resume_ontology=args.resume_after)
+    return 0
+
+
+def merge_sub(args) -> int:
+    merge(args.path, args.dataset)
     return 0
 
 

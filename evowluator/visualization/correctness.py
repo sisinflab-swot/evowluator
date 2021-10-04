@@ -68,10 +68,10 @@ class OracleStrategy(CorrectnessStrategy):
 
         ref_idx = self.oracle_idx
         ref_res = results[ref_idx]
-        ref_ok = ref_res not in Status.NOT_OK
+        ref_ok = ref_res not in Status.ALL
 
         for idx, res in enumerate(results):
-            if res not in Status.NOT_OK:
+            if res not in Status.ALL:
                 if idx == ref_idx:
                     res = Status.OK
                 elif ref_ok:
@@ -90,7 +90,7 @@ class RandomMajorityStrategy(CorrectnessStrategy):
         groups = {}
 
         for idx, res in enumerate(results):
-            if res in Status.NOT_OK:
+            if res in Status.ALL:
                 out[idx] = res
             elif res in groups:
                 groups[res].append(idx)
@@ -142,7 +142,8 @@ class CorrectnessVisualizer(Visualizer):
         fileutils.create_dir(self.output_dir)
 
         reasoners = self._reasoners
-        res: pd.DataFrame = self.results_grouped_by_reasoner().first()[reasoners]
+        res: pd.DataFrame = self.results_grouped_by_reasoner(drop_missing=False).first()[reasoners]
+        res.fillna(Status.UNKNOWN, inplace=True)
         res = res.apply(lambda x: self.strategy.evaluate(x), axis=1, result_type='broadcast')
         res.to_csv(path.join(self.output_dir, 'correct.csv'))
 
