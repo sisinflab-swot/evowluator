@@ -123,10 +123,6 @@ class Dataset:
         return os.path.basename(self.path)
 
     @property
-    def count(self) -> int:
-        return sum(1 for _ in self.get_entries())
-
-    @property
     def syntaxes(self) -> List[Syntax]:
         return _available_syntaxes(self.path)
 
@@ -139,8 +135,24 @@ class Dataset:
         if not self.syntaxes:
             raise ValueError('Invalid dataset: ' + self.name)
 
-    def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None) -> int:
-        return sum(e.cumulative_size(syntaxes=syntaxes) for e in self.get_entries())
+    def cumulative_stats(self, syntaxes: Iterable[Syntax] | None = None,
+                         sort_by: SortBy = SortBy.NAME,
+                         resume_after: str | None = None) -> (int, int):
+        count, size = 0, 0
+
+        for e in self.get_entries(sort_by=sort_by, resume_after=resume_after):
+            count += 1
+            size += e.cumulative_size(syntaxes=syntaxes)
+
+        return count, size
+
+    def count(self, sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> int:
+        return self.cumulative_stats(sort_by=sort_by, resume_after=resume_after)[0]
+
+    def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None,
+                        sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> int:
+        return self.cumulative_stats(syntaxes=syntaxes, sort_by=sort_by,
+                                     resume_after=resume_after)[1]
 
     def get_dir(self, syntax: Syntax) -> str:
         return os.path.join(self.path, syntax.value)

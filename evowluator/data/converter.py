@@ -30,7 +30,7 @@ def convert_ontology(source: Ontology, target: Ontology) -> ConversionResult:
 def convert_dataset(dataset: Dataset, syntax: Syntax, source_syntax: Syntax | None = None) -> None:
     """Converts a dataset into the specified syntax."""
     echo.pretty((f'Starting conversion of "{dataset.name}" dataset '
-                 f'({dataset.count} ontologies) in {syntax} syntax...\n'),
+                 f'({dataset.count()} ontologies) in {syntax} syntax...\n'),
                 color=echo.Color.GREEN)
 
     if not source_syntax:

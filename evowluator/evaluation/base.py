@@ -91,7 +91,7 @@ class Evaluator(ABC):
         """Clears temporary files."""
         fileutils.remove_dir_contents(self.temp_dir)
 
-    def start(self, sort_by: SortBy = SortBy.NAME, resume_ontology: str | None = None) -> None:
+    def start(self, sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> None:
         """Starts the evaluation."""
         self._logger = Logger(path.join(self.work_dir, config.Paths.LOG_FILE_NAME))
         self._csv_writer = CSVWriter(path.join(self.work_dir, config.Paths.RESULTS_FILE_NAME))
@@ -104,7 +104,7 @@ class Evaluator(ABC):
                 self._logger.clear()
                 self.__log_config()
                 self.setup()
-                self._start(sort_by=sort_by, resume_ontology=resume_ontology)
+                self._start(sort_by=sort_by, resume_after=resume_after)
         finally:
             fileutils.chmod(self.work_dir, 0o666, recursive=True, dir_mode=0o777)
             self.__teardown_reasoners()
@@ -142,17 +142,18 @@ class Evaluator(ABC):
     def _usable_reasoners(self) -> List[Reasoner]:
         return [r for r in self._reasoners if self._syntaxes_for_reasoner(r)]
 
-    def _start(self, sort_by: SortBy = SortBy.NAME, resume_ontology: str | None = None) -> None:
+    def _start(self, sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> None:
         used_syntaxes = self._syntaxes()
-        dataset_count = self._dataset.count
-        dataset_size = self._dataset.cumulative_size(syntaxes=used_syntaxes)
 
+        dataset_count, dataset_size = self._dataset.cumulative_stats(syntaxes=used_syntaxes,
+                                                                     sort_by=sort_by,
+                                                                     resume_after=resume_after)
         scale, _ = readable_scale_and_unit(dataset_size)
         dataset_size = readable_bytes(dataset_size)
         cumulative_size = 0
 
         for idx, entry in enumerate(self._dataset.get_entries(sort_by=sort_by,
-                                                              resume_after=resume_ontology)):
+                                                              resume_after=resume_after)):
             sizes = list(sorted((o.syntax, o.size) for o in entry.ontologies()))
             size_str = ' | '.join(f'{syntax}: {readable_bytes(size)}' for syntax, size in sizes)
             cumulative_size += sum(size for syntax, size in sizes if syntax in used_syntaxes)
@@ -196,7 +197,7 @@ class Evaluator(ABC):
 
         self._logger.log('\nSelected dataset: ', color=Color.GREEN)
         self._logger.indent_level += 1
-        self._logger.log(f'{self._dataset.name}: {self._dataset.count} ontologies')
+        self._logger.log(f'{self._dataset.name}: {self._dataset.count()} ontologies')
         self._logger.indent_level -= 1
 
         self._logger.log(f'\nStarting {self.name} evaluation...\n', color=Color.GREEN)
@@ -223,10 +224,3 @@ class Evaluator(ABC):
         }
 
         json.save(cfg, path.join(self.work_dir, config.Paths.CONFIG_FILE_NAME))
-
-
-class NotImplementedEvaluator:
-    """Not implemented evaluator."""
-
-    def start(self, resume_ontology: str | None = None):
-        raise NotImplementedError('Not implemented.')

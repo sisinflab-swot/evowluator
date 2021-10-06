@@ -261,7 +261,7 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
         evaluator_class = ReasoningPerformanceEvaluator
 
     e = evaluator_class(task, dataset=args.dataset, reasoners=args.reasoners, syntax=args.syntax)
-    e.start(sort_by=args.sort_by, resume_ontology=args.resume_after)
+    e.start(sort_by=args.sort_by, resume_after=args.resume_after)
 
     return 0
 
@@ -282,7 +282,7 @@ def info_sub(args) -> int:
     e = InfoEvaluator(dataset=args.dataset,
                       reasoners=args.reasoners,
                       syntax=args.syntax)
-    e.start(sort_by=args.sort_by, resume_ontology=args.resume_after)
+    e.start(sort_by=args.sort_by, resume_after=args.resume_after)
     return 0
 
 
