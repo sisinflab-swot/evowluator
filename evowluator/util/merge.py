@@ -15,6 +15,7 @@ def merge(input_dirs: Iterable[str], dataset: str | None = None) -> None:
     out_config: Dict | None = None
 
     for input_dir in input_dirs:
+        input_dir = Paths.absolute(input_dir, Paths.RESULTS_DIR)
         out_results = merge_results(out_results, input_dir)
         out_config = merge_configs(out_config, input_dir, dataset)
 

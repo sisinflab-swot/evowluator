@@ -50,10 +50,10 @@ class Paths:
         return tempfile.mkdtemp(dir=Paths.RESULTS_DIR, prefix=prefix)
 
     @staticmethod
-    def absolute(rel_path: str) -> str:
+    def absolute(rel_path: str, base: str = BIN_DIR) -> str:
         """Absolute path for the specified relative path."""
         rel_path = path.normpath(rel_path)
-        return rel_path if path.isabs(rel_path) else path.join(Paths.BIN_DIR, rel_path)
+        return rel_path if path.isabs(rel_path) else path.join(base, rel_path)
 
 
 class OWLTool:

@@ -28,8 +28,7 @@ class Visualizer:
 
     def write_results(self) -> None:
         fileutils.create_dir(self.output_dir)
-        avg_res_path = path.join(self.output_dir, 'avg_results.csv')
-        self._results.to_csv(avg_res_path, float_format='%.2f')
+        self._results.to_csv(path.join(self.output_dir, 'avg_results.csv'), float_format='%.2f')
 
     # Public
 
@@ -71,7 +70,7 @@ class Visualizer:
 
     def __init__(self, results_dir: str, cfg, index_columns: List[str] = None,
                  non_numeric_columns: bool | List[str] = False) -> None:
-        self._results_dir = results_dir
+        self._results_dir = Paths.absolute(results_dir, Paths.RESULTS_DIR)
         self._index_columns = index_columns if index_columns else ['Ontology']
         self._dataset = DatasetInfo.from_dict(cfg[ConfigKey.DATASET])
 
