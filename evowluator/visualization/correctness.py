@@ -97,13 +97,14 @@ class RandomMajorityStrategy(CorrectnessStrategy):
             else:
                 groups[res] = [idx]
 
-        groups = list(groups.values())
-        shuffle(groups)
-        correct = max((len(g), g) for g in groups)[1]
+        if groups:
+            groups = list(groups.values())
+            shuffle(groups)
+            correct = max((len(g), g) for g in groups)[1]
 
-        for group in groups:
-            for idx in group:
-                out[idx] = Status.OK if group is correct else Status.INCORRECT
+            for group in groups:
+                for idx in group:
+                    out[idx] = Status.OK if group is correct else Status.INCORRECT
 
         return out
 
