@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
-
 cd "$(dirname "${0}")"/..
 source venv/bin/activate
-
-CHECK='import sys; sys.exit(1 if sys.version_info[:2] < (3, 7) else 0);'
-
-if ! python -c "${CHECK}"; then
-    >&2 echo 'evOWLuator requires Python version >= 3.7'
-    exit 1
-fi
-
 export EVOWLUATOR_EXE="$(basename "${0}")"
 python -m evowluator.main "$@"

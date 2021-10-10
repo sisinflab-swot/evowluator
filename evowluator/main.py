@@ -1,14 +1,19 @@
 import sys
 
-from pyutils.io import echo
-from . import cli, config
-from .user import loader
+
+def version_check():
+    min_python = (3, 9)
+
+    if sys.version_info[:2] < min_python:
+        print('evOWLuator equires Python version {}.{} or newer.'.format(*min_python))
+        sys.exit(1)
 
 
-# Main
+def main():
+    from pyutils.io import echo
+    from . import cli, config
+    from .user import loader
 
-
-def main() -> int:
     try:
         loader.import_user_modules()
         ret_val = cli.process_args()
@@ -26,4 +31,5 @@ def main() -> int:
 
 
 if __name__ == '__main__':
+    version_check()
     sys.exit(main())
