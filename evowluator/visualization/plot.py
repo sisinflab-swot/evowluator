@@ -494,7 +494,7 @@ class Figure:
             self.size = (width, height)
 
         fig, axes = plt.subplots(figsize=self.size, nrows=n_rows, ncols=n_cols, squeeze=False)
-        fig.canvas.set_window_title(self.title)
+        fig.canvas.manager.set_window_title(self.title)
         axes = axes.flatten()
 
         for i, plotter in enumerate(plotters):
