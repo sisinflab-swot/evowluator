@@ -50,8 +50,6 @@ def convert_dataset(dataset: Dataset, syntax: Syntax, source_syntax: Syntax | No
             result = convert_ontology(i_entry.ontology(source_syntax), target)
             _print_conversion_result(result)
 
-        echo.info('')
-
     echo.pretty('Done!', color=echo.Color.GREEN)
 
 
