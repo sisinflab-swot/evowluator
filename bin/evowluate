@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-cd "$(dirname "${0}")"/..
-source venv/bin/activate
-export EVOWLUATOR_EXE="$(basename "${0}")"
-python -m evowluator.main "$@"

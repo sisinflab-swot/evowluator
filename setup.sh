@@ -3,11 +3,13 @@
 # Configuration
 PYTHON="${EVOWLUATOR_PYTHON:-python3}"
 ROOT_DIR="$(cd "$(dirname "${0}")"; pwd -P)"
+INSTALL_DIR="${1:-"${ROOT_DIR}/bin"}"
 OWLTOOL_SRC_DIR="${ROOT_DIR}/lib/owltool"
 OWLTOOL_OUT_DIR="${OWLTOOL_SRC_DIR}/build/libs"
 OWLTOOL_BIN_DIR="${ROOT_DIR}/bin/OWLTool"
 
 # Safeguards
+set -o nounset
 set -o pipefail
 set -o errtrace
 set -o errexit
@@ -38,5 +40,8 @@ gradle wrapper
 cd "${ROOT_DIR}"
 mkdir -p "${OWLTOOL_BIN_DIR}"
 mv -f "${OWLTOOL_OUT_DIR}"/*.jar "${OWLTOOL_BIN_DIR}/owltool.jar"
+
+# Install
+./install.sh "${INSTALL_DIR}"
 
 echo "Done!"
