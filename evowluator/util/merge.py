@@ -8,6 +8,7 @@ import pandas as pd
 from pyutils.io import echo
 from ..config import ConfigKey, Paths
 from ..data import json
+from ..visualization.correctness import Status
 
 
 def merge(input_dirs: Iterable[str], dataset: str | None = None) -> None:
@@ -19,10 +20,8 @@ def merge(input_dirs: Iterable[str], dataset: str | None = None) -> None:
         out_results = merge_results(out_results, input_dir)
         out_config = merge_configs(out_config, input_dir, dataset)
 
-    reset_index(out_results)
-
     output_dir = Paths.new_results_dir(out_config[ConfigKey.NAME])
-    out_results.to_csv(os.path.join(output_dir, Paths.RESULTS_FILE_NAME), float_format='%.2f')
+    write_csv(out_results, os.path.join(output_dir, Paths.RESULTS_FILE_NAME))
     json.save(out_config, os.path.join(output_dir, Paths.CONFIG_FILE_NAME))
 
     echo.success(f'Merge results: ', endl=False)
@@ -80,23 +79,34 @@ def merge_configs(config: Dict, input_dir: str, dataset: str | None) -> Dict:
     return config
 
 
+def read_csv(path: str) -> pd.DataFrame:
+    df = pd.read_csv(path).convert_dtypes()
+    index = list(df.columns)[:next(i for (i, v) in enumerate(df.columns) if ':' in v)]
+    df['seq'] = df.groupby(index).cumcount()
+    index.append('seq')
+    df.set_index(index, inplace=True)
+    return df
+
+
+def write_csv(df: pd.DataFrame, path: str) -> None:
+    df.reset_index(inplace=True)
+    df.drop('seq', axis=1, inplace=True)
+    df.fillna(Status.UNKNOWN, inplace=True)
+    df.to_csv(path, float_format='%.2f', index=False)
+
+
 def merge_results(results: pd.DataFrame | None, input_dir: str) -> pd.DataFrame:
-    cur = pd.read_csv(os.path.join(input_dir, Paths.RESULTS_FILE_NAME)).convert_dtypes()
+    cur = read_csv(os.path.join(input_dir, Paths.RESULTS_FILE_NAME))
 
     if results is None:
         results = cur
     else:
-        results = results.merge(cur, how='outer', copy=False)
+        columns = list(dict.fromkeys(list(results.columns) + list(cur.columns)))
+        results = results.reindex(columns=columns, copy=False)
+        cur = cur.reindex(columns=columns, copy=False)
+
+        results.update(cur)
+        cur.drop(results.index, inplace=True, errors='ignore')
+        results = pd.concat([results, cur], copy=False)
 
     return results
-
-
-def reset_index(results: pd.DataFrame) -> None:
-    index = []
-
-    for col in results.columns:
-        if ': ' in col:
-            break
-        index.append(col)
-
-    results.set_index(index, inplace=True)
