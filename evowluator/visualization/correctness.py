@@ -14,6 +14,7 @@ from pyutils.stringutils import camel_case_split
 from .base import Visualizer
 from .metric import Metric
 from .plot import GroupedHistogramPlot
+from ..data import csv
 from ..reasoner.base import Reasoner
 
 
@@ -146,7 +147,7 @@ class CorrectnessVisualizer(Visualizer):
         res: pd.DataFrame = self.results_grouped_by_reasoner(drop_missing=False).first()[reasoners]
         res.fillna(Status.UNKNOWN, inplace=True)
         res = res.apply(lambda x: self.strategy.evaluate(x), axis=1, result_type='broadcast')
-        res.to_csv(path.join(self.output_dir, 'correct.csv'))
+        csv.write(res, path.join(self.output_dir, 'correct.csv'))
 
         results = [res[r].value_counts(sort=False) for r in reasoners]
 
@@ -164,4 +165,4 @@ class CorrectnessVisualizer(Visualizer):
             Status.INCORRECT: 'incorrect'
         }, inplace=True)
 
-        summary.to_csv(path.join(self.output_dir, 'summary.csv'), float_format='%.2f')
+        csv.write(summary, path.join(self.output_dir, 'summary.csv'))

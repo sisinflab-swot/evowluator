@@ -7,8 +7,7 @@ import pandas as pd
 
 from pyutils.io import echo
 from ..config import ConfigKey, Paths
-from ..data import json
-from ..visualization.base import infer_index
+from ..data import csv, json
 from ..visualization.correctness import Status
 
 
@@ -81,11 +80,9 @@ def merge_configs(config: Dict, input_dir: str, dataset: str | None) -> Dict:
 
 
 def read_csv(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path).convert_dtypes()
-    index = infer_index(df.columns)
-    df['seq'] = df.groupby(index).cumcount()
-    index.append('seq')
-    df.set_index(index, inplace=True)
+    df = csv.read(path).convert_dtypes()
+    df['seq'] = df.groupby(df.index.names).cumcount()
+    df.set_index('seq', append=True, inplace=True)
     return df
 
 
@@ -93,7 +90,7 @@ def write_csv(df: pd.DataFrame, path: str) -> None:
     df.reset_index(inplace=True)
     df.drop('seq', axis=1, inplace=True)
     df.fillna(Status.UNKNOWN, inplace=True)
-    df.to_csv(path, float_format='%.2f', index=False)
+    csv.write(df, path, index=False)
 
 
 def merge_results(results: pd.DataFrame | None, input_dir: str) -> pd.DataFrame:

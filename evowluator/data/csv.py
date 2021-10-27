@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import csv
-from typing import List, TextIO
+from typing import Iterable, List, TextIO
+
+import pandas as pd
 
 
 class _CSVIO:
@@ -83,7 +85,7 @@ class CSVWriter(_CSVIO):
         self.__csv_writer: csv.writer = None
 
     def write_row(self, row: List[str]) -> None:
-        self.__csv_writer.writerow(row)
+        self.__csv_writer.writerow([_format_record(r) for r in row])
 
     # Overrides
 
@@ -95,3 +97,32 @@ class CSVWriter(_CSVIO):
 
     def _on_close(self):
         self.__csv_writer = None
+
+
+def _infer_index(columns: Iterable[str]) -> List[str]:
+    columns = columns if isinstance(columns, list) else list(columns)
+    return columns[:next(i for (i, v) in enumerate(columns) if ':' in v)]
+
+
+def _format_record(record) -> str:
+    try:
+        record = f'{float(record):.2f}'.rstrip('0')
+        float_len = len(record)
+        record = record.rstrip('.')
+        if len(record) < float_len:
+            record = str(int(record))
+    except Exception:
+        pass
+
+    return record
+
+
+def read(path: str) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    df.set_index(_infer_index(df.columns), inplace=True)
+    return df
+
+
+def write(df: pd.DataFrame, path: str, index: bool = True) -> None:
+    df = df.applymap(_format_record)
+    df.to_csv(path, index=index)

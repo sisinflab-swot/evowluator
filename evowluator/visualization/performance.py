@@ -10,6 +10,7 @@ import pandas as pd
 from .base import Visualizer
 from .metric import Metric
 from .plot import GroupedHistogramPlot
+from ..data import csv
 
 
 class PerformanceVisualizer(Visualizer):
@@ -93,7 +94,7 @@ class PerformanceVisualizer(Visualizer):
     def _write_total_times(self, file_path: str) -> None:
         totals = self.results_grouped_by_reasoner(self._time_cols,
                                                   drop_missing=False).sum(min_count=1)
-        totals.to_csv(file_path, float_format='%.2f')
+        csv.write(totals, file_path)
 
     def _write_summary(self, file_path: str) -> None:
         reasoners = self._reasoners
@@ -114,7 +115,7 @@ class PerformanceVisualizer(Visualizer):
         self._time_unit = time_unit
         time_unit = f' ({time_unit})'
 
-        data = pd.DataFrame({
+        summary = pd.DataFrame({
             'reasoner': reasoners,
             'total parsing time' + time_unit: parsing,
             'total reasoning time' + time_unit: reasoning,
@@ -128,10 +129,9 @@ class PerformanceVisualizer(Visualizer):
             res_min = np.array([res_min[r] for r in reasoners])
             res_avg = np.array([res_avg[r] for r in reasoners])
             res_max = np.array([res_max[r] for r in reasoners])
-            data[f'min {metric}'] = res_min
-            data[f'avg {metric}'] = res_avg
-            data[f'max {metric}'] = res_max
+            summary[f'min {metric}'] = res_min
+            summary[f'avg {metric}'] = res_avg
+            summary[f'max {metric}'] = res_max
 
-        data.to_csv(file_path, float_format='%.2f')
-
-        self._summary = data
+        csv.write(summary, file_path)
+        self._summary = summary

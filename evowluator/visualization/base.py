@@ -11,7 +11,7 @@ from pyutils.io import fileutils
 from .metric import Metric
 from .plot import Figure, LineStyle, MinMaxAvgHistogramPlot, ScatterPlot
 from ..config import ConfigKey, Paths
-from ..data import json
+from ..data import csv, json
 from ..data.dataset import SortBy
 from ..data.info import DatasetInfo
 from ..data.syntax import Syntax
@@ -27,7 +27,7 @@ class Visualizer:
 
     def write_results(self) -> None:
         fileutils.create_dir(self.output_dir)
-        self._results.to_csv(path.join(self.output_dir, 'avg_results.csv'), float_format='%.2f')
+        csv.write(self._results, path.join(self.output_dir, 'avg_results.csv'))
 
     # Public
 
@@ -119,10 +119,7 @@ class Visualizer:
             self.figure.show()
 
     def load_results(self, non_numeric_columns: bool | List[str] = False) -> pd.DataFrame:
-        res = pd.read_csv(self.results_path)
-        index = infer_index(res.columns)
-        res.set_index(index, inplace=True)
-
+        res = csv.read(self.results_path)
         columns = [c for c in res.columns if c.split(':', maxsplit=1)[0] in self._reasoners]
         res = res[columns]
 
@@ -140,9 +137,6 @@ class Visualizer:
 
         if not res.index.is_unique:
             res = res.groupby(res.index).mean()
-
-        if len(index) > 1:
-            res.index = pd.MultiIndex.from_tuples(res.index, names=index)
 
         return res
 
@@ -235,8 +229,3 @@ class Visualizer:
                              f'Supported values: {", ".join(valid.keys())}')
         
         return line_style
-
-
-def infer_index(columns: Iterable[str]) -> List[str]:
-    columns = columns if isinstance(columns, list) else list(columns)
-    return columns[:next(i for (i, v) in enumerate(columns) if ':' in v)]
