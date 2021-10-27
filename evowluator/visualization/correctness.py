@@ -111,8 +111,8 @@ class RandomMajorityStrategy(CorrectnessStrategy):
 
 class CorrectnessVisualizer(Visualizer):
 
-    def __init__(self, results_dir: str, cfg, index_columns: List[str] | None = None) -> None:
-        super().__init__(results_dir, cfg, index_columns=index_columns, non_numeric_columns=True)
+    def __init__(self, results_dir: str, cfg) -> None:
+        super().__init__(results_dir, cfg, non_numeric_columns=True)
         self.strategy: CorrectnessStrategy | None = None
         self.summary: pd.DataFrame | None = None
 

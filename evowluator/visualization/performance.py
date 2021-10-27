@@ -16,8 +16,8 @@ class PerformanceVisualizer(Visualizer):
 
     # Overrides
 
-    def __init__(self, results_dir: str, cfg, index_columns: List[str] = None) -> None:
-        super().__init__(results_dir, cfg, index_columns)
+    def __init__(self, results_dir: str, cfg) -> None:
+        super().__init__(results_dir, cfg)
         self._results[self._memory_cols] /= (1024 * 1024)
         self._summary: pd.DataFrame | None = None
         self._time_unit: str = 'ms'

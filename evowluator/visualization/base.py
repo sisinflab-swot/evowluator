@@ -16,7 +16,6 @@ from ..data.dataset import SortBy
 from ..data.info import DatasetInfo
 from ..data.syntax import Syntax
 from ..evaluation.mode import EvaluationMode
-from ..reasoner.base import ReasoningTask
 
 
 class Visualizer:
@@ -40,19 +39,14 @@ class Visualizer:
         cfg = json.load(os.path.join(results_dir, Paths.CONFIG_FILE_NAME))
         eval_name = cfg[ConfigKey.NAME]
 
-        cols = ['ontology']
-
-        if any(t.name in eval_name for t in ReasoningTask.all() if t.requires_additional_inputs):
-            cols.append('input')
-
         if reasoners:
             reasoner_cfg = {r[ConfigKey.NAME]: r for r in cfg[ConfigKey.REASONERS]}
             cfg[ConfigKey.REASONERS] = [reasoner_cfg[r] for r in reasoners]
 
         if EvaluationMode.CORRECTNESS.value in eval_name:
-            return CorrectnessVisualizer(results_dir, cfg, index_columns=cols)
+            return CorrectnessVisualizer(results_dir, cfg)
         elif EvaluationMode.PERFORMANCE.value in eval_name:
-            return PerformanceVisualizer(results_dir, cfg, index_columns=cols)
+            return PerformanceVisualizer(results_dir, cfg)
         else:
             raise NotImplementedError(f'Visualizer not implemented for "{eval_name}"')
 
@@ -68,10 +62,9 @@ class Visualizer:
     def config_path(self) -> str:
         return os.path.join(self._results_dir, Paths.CONFIG_FILE_NAME)
 
-    def __init__(self, results_dir: str, cfg, index_columns: List[str] = None,
+    def __init__(self, results_dir: str, cfg,
                  non_numeric_columns: bool | List[str] = False) -> None:
         self._results_dir = Paths.absolute(results_dir, Paths.RESULTS_DIR)
-        self._index_columns = index_columns if index_columns else ['Ontology']
         self._dataset = DatasetInfo.from_dict(cfg[ConfigKey.DATASET])
 
         self._syntaxes_by_reasoner: Dict[str, Syntax] = {
@@ -126,7 +119,9 @@ class Visualizer:
             self.figure.show()
 
     def load_results(self, non_numeric_columns: bool | List[str] = False) -> pd.DataFrame:
-        res = pd.read_csv(self.results_path, index_col=self._index_columns)
+        res = pd.read_csv(self.results_path)
+        index = infer_index(res.columns)
+        res.set_index(index, inplace=True)
 
         columns = [c for c in res.columns if c.split(':', maxsplit=1)[0] in self._reasoners]
         res = res[columns]
@@ -146,8 +141,8 @@ class Visualizer:
         if not res.index.is_unique:
             res = res.groupby(res.index).mean()
 
-        if len(self._index_columns) > 1:
-            res.index = pd.MultiIndex.from_tuples(res.index, names=self._index_columns)
+        if len(index) > 1:
+            res.index = pd.MultiIndex.from_tuples(res.index, names=index)
 
         return res
 
@@ -240,3 +235,8 @@ class Visualizer:
                              f'Supported values: {", ".join(valid.keys())}')
         
         return line_style
+
+
+def infer_index(columns: Iterable[str]) -> List[str]:
+    columns = columns if isinstance(columns, list) else list(columns)
+    return columns[:next(i for (i, v) in enumerate(columns) if ':' in v)]

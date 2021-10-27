@@ -8,6 +8,7 @@ import pandas as pd
 from pyutils.io import echo
 from ..config import ConfigKey, Paths
 from ..data import json
+from ..visualization.base import infer_index
 from ..visualization.correctness import Status
 
 
@@ -81,7 +82,7 @@ def merge_configs(config: Dict, input_dir: str, dataset: str | None) -> Dict:
 
 def read_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path).convert_dtypes()
-    index = list(df.columns)[:next(i for (i, v) in enumerate(df.columns) if ':' in v)]
+    index = infer_index(df.columns)
     df['seq'] = df.groupby(index).cumcount()
     index.append('seq')
     df.set_index(index, inplace=True)
