@@ -41,10 +41,25 @@ class CorrectnessStrategy(ABC):
         return cls.__ALL
 
     @classmethod
-    def with_name(cls, name: str) -> CorrectnessStrategy:
+    def default(cls) -> CorrectnessStrategy:
+        return cls.all()[0]
+
+    @classmethod
+    def with_name(cls, name: str | None, reasoners: List[str] | None = None) -> CorrectnessStrategy:
+        if not name:
+            return cls.default()
+
         try:
             return next(s for s in cls.all() if s.name == name)
         except StopIteration:
+            pass
+
+        try:
+            idx = reasoners.index(name)
+            strategy = CorrectnessStrategy.with_name('oracle')
+            strategy.oracle_idx = idx
+            return strategy
+        except ValueError:
             raise ValueError(f'No correctness strategy named "{name}"')
 
     @cached_property
@@ -57,6 +72,9 @@ class CorrectnessStrategy(ABC):
 
     def evaluate_dict(self, results: Dict[Reasoner]) -> Dict[Reasoner]:
         return dict(zip(results.keys(), self.evaluate(list(results.values()))))
+
+    def evaluate_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df.transform(self.evaluate, axis=1)
 
 
 class OracleStrategy(CorrectnessStrategy):
@@ -118,14 +136,7 @@ class CorrectnessVisualizer(Visualizer):
         self.summary: pd.DataFrame | None = None
 
     def set_strategy(self, strategy: str) -> None:
-        try:
-            idx = self._reasoners.index(strategy)
-            strategy = CorrectnessStrategy.with_name('oracle')
-            strategy.oracle_idx = idx
-        except ValueError:
-            strategy = CorrectnessStrategy.with_name(strategy)
-
-        self.strategy = strategy
+        self.strategy = CorrectnessStrategy.with_name(strategy, self._reasoners)
 
     def configure_plotters(self) -> None:
         super().configure_plotters()
@@ -146,7 +157,7 @@ class CorrectnessVisualizer(Visualizer):
         reasoners = self._reasoners
         res: pd.DataFrame = self.results_grouped_by_reasoner(drop_missing=False).first()[reasoners]
         res.fillna(Status.UNKNOWN, inplace=True)
-        res = res.apply(lambda x: self.strategy.evaluate(x), axis=1, result_type='broadcast')
+        res = self.strategy.evaluate_dataframe(res)
         csv.write(res, path.join(self.output_dir, 'correct.csv'))
 
         results = [res[r].value_counts(sort=False) for r in reasoners]

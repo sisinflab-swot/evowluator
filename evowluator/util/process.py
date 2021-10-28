@@ -1,17 +1,65 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, Iterable
+from typing import Dict, Iterable, List
 
+import numpy as np
 import pandas as pd
 
 from pyutils.io import echo
 from ..config import ConfigKey, Paths
 from ..data import csv, json
-from ..visualization.correctness import Status
+from ..visualization.correctness import CorrectnessStrategy, Status
 
 
-def merge(input_dirs: Iterable[str], dataset: str | None = None) -> None:
+def process(input_dirs: Iterable[str], correctness_dir: str | None,
+            correctness_strategy: str | None, dataset: str | None = None) -> None:
+    out_dir = merge(input_dirs, dataset=dataset)
+
+    if correctness_dir:
+        filter_correct(out_dir, correctness_dir, correctness_strategy)
+
+    echo.success(f'Results: ', endl=False)
+    echo.info(out_dir)
+
+
+def correctness_results(input_dir: str, strategy: str | None) -> pd.DataFrame:
+    df = csv.read(os.path.join(input_dir, Paths.RESULTS_FILE_NAME))
+    df.rename(lambda x: x.split(':')[0], axis=1, inplace=True)
+    return CorrectnessStrategy.with_name(strategy, list(df.columns)).evaluate_dataframe(df)
+
+
+def filter_correct(input_dir: str, correctness_dir: str, strategy: str) -> None:
+    csv_path = os.path.join(input_dir, Paths.RESULTS_FILE_NAME)
+    df = csv.read(csv_path)
+    cr = correctness_results(correctness_dir, strategy)
+    reasoners = list(cr.columns)
+
+    for col in df.columns:
+        reasoner = col.split(':')[0]
+        cr[col] = cr[reasoner]
+
+    cr.drop(reasoners, axis=1, inplace=True)
+    cr.replace('y', np.nan, inplace=True)
+    cr.replace('n', 'incorrect', inplace=True)
+    df.update(cr)
+
+    csv.write(df, csv_path)
+
+
+def incorrect_ontologies(input_dir: str, strategy: str | None) -> Dict[str, List[str]]:
+    df = correctness_results(input_dir, strategy)
+    incorrect = {}
+
+    for reasoner in df.columns:
+        res = df[reasoner]
+        res.drop(res[res == Status.OK].index, inplace=True)
+        incorrect[reasoner] = list(res.to_dict().keys())
+
+    return incorrect
+
+
+def merge(input_dirs: Iterable[str], dataset: str | None = None) -> str:
     out_results: pd.DataFrame | None = None
     out_config: Dict | None = None
 
@@ -24,8 +72,7 @@ def merge(input_dirs: Iterable[str], dataset: str | None = None) -> None:
     write_csv(out_results, os.path.join(output_dir, Paths.RESULTS_FILE_NAME))
     json.save(out_config, os.path.join(output_dir, Paths.CONFIG_FILE_NAME))
 
-    echo.success(f'Merge results: ', endl=False)
-    echo.info(output_dir)
+    return output_dir
 
 
 def merge_configs(config: Dict, input_dir: str, dataset: str | None) -> Dict:

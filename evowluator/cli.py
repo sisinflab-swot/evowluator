@@ -12,7 +12,7 @@ from .evaluation.info import InfoEvaluator
 from .evaluation.mode import EvaluationMode
 from .evaluation.reasoning import ReasoningCorrectnessEvaluator, ReasoningPerformanceEvaluator
 from .reasoner.base import ReasoningTask
-from .util.merge import merge
+from .util.process import incorrect_ontologies, process
 from .visualization.base import Visualizer
 from .visualization.correctness import CorrectnessStrategy, OracleStrategy
 from .visualization.plot import LegendLocation
@@ -25,12 +25,16 @@ def process_args() -> int:
     args = main_parser().parse_args()
 
     config.DEBUG = getattr(args, 'debug', config.DEBUG)
-    Evaluation.ITERATIONS = getattr(args, 'num_iterations', Evaluation.ITERATIONS)
     Evaluation.MODE = getattr(args, 'mode', Evaluation.MODE)
     Evaluation.TIMEOUT = getattr(args, 'timeout', Evaluation.TIMEOUT)
 
     energy_probe = getattr(args, 'energy_probe', None)
     Evaluation.ENERGY_PROBE = EnergyProbe.with_name(energy_probe) if energy_probe else None
+
+    if Evaluation.MODE == EvaluationMode.CORRECTNESS:
+        Evaluation.ITERATIONS = 1
+    else:
+        Evaluation.ITERATIONS = getattr(args, 'num_iterations', Evaluation.ITERATIONS)
 
     return args.func(args)
 
@@ -81,6 +85,16 @@ def config_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def add_correctness_arguments(parser) -> None:
+    strategies = [s.name for s in CorrectnessStrategy.all() if not isinstance(s, OracleStrategy)]
+    parser.add_argument('--correctness-strategy',
+                        metavar=f'{{{",".join(strategies)},<reasoner>}}',
+                        default=strategies[0],
+                        help='Strategy or reasoner to use for correctness evaluation.')
+    parser.add_argument('--correctness-results',
+                        help='Path to correctness results.')
+
+
 def add_evaluation_parsers(subparsers) -> None:
     mode_parser = argparse.ArgumentParser(add_help=False)
     modes = EvaluationMode.all()
@@ -94,6 +108,7 @@ def add_evaluation_parsers(subparsers) -> None:
     group.add_argument('-e', '--energy-probe',
                        choices=[p.name.lower() for p in EnergyProbe.all()],
                        help='Probe to use for energy measurements.')
+    add_correctness_arguments(group)
 
     for name in (t.name for t in ReasoningTask.all()):
         desc = f'Evaluates the {name} reasoning task.'
@@ -115,9 +130,9 @@ def add_info_parser(subparsers) -> None:
     parser.set_defaults(func=info_sub)
 
 
-def add_merge_parser(subparsers) -> None:
-    desc = 'Merges results from multiple evaluations.'
-    parser = subparsers.add_parser('merge',
+def add_process_parser(subparsers) -> None:
+    desc = 'Formats, merges and filters evaluation results.'
+    parser = subparsers.add_parser('process',
                                    description=desc,
                                    help=desc,
                                    parents=[help_parser()],
@@ -127,7 +142,8 @@ def add_merge_parser(subparsers) -> None:
                         help='Paths to the dirs containing the results to merge.')
     parser.add_argument('-d', '--dataset',
                         help='Override the name of the dataset.')
-    parser.set_defaults(func=merge_sub)
+    add_correctness_arguments(parser)
+    parser.set_defaults(func=process_sub)
 
 
 def add_visualize_parser(subparsers) -> None:
@@ -243,7 +259,7 @@ def main_parser() -> argparse.ArgumentParser:
                                        dest='subcommand', required=True)
     add_evaluation_parsers(subparsers)
     add_info_parser(subparsers)
-    add_merge_parser(subparsers)
+    add_process_parser(subparsers)
     add_visualize_parser(subparsers)
     add_convert_parser(subparsers)
     return parser
@@ -261,6 +277,14 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
         evaluator_class = ReasoningPerformanceEvaluator
 
     e = evaluator_class(task, dataset=args.dataset, reasoners=args.reasoners, syntax=args.syntax)
+
+    if isinstance(e, ReasoningCorrectnessEvaluator):
+        e.set_strategy(args.correctness_strategy)
+    elif args.correctness_results:
+        for r, o in incorrect_ontologies(args.correctness_results,
+                                         args.correctness_strategy).items():
+            e.skip_ontologies(r, o)
+
     e.start(sort_by=args.sort_by, resume_after=args.resume_after)
 
     return 0
@@ -286,8 +310,9 @@ def info_sub(args) -> int:
     return 0
 
 
-def merge_sub(args) -> int:
-    merge(args.path, args.dataset)
+def process_sub(args) -> int:
+    process(args.path, correctness_dir=args.correctness_results,
+            correctness_strategy=args.correctness_strategy, dataset=args.dataset)
     return 0
 
 
