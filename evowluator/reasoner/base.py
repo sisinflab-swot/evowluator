@@ -33,6 +33,7 @@ class Reasoner(ABC):
     """Abstract reasoner interface."""
 
     __ALL: List[Reasoner] = None
+    __TIME_REGEX = re.compile(r'^(.+):[ \t]*([\d.]+)[ \t]*ms[ \t]*$', re.MULTILINE)
 
     @classmethod
     def all(cls) -> List[Reasoner]:
@@ -186,8 +187,8 @@ class Reasoner(ABC):
     def _parse_time(self, task: EvaluationTask) -> Dict[str, float]:
         times = {}
 
-        for match in re.finditer(r'^(.*): (.*) ms$', task.stdout, re.MULTILINE):
-            times[match.group(1).lower()] = float(match.group(2))
+        for match in self.__TIME_REGEX.finditer(task.stdout):
+            times[match.group(1).strip().lower()] = float(match.group(2))
 
         return times
 
@@ -203,20 +204,24 @@ class Reasoner(ABC):
 class RemoteReasoner(Reasoner, ABC):
     """Abstract class for reasoners running on remote devices."""
 
+    __MEMORY_REGEX = re.compile(r'Memory:[ \t]*([\d.]+)[ \t]*B')
+    __SAMPLING_INTERVAL_REGEX = re.compile(r'Energy sampling interval:[ \t]*([\d.]+)[ \t]*ms')
+    __SAMPLES_REGEX = re.compile(r'Energy samples:([\d.;\t ]+)$', re.MULTILINE)
+
     @classmethod
     def is_template(cls) -> bool:
         return cls == RemoteReasoner
 
     def _parse_memory(self, task: EvaluationTask) -> int:
-        res = re.search(r'Memory: (.*) B', task.stdout)
+        res = self.__MEMORY_REGEX.search(task.stdout)
         return int(res.group(1)) if res else 0
 
     def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
-        res = re.search(r'Energy sampling interval: (.*) ms', task.stdout)
+        res = self.__SAMPLING_INTERVAL_REGEX.search(task.stdout)
         interval = int(res.group(1)) if res else 0
 
-        res = re.search(r'Energy samples: (.*)\n', task.stdout)
-        samples = [float(r) for r in res.group(1).split(';')] if res else []
+        res = self.__SAMPLES_REGEX.search(task.stdout)
+        samples = [float(r.strip()) for r in res.group(1).split(';')] if res else []
 
         return EnergyStats(samples, interval)
 
