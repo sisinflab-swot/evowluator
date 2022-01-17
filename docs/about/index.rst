@@ -42,4 +42,4 @@ evOWLuator is distributed under the `Eclipse Public License, Version 2.0`_.
 
 .. _Eclipse Public License, Version 2.0: https://www.eclipse.org/legal/epl-2.0
 .. _Polytechnic University of Bari: http://www.poliba.it
-.. _SisInf Lab: http://sisinflab.poliba.it/swottools
+.. _SisInf Lab: http://swot.sisinflab.poliba.it
