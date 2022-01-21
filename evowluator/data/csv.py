@@ -38,6 +38,10 @@ class _CSVIO:
             self._file = None
             self._on_close()
 
+    def flush(self) -> None:
+        if self._file:
+            self._file.flush()
+
     # Must override
 
     def _open_mode(self) -> str:
@@ -86,6 +90,7 @@ class CSVWriter(_CSVIO):
 
     def write_row(self, row: List[str]) -> None:
         self.__csv_writer.writerow([_format_record(r) for r in row])
+        self.flush()
 
     # Overrides
 
