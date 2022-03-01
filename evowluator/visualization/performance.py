@@ -122,8 +122,12 @@ class PerformanceVisualizer(Visualizer):
             'total time' + time_unit: parsing + reasoning
         }).set_index('reasoner')
 
-        for metric, cols in (('memory peak (MiB)', self._memory_cols),
-                             ('energy score', self._energy_cols)):
+        min_max_avg_metrics = (
+            ('memory peak (MiB)', self._memory_cols),
+            ('energy score', self._energy_cols)
+        )
+
+        for metric, cols in [(m, c) for m, c in min_max_avg_metrics if c]:
             res = self.results_grouped_by_reasoner(cols).sum()
             res_min, res_avg, res_max = res.min(), res.mean(), res.max()
             res_min = np.array([res_min[r] for r in reasoners])
