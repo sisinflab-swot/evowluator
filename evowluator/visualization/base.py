@@ -136,7 +136,7 @@ class Visualizer:
             res[columns] = res[columns].replace(0, np.nan)
 
         if not res.index.is_unique:
-            res = res.groupby(res.index).mean()
+            res = res.groupby(level=res.index.names).mean()
 
         return res
 
