@@ -26,14 +26,6 @@ class ReasoningEvaluator(Evaluator, ABC):
         pass
 
     @abstractmethod
-    def log_results(self, results: Results) -> None:
-        pass
-
-    @abstractmethod
-    def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
-        pass
-
-    @abstractmethod
     def run_reasoners(self, entries: List[DatasetEntry]) -> List:
         pass
 
@@ -123,14 +115,6 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
     def set_strategy(self, strategy: str | None) -> None:
         self._strategy = CorrectnessStrategy.with_name(strategy, [r.name for r in self._reasoners])
 
-    def log_results(self, results: Results) -> None:
-        self._logger.log('done')
-
-    def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
-        results = self._hash_results(results)
-        self._log_correctness(results)
-        return list(results.values())
-
     def run_reasoners(self, entries: List[DatasetEntry]) -> List:
         results = {}
 
@@ -145,7 +129,10 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
         self._logger.log('')
 
-        return [e.name for e in entries] + self.extract_results(results)
+        results = self._hash_results(results)
+        self._log_results(results)
+
+        return [e.name for e in entries] + list(results.values())
 
     def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[str], output: str,
                                   results: Dict) -> None:
@@ -160,7 +147,7 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
             results[reasoner] = res
             self._logger.log(('' if len(results) == 1 else ', ') + reasoner.name, endl=False)
 
-    def _log_correctness(self, results: Dict[Reasoner]) -> None:
+    def _log_results(self, results: Dict[Reasoner]) -> None:
         if not self._strategy:
             return
 
@@ -214,39 +201,6 @@ class ReasoningPerformanceEvaluator(ReasoningEvaluator):
         except KeyError:
             pass
 
-    def log_results(self, results: Results) -> None:
-        if not results.has_performance_stats:
-            raise ValueError('Missing performance stats.')
-
-        if self.should_measure_energy and not results.has_energy_stats:
-            raise ValueError('Missing energy stats.')
-
-        self._logger.log('{:.0f} ms'.format(results.total_ms))
-
-        self._logger.indent_level += 1
-
-        self._logger.log(f'Parsing: {results.parsing_ms:.0f} ms')
-        self._logger.log(f'Reasoning: {results.reasoning_ms:.0f} ms')
-        self._logger.log(f'Memory: {fileutils.readable_bytes(results.max_memory)}')
-
-        if self.should_measure_energy:
-            self._logger.log(f'Energy: {results.energy_score:.2f}')
-
-        self._logger.indent_level -= 1
-
-    def extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
-        csv_row = []
-
-        for res in results.values():
-            if isinstance(res, str):
-                csv_row.extend([res] * len(self.result_fields))
-            else:
-                csv_row.extend((res.parsing_ms, res.reasoning_ms, res.max_memory))
-                if self.should_measure_energy:
-                    csv_row.append(res.energy_score)
-
-        return csv_row
-
     def run_reasoners(self, entries: List[DatasetEntry]) -> List:
         results = {}
 
@@ -266,7 +220,8 @@ class ReasoningPerformanceEvaluator(ReasoningEvaluator):
 
             try:
                 r = self.task.run(reasoner, inputs)
-                self.log_results(r)
+                self._validate_results(r)
+                self._log_results(r)
                 results[reasoner] = r
             except Exception as e:
                 if config.DEBUG:
@@ -276,4 +231,38 @@ class ReasoningPerformanceEvaluator(ReasoningEvaluator):
                 results[reasoner] = fail_reason
                 self._skip[reasoner.name].add(root_ontology)
 
-        return [e.name for e in entries] + self.extract_results(results)
+        return [e.name for e in entries] + self._extract_results(results)
+
+    def _validate_results(self, results: Results) -> None:
+        if not results.has_performance_stats:
+            raise ValueError('Missing performance stats.')
+
+        if self.should_measure_energy and not results.has_energy_stats:
+            raise ValueError('Missing energy stats.')
+
+    def _log_results(self, results: Results) -> None:
+        self._logger.log('{:.0f} ms'.format(results.total_ms))
+
+        self._logger.indent_level += 1
+
+        self._logger.log(f'Parsing: {results.parsing_ms:.0f} ms')
+        self._logger.log(f'Reasoning: {results.reasoning_ms:.0f} ms')
+        self._logger.log(f'Memory: {fileutils.readable_bytes(results.max_memory)}')
+
+        if self.should_measure_energy:
+            self._logger.log(f'Energy: {results.energy_score:.2f}')
+
+        self._logger.indent_level -= 1
+
+    def _extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
+        csv_row = []
+
+        for res in results.values():
+            if isinstance(res, str):
+                csv_row.extend([res] * len(self.result_fields))
+            else:
+                csv_row.extend((res.parsing_ms, res.reasoning_ms, res.max_memory))
+                if self.should_measure_energy:
+                    csv_row.append(res.energy_score)
+
+        return csv_row
