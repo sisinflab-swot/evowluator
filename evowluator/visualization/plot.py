@@ -56,6 +56,8 @@ class Plot:
         self.title: str | None = None
         self.xlabel: str | None = None
         self.ylabel: str | None = None
+        self.xscale: str | None = None
+        self.yscale: str | None = None
         self.xtick_rot = 0.0
         self.ytick_rot = 0.0
 
@@ -69,7 +71,7 @@ class Plot:
             if hasattr(self, k):
                 setattr(self, k, v)
 
-    def set_scale(self, scale: str, axis: str = 'both') -> None:
+    def apply_scale(self) -> None:
         # Workaround for formatter getting reset on set_[xy]scale.
         x_maj = self._ax.xaxis.get_major_formatter()
         x_min = self._ax.xaxis.get_minor_formatter()
@@ -78,11 +80,11 @@ class Plot:
 
         subticks = [2, 3, 4, 5, 6, 7, 8, 9]
 
-        if axis != 'x':
-            self._ax.set_yscale(scale, subs=subticks)
+        if self.xscale and self.xscale != 'linear':
+            self._ax.set_xscale(self.xscale, subs=subticks)
 
-        if axis != 'y':
-            self._ax.set_xscale(scale, subs=subticks)
+        if self.yscale and self.yscale != 'linear':
+            self._ax.set_yscale(self.yscale, subs=subticks)
 
         self._ax.xaxis.set_major_formatter(x_maj)
         self._ax.xaxis.set_minor_formatter(x_min)
@@ -230,8 +232,9 @@ class HistogramPlot(Plot):
         self._ax.set_ylim(bottom=bottom, top=top)
 
     def configure_scale(self, data_min: float, data_max: float) -> None:
-        if data_min == 0.0 or data_max / data_min > 25.0:
-            self.set_scale('log' if data_min > 1.0 else 'symlog', axis='y')
+        if not self.yscale and (data_min == 0.0 or data_max / data_min > 25.0):
+            self.yscale = 'log' if data_min > 1.0 else 'symlog'
+        self.apply_scale()
 
     def ylim_log_scale(self, data_min: float, data_max: float) -> (float, float):
         if data_min == 0.0:
@@ -267,11 +270,16 @@ class HistogramPlot(Plot):
 
 class GroupedHistogramPlot(HistogramPlot):
 
-    def __init__(self, ax: plt.Axes):
+    def __init__(self, ax: plt.Axes, show_zero_labels: bool = True):
         super().__init__(ax)
+        self.show_zero_labels = show_zero_labels
         self.groups: List[str] = []
 
     def draw_plot(self) -> None:
+        if not self.show_zero_labels:
+            for label in [label for label, d in self.data.items() if sum(d) == 0]:
+                del self.data[label]
+
         data_min = min(p for v in self.data.values() for p in v)
         data_max = max(p for v in self.data.values() for p in v)
         self.configure_scale(data_min, data_max)
@@ -415,20 +423,13 @@ class ScatterPlot(Plot):
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color, linestyle=style)
 
     def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
-        xlog = xmax / xmin > 25.0
-        ylog = ymax / ymin > 25.0
+        if not self.xscale and xmax / xmin > 25.0:
+            self.xscale = 'log'
 
-        if xlog and ylog:
-            axis = 'both'
-        elif xlog:
-            axis = 'x'
-        elif ylog:
-            axis = 'y'
-        else:
-            axis = None
+        if not self.yscale and ymax / ymin > 25.0:
+            self.yscale = 'log'
 
-        if axis:
-            self.set_scale('log', axis=axis)
+        self.apply_scale()
 
 
 class Plotter:
@@ -458,22 +459,24 @@ class Figure:
         self.marker_size = 0.0
         self.xtick_rot = 0.0
         self.ytick_rot = 0.0
+        self.xscale: str | None = None
+        self.yscale: str | None = None
         self._plotters: List[Plotter] = []
         self._is_drawn = False
 
-    def add_plotter(self, plot_type: type, **kwargs) -> None:
-        if self.label_fmt:
-            kwargs['label_fmt'] = self.label_fmt
+    def set_attrs(self, **kwargs) -> None:
+        for k, v in kwargs.items():
+            if hasattr(self, k):
+                setattr(self, k, v)
 
-        kwargs['show_titles'] = self.show_titles
-        kwargs['show_labels'] = self.show_labels
-        kwargs['legend_loc'] = self.legend_loc
-        kwargs['legend_cols'] = self.legend_cols
-        kwargs['legend_only'] = self.legend_only
-        kwargs['label_rot'] = self.label_rot
-        kwargs['xtick_rot'] = self.xtick_rot
-        kwargs['ytick_rot'] = self.ytick_rot
-        kwargs['marker_size'] = self.marker_size
+    def add_plotter(self, plot_type: type, **kwargs) -> None:
+        attrs = ('label_fmt', 'show_titles', 'show_labels',
+                 'legend_loc', 'legend_cols', 'legend_only',
+                 'label_rot', 'xtick_rot', 'ytick_rot',
+                 'xscale', 'yscale', 'marker_size')
+
+        for attr in attrs:
+            kwargs[attr] = getattr(self, attr)
 
         self._plotters.append(Plotter(plot_type, **kwargs))
 

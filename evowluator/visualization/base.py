@@ -133,7 +133,6 @@ class Visualizer:
 
         if columns:
             res[columns] = res[columns].apply(pd.to_numeric, errors='coerce')
-            res[columns] = res[columns].replace(0, np.nan)
 
         if not res.index.is_unique:
             res = res.groupby(level=res.index.names).mean()

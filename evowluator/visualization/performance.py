@@ -21,7 +21,7 @@ class PerformanceVisualizer(Visualizer):
         super().__init__(results_dir, cfg)
         self._results[self._memory_cols] /= (1024 * 1024)
         self._summary: pd.DataFrame | None = None
-        self._time_unit: str = 'ms'
+        self._cumulative_time_metric = Metric('time', 'ms', '.0f')
 
     def configure_plotters(self) -> None:
         super().configure_plotters()
@@ -38,8 +38,9 @@ class PerformanceVisualizer(Visualizer):
         self.add_plotter(GroupedHistogramPlot,
                          title='Total parsing and reasoning time',
                          data=dict(zip(['Parsing', 'Reasoning'], list(data))),
-                         metric=Metric('time', self._time_unit, '.0f'),
-                         groups=reasoners)
+                         metric=self._cumulative_time_metric,
+                         groups=reasoners,
+                         show_zero_labels=False)
 
         # Memory histogram
         self.add_min_max_avg_plotter(self._summary, memory_metric,
@@ -105,15 +106,13 @@ class PerformanceVisualizer(Visualizer):
         parsing = np.array([parsing[r] for r in reasoners])
         reasoning = np.array([reasoning[r] for r in reasoners])
 
-        if np.min(np.append(parsing, reasoning)) < 1000.0:
-            time_unit = 'ms'
-        else:
+        if np.min(np.ma.masked_equal(np.append(parsing, reasoning), 0, copy=False)) >= 1000.0:
             parsing /= 1000.0
             reasoning /= 1000.0
-            time_unit = 's'
+            self._cumulative_time_metric.unit = 's'
+            self._cumulative_time_metric.fmt = '.2f'
 
-        self._time_unit = time_unit
-        time_unit = f' ({time_unit})'
+        time_unit = f' ({self._cumulative_time_metric.unit})'
 
         summary = pd.DataFrame({
             'reasoner': reasoners,

@@ -181,11 +181,11 @@ def add_visualize_parser(subparsers) -> None:
                         action='store_false',
                         help='Do not show the interactive GUI.')
     parser.add_argument('--no-titles',
-                        dest='titles',
+                        dest='show_titles',
                         action='store_false',
                         help='Omit titles for figures and axes.')
     parser.add_argument('--no-labels',
-                        dest='labels',
+                        dest='show_labels',
                         action='store_false',
                         help='Omit value labels when plotting.')
     parser.add_argument('--label-fmt',
@@ -199,6 +199,10 @@ def add_visualize_parser(subparsers) -> None:
     parser.add_argument('--ytick-rot',
                         type=float,
                         help='Rotation of labels on the y axis in degrees.')
+    parser.add_argument('--xscale',
+                        help='Scale of the x axis.')
+    parser.add_argument('--yscale',
+                        help='Scale of the y axis.')
     parser.add_argument('--legend-loc',
                         type=LegendLocation,
                         choices=LegendLocation.all(),
@@ -323,23 +327,6 @@ def visualize_sub(args) -> int:
     if hasattr(visualizer, 'set_strategy'):
         visualizer.set_strategy(args.correctness_strategy)
 
-    figure = visualizer.figure
-
-    if args.size:
-        figure.size = (args.size[0], args.size[1])
-
-    if args.label_fmt:
-        figure.label_fmt = args.label_fmt
-
-    if args.label_rot:
-        figure.label_rot = args.label_rot
-
-    if args.xtick_rot:
-        figure.xtick_rot = args.xtick_rot
-
-    if args.ytick_rot:
-        figure.ytick_rot = args.ytick_rot
-
     if args.colors:
         visualizer.set_colors(args.colors)
 
@@ -349,19 +336,12 @@ def visualize_sub(args) -> int:
     if args.markers:
         visualizer.set_markers(args.markers)
 
-    if args.marker_size:
-        figure.marker_size = args.marker_size
+    if args.size:
+        args.size = (args.size[0], args.size[1])
 
-    figure.show_labels = args.labels
-    figure.show_titles = args.titles
-    figure.legend_loc = args.legend_loc
-    figure.legend_cols = args.legend_cols
-    figure.legend_only = args.legend_only
-
-    plots = [p - 1 for p in args.plots] if args.plots else None
-
+    visualizer.figure.set_attrs(**vars(args))
     visualizer.write_results()
-    visualizer.plot_results(gui=args.gui, plots=plots)
+    visualizer.plot_results(gui=args.gui, plots=[p - 1 for p in args.plots] if args.plots else None)
 
     return 0
 
