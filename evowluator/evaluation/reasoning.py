@@ -7,13 +7,17 @@ from subprocess import TimeoutExpired
 from threading import Lock
 from typing import Dict, Iterable, List, Set
 
+from pyutils import exc
 from pyutils.io import echo, fileutils
 from pyutils.io.echo import Color
+from pyutils.proc.bench import Benchmark, EnergyProfiler
+from pyutils.proc.task import Task
 from .base import Evaluator
+from .mode import EvaluationMode
 from .. import config
-from ..config import Evaluation
+from ..config import Evaluation, Paths
 from ..data.dataset import DatasetEntry, Syntax
-from ..reasoner.base import Reasoner, ReasoningTask
+from ..reasoner.base import Reasoner, ReasoningTask, RemoteReasoner
 from ..reasoner.results import Results
 from ..visualization.correctness import CorrectnessStrategy, Status
 
@@ -79,6 +83,38 @@ class ReasoningEvaluator(Evaluator, ABC):
         for row in csv_rows:
             self._csv_writer.write_row(row)
 
+    def run_reasoner(self, reasoner: Reasoner, inputs: str | List[str],
+                     output: str | None = None) -> Results:
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+
+        for i in inputs:
+            exc.raise_if_not_found(i, file_type=exc.FileType.FILE)
+
+        if output:
+            fileutils.remove(output)
+
+        # Run reasoner
+
+        reasoner.pre_run(self.task, inputs, output)
+        task = Task(Paths.absolute(reasoner.path), args=reasoner.args(self.task, inputs, output))
+
+        if Evaluation.MODE == EvaluationMode.PERFORMANCE:
+            if not isinstance(reasoner, RemoteReasoner):
+                task = Benchmark(task)
+
+            energy_probe = Evaluation.ENERGY_PROBE
+
+            if energy_probe:
+                interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
+                task = EnergyProfiler(task, energy_probe, interval=interval)
+
+        task.run(timeout=Evaluation.TIMEOUT if Evaluation.TIMEOUT else None).raise_if_failed()
+        results = self.task.process_results(reasoner.parse_results(self.task, task, output), task)
+        reasoner.post_run(self.task, inputs, output)
+
+        return results
+
     def _iterate(self, entry: DatasetEntry) -> List[List]:
         self.clear_temp()
 
@@ -137,7 +173,7 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
     def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[str], output: str,
                                   results: Dict) -> None:
         try:
-            res = self.task.run(reasoner, inputs, output)
+            res = self.run_reasoner(reasoner, inputs, output)
         except Exception as e:
             if config.DEBUG:
                 raise e
@@ -172,7 +208,7 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
         self._logger.log('')
 
     def _hash_results(self, results: Dict[Reasoner, Results | str]) -> Dict[Reasoner, str]:
-        return {k: v.output_hash() if isinstance(v, Results) else v
+        return {k: v.output.hash() if isinstance(v, Results) else v
                 for k, v in ((r, results[r]) for r in self._usable_reasoners())}
 
 
@@ -219,7 +255,7 @@ class ReasoningPerformanceEvaluator(ReasoningEvaluator):
             inputs = [e.ontology(syntax).path for e in entries]
 
             try:
-                r = self.task.run(reasoner, inputs)
+                r = self.run_reasoner(reasoner, inputs)
                 self._validate_results(r)
                 self._log_results(r)
                 results[reasoner] = r

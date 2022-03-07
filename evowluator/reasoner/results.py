@@ -4,9 +4,10 @@ import filecmp
 from typing import Dict, List, Union
 
 from pyutils.io.fileutils import file_hash
-from pyutils.stringutils import string_hash
 from pyutils.proc.bench import Benchmark, EnergyProfiler
 from pyutils.proc.task import Task
+from pyutils.stringutils import string_hash
+from ..util.strenum import StrEnum
 
 EvaluationTask = Union[Task, Benchmark, EnergyProfiler]
 
@@ -76,17 +77,63 @@ class EnergyStats:
         return (sum(full_samples) + last_sample) * interval / 1000.0
 
 
+class Output:
+    """Reasoner output.
+
+    :ivar data:
+        Output data.
+
+    :ivar format:
+        Output format.
+    """
+
+    class Format(StrEnum):
+        """Output format."""
+
+        STRING = 'string'
+        """String format."""
+
+        TEXT = 'text_file'
+        """Text file format."""
+
+        ONTOLOGY = 'ontology_file'
+        """Ontology file format."""
+
+    @property
+    def is_file(self) -> bool:
+        return self.format in (self.Format.TEXT, self.Format.ONTOLOGY)
+
+    @property
+    def path(self) -> str:
+        if not self.is_file:
+            raise AttributeError('Output is not a file path.')
+        return self.data
+
+    def __init__(self, data: str, fmt: Output.Format) -> None:
+        self.data = data
+        self.format = fmt
+
+    def hash(self) -> str:
+        return file_hash(self.data) if self.is_file else string_hash(self.data)
+
+    def matches(self, other: Output) -> bool:
+        if self.is_file != other.is_file:
+            return False
+
+        try:
+            if self.is_file:
+                return filecmp.cmp(self.data, other.data, shallow=False)
+            else:
+                return self.data.strip() == other.data.strip()
+        except Exception:
+            return False
+
+
 class Results:
     """Contains results of a reasoning task.
 
     :ivar output:
         Output of the reasoning task.
-        Can be either the output itself, or the path to the file containing the output,
-        depending on :attr:`output_is_file`.
-
-    :ivar output_is_file:
-        If True, :attr:`output` is the path to a file containing the output
-        of the reasoning task; otherwise, :attr:`output` contains actual reasoner output.
 
     :ivar time_stats:
         Turnaround time (in milliseconds) of each reasoning phase by name.
@@ -134,31 +181,10 @@ class Results:
     def has_energy_stats(self) -> bool:
         return True if self.energy_stats else False
 
-    def __init__(self, output: str | None = None, output_is_file: bool = False,
+    def __init__(self, output: Output | None = None,
                  time_stats: Dict[str, float] | None = None, max_memory: int = 0,
                  energy_stats: EnergyStats | None = None) -> None:
         self.output = output
-        self.output_is_file = output_is_file
         self.time_stats = time_stats if time_stats else {}
         self.max_memory = max_memory
         self.energy_stats = energy_stats
-
-    def output_hash(self) -> str:
-        return file_hash(self.output) if self.output_is_file else string_hash(self.output)
-
-    def output_matches(self, results: Results) -> bool:
-        if self.output_is_file != results.output_is_file:
-            return False
-
-        try:
-            if self.output_is_file:
-                return filecmp.cmp(self.output, results.output, shallow=False)
-            else:
-                return self.output.strip() == results.output.strip()
-        except Exception:
-            return False
-
-    def update_output(self, output: str, output_is_file: bool = False) -> Results:
-        self.output = output
-        self.output_is_file = output_is_file
-        return self

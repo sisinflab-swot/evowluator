@@ -1,32 +1,15 @@
 from __future__ import annotations
 
-import os
 import re
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
 from pyutils import exc
-from pyutils.io import fileutils
 from pyutils.inspectutils import get_subclasses
-from pyutils.proc.bench import Benchmark, EnergyProfiler
-from pyutils.proc.task import Task
-from .results import EnergyStats, EvaluationTask
+from .results import EnergyStats, EvaluationTask, Output
 from .results import Results
-from ..config import Evaluation, Paths
+from .task import ReasoningTask
 from ..data.syntax import Syntax
-from ..evaluation.mode import EvaluationMode
-from ..util import owltool
-from ..util.strenum import StrEnum
-
-
-class OutputFormat(StrEnum):
-    """Output format."""
-
-    TEXT = 'text'
-    """Text format."""
-
-    ONTOLOGY = 'ontology'
-    """Ontology format."""
 
 
 class Reasoner(ABC):
@@ -116,15 +99,6 @@ class Reasoner(ABC):
         """
         pass
 
-    def output_format_for_task(self, task: ReasoningTask) -> OutputFormat:
-        """
-        Output format for each reasoning task.
-
-        :param task: Reasoning task.
-        :return: Output format.
-        """
-        return OutputFormat.ONTOLOGY if task == ReasoningTask.CLASSIFICATION else OutputFormat.TEXT
-
     def setup(self) -> None:
         """Called at the beginning of the evaluation."""
         pass
@@ -165,8 +139,8 @@ class Reasoner(ABC):
         """
         return cls == Reasoner
 
-    # noinspection PyUnusedLocal
-    def parse_results(self, rtask: ReasoningTask, etask: EvaluationTask) -> Results:
+    def parse_results(self, rtask: ReasoningTask, etask: EvaluationTask,
+                      output: str | None) -> Results:
         """
         Parses the results of a reasoning task.
 
@@ -175,10 +149,21 @@ class Reasoner(ABC):
 
         :param rtask: Reasoning task.
         :param etask: Evaluation task.
+        :param output: Output argument as passed to the reasoner.
         :return: Results of the reasoning task.
         """
         exc.raise_if_falsy(stdout=etask.stdout)
-        return Results(time_stats=self._parse_time(etask),
+
+        if rtask == ReasoningTask.CLASSIFICATION:
+            output_fmt = Output.Format.ONTOLOGY
+        elif rtask == ReasoningTask.MATCHMAKING:
+            output_fmt = Output.Format.TEXT
+        else:
+            output_fmt = Output.Format.STRING
+            output = etask.stdout
+
+        return Results(output=Output(output, output_fmt),
+                       time_stats=self._parse_time(etask),
                        max_memory=self._parse_memory(etask),
                        energy_stats=self._parse_energy(etask))
 
@@ -224,126 +209,3 @@ class RemoteReasoner(Reasoner, ABC):
         samples = [float(r.strip()) for r in res.group(1).split(';')] if res else []
 
         return EnergyStats(samples, interval)
-
-
-class ReasoningTask:
-    """Reasoning task."""
-
-    CLASSIFICATION: ReasoningTask = None
-    CONSISTENCY: ReasoningTask = None
-    MATCHMAKING: ReasoningTask = None
-
-    @classmethod
-    def standard(cls) -> List[ReasoningTask]:
-        """Standard reasoning tasks."""
-        return [cls.CLASSIFICATION, cls.CONSISTENCY]
-
-    @classmethod
-    def all(cls) -> List[ReasoningTask]:
-        """All supported reasoning tasks."""
-        return cls.standard() + [cls.MATCHMAKING]
-
-    @property
-    def name(self) -> str:
-        """Name of the reasoning task."""
-        name = type(self).__name__
-
-        if name.endswith('Task'):
-            name = name[:-4]
-
-        return name.lower()
-
-    @property
-    def requires_additional_inputs(self) -> bool:
-        """True if the task requires additional input ontologies (other than the root ontology)."""
-        return False
-
-    def __repr__(self) -> str:
-        return self.name
-
-    def extract_results(self, task: Task, reasoner: Reasoner, output: str | None) -> Results:
-        results = reasoner.parse_results(self, task)
-
-        if not results.output:
-            results.output = task.stdout
-
-        return results
-
-    def run(self, reasoner: Reasoner, inputs: str | List[str],
-            output: str | None = None) -> Results:
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-
-        for i in inputs:
-            exc.raise_if_not_found(i, file_type=exc.FileType.FILE)
-
-        if output:
-            fileutils.remove(output)
-
-        # Run reasoner
-
-        reasoner.pre_run(self, inputs, output)
-        task = Task(Paths.absolute(reasoner.path), args=reasoner.args(self, inputs, output))
-
-        if Evaluation.MODE == EvaluationMode.PERFORMANCE:
-            if not isinstance(reasoner, RemoteReasoner):
-                task = Benchmark(task)
-
-            energy_probe = Evaluation.ENERGY_PROBE
-
-            if energy_probe:
-                interval = Evaluation.ENERGY_POLLING_INTERVALS.get(energy_probe.name, 1000)
-                task = EnergyProfiler(task, energy_probe, interval=interval)
-
-        task.run(timeout=Evaluation.TIMEOUT if Evaluation.TIMEOUT else None).raise_if_failed()
-        results = self.extract_results(task, reasoner, output)
-        reasoner.post_run(self, inputs, output)
-
-        return results
-
-
-class ClassificationTask(ReasoningTask):
-    """Ontology classification reasoning task."""
-
-    def extract_results(self, task: Task, reasoner: Reasoner, output: str | None) -> Results:
-        results = super().extract_results(task, reasoner, output).update_output(output, True)
-
-        if (Evaluation.MODE == EvaluationMode.CORRECTNESS and
-                reasoner.output_format_for_task(self) == OutputFormat.ONTOLOGY):
-            temp_path = os.path.splitext(output)[0]
-            os.rename(output, temp_path)
-            owltool.print_tbox(temp_path, output)
-
-        return results
-
-
-class ConsistencyTask(ReasoningTask):
-    """Ontology consistency reasoning task."""
-
-    def extract_results(self, task: Task, reasoner: Reasoner, output: str | None) -> Results:
-        results = super().extract_results(task, reasoner, output)
-
-        if re.search(r'(not |in)consistent', results.output, re.IGNORECASE):
-            results.output = 'not consistent'
-        elif re.search(r'consistent', results.output, re.IGNORECASE):
-            results.output = 'consistent'
-        else:
-            results.output = 'unknown'
-
-        return results
-
-
-class MatchmakingTask(ReasoningTask):
-    """Matchmaking reasoning task."""
-
-    @property
-    def requires_additional_inputs(self) -> bool:
-        return True
-
-    def extract_results(self, task: Task, reasoner: Reasoner, output: str | None) -> Results:
-        return super().extract_results(task, reasoner, output).update_output(output, True)
-
-
-ReasoningTask.CLASSIFICATION = ClassificationTask()
-ReasoningTask.CONSISTENCY = ConsistencyTask()
-ReasoningTask.MATCHMAKING = MatchmakingTask()

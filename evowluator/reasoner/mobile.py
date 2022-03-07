@@ -50,7 +50,7 @@ class AndroidReasoner(RemoteReasoner, ABC):
         resource = self._ontology_path(inputs[0])
         instrument_env = [('task', task.name), ('resource', resource)]
 
-        if task == ReasoningTask.MATCHMAKING:
+        if task.requires_additional_inputs:
             request = self._ontology_path(inputs[1])
             instrument_env.append(('request', request))
 
@@ -189,7 +189,7 @@ class IOSReasoner(RemoteReasoner, ABC):
             f'RESOURCE={inputs[0]}'
         ]
 
-        if task == ReasoningTask.MATCHMAKING:
+        if task.requires_additional_inputs:
             args.append(f'REQUEST={inputs[1]}')
 
         return args
