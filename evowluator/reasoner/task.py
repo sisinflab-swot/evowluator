@@ -3,10 +3,11 @@ from __future__ import annotations
 import re
 from typing import List
 
+from pyutils.inspectutils import get_subclasses
 from pyutils.io import fileutils
 from pyutils.proc.task import Task
 from .results import Output
-from .results import Results
+from .results import Field, Results
 from ..config import Evaluation
 from ..evaluation.mode import EvaluationMode
 from ..util import owltool
@@ -19,15 +20,28 @@ class ReasoningTask:
     CONSISTENCY: ReasoningTask = None
     MATCHMAKING: ReasoningTask = None
 
+    __ALL: List[ReasoningTask] = None
+
     @classmethod
     def standard(cls) -> List[ReasoningTask]:
         """Standard reasoning tasks."""
-        return [cls.CLASSIFICATION, cls.CONSISTENCY]
+        return [cls.with_name('classification'), cls.with_name('consistency')]
 
     @classmethod
     def all(cls) -> List[ReasoningTask]:
         """All supported reasoning tasks."""
-        return cls.standard() + [cls.MATCHMAKING]
+        if cls.__ALL is None:
+            cls.__ALL = list(sorted((s() for s in get_subclasses(cls)), key=lambda r: r.name))
+        return cls.__ALL
+
+    @classmethod
+    def with_name(cls, name: str) -> ReasoningTask:
+        """Returns the reasoning task with the specified name."""
+        try:
+            name = name.lower()
+            return next(r for r in cls.all() if r.name.lower() == name)
+        except StopIteration:
+            raise ValueError(f'No reasoning task named "{name}"')
 
     @property
     def name(self) -> str:
@@ -40,14 +54,26 @@ class ReasoningTask:
         return name.lower()
 
     @property
+    def performance_fields(self) -> List[Field]:
+        """Output fields for the 'performance' evaluation mode."""
+        fields = [Field.PARSING, Field.REASONING, Field.MEMORY]
+        if Evaluation.ENERGY_PROBE:
+            fields.append(Field.ENERGY)
+        return fields
+
+    @property
     def requires_additional_inputs(self) -> bool:
         """True if the task requires additional inputs, other than the root ontology."""
         return False
+
+    def __init__(self) -> None:
+        setattr(ReasoningTask, self.name.upper(), self)
 
     def __repr__(self) -> str:
         return self.name
 
     def process_results(self, results: Results, task: Task) -> Results:
+        """Override if you need to further process the results object."""
         return results
 
 
@@ -55,6 +81,8 @@ class ClassificationTask(ReasoningTask):
     """Ontology classification reasoning task."""
 
     def process_results(self, results: Results, task: Task) -> Results:
+        super().process_results(results, task)
+
         if Evaluation.MODE != EvaluationMode.CORRECTNESS:
             return results
 
@@ -69,6 +97,8 @@ class ConsistencyTask(ReasoningTask):
     """Ontology consistency reasoning task."""
 
     def process_results(self, results: Results, task: Task) -> Results:
+        super().process_results(results, task)
+
         if Evaluation.MODE != EvaluationMode.CORRECTNESS:
             return results
 
@@ -97,8 +127,3 @@ class MatchmakingTask(ReasoningTask):
     @property
     def requires_additional_inputs(self) -> bool:
         return True
-
-
-ReasoningTask.CLASSIFICATION = ClassificationTask()
-ReasoningTask.CONSISTENCY = ConsistencyTask()
-ReasoningTask.MATCHMAKING = MatchmakingTask()

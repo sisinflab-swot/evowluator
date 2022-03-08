@@ -156,16 +156,16 @@ class Reasoner(ABC):
 
         if rtask == ReasoningTask.CLASSIFICATION:
             output_fmt = Output.Format.ONTOLOGY
-        elif rtask == ReasoningTask.MATCHMAKING:
-            output_fmt = Output.Format.TEXT
-        else:
+        elif rtask == ReasoningTask.CONSISTENCY:
             output_fmt = Output.Format.STRING
             output = etask.stdout
+        else:
+            output_fmt = Output.Format.TEXT
 
         return Results(output=Output(output, output_fmt),
                        time_stats=self._parse_time(etask),
-                       max_memory=self._parse_memory(etask),
-                       energy_stats=self._parse_energy(etask))
+                       memory=self._parse_memory(etask),
+                       energy=self._parse_energy(etask))
 
     # Protected methods
 

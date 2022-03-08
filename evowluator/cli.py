@@ -95,7 +95,7 @@ def add_correctness_arguments(parser) -> None:
                         help='Path to correctness results.')
 
 
-def add_evaluation_parsers(subparsers) -> None:
+def add_run_parser(subparsers) -> None:
     mode_parser = argparse.ArgumentParser(add_help=False)
     modes = EvaluationMode.all()
 
@@ -110,14 +110,16 @@ def add_evaluation_parsers(subparsers) -> None:
                        help='Probe to use for energy measurements.')
     add_correctness_arguments(group)
 
-    for name in (t.name for t in ReasoningTask.all()):
-        desc = f'Evaluates the {name} reasoning task.'
-        parser = subparsers.add_parser(name,
-                                       description=desc,
-                                       help=desc,
-                                       parents=[help_parser(), mode_parser, config_parser()],
-                                       add_help=False)
-        parser.set_defaults(func=globals()[f'{name}_sub'])
+    desc = 'Runs an evaluation.'
+    parser = subparsers.add_parser('run',
+                                   description=desc,
+                                   help=desc,
+                                   parents=[help_parser(), mode_parser, config_parser()],
+                                   add_help=False)
+    parser.add_argument('task',
+                        choices=[t.name.lower() for t in ReasoningTask.all()],
+                        help='Reasoning task to evaluate.')
+    parser.set_defaults(func=run_sub)
 
 
 def add_info_parser(subparsers) -> None:
@@ -261,7 +263,7 @@ def main_parser() -> argparse.ArgumentParser:
                                      add_help=False)
     subparsers = parser.add_subparsers(title='Available subcommands',
                                        dest='subcommand', required=True)
-    add_evaluation_parsers(subparsers)
+    add_run_parser(subparsers)
     add_info_parser(subparsers)
     add_process_parser(subparsers)
     add_visualize_parser(subparsers)
@@ -272,7 +274,7 @@ def main_parser() -> argparse.ArgumentParser:
 # Subcommands
 
 
-def reasoning_sub(args, task: ReasoningTask) -> int:
+def run_sub(args) -> int:
     evaluator_class = None
 
     if args.mode == EvaluationMode.CORRECTNESS:
@@ -280,7 +282,8 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
     elif args.mode == EvaluationMode.PERFORMANCE:
         evaluator_class = ReasoningPerformanceEvaluator
 
-    e = evaluator_class(task, dataset=args.dataset, reasoners=args.reasoners, syntax=args.syntax)
+    e = evaluator_class(ReasoningTask.with_name(args.task), dataset=args.dataset,
+                        reasoners=args.reasoners, syntax=args.syntax)
 
     if isinstance(e, ReasoningCorrectnessEvaluator):
         e.set_strategy(args.correctness_strategy)
@@ -292,18 +295,6 @@ def reasoning_sub(args, task: ReasoningTask) -> int:
     e.start(sort_by=args.sort_by, resume_after=args.resume_after)
 
     return 0
-
-
-def classification_sub(args) -> int:
-    return reasoning_sub(args, ReasoningTask.CLASSIFICATION)
-
-
-def consistency_sub(args) -> int:
-    return reasoning_sub(args, ReasoningTask.CONSISTENCY)
-
-
-def matchmaking_sub(args) -> int:
-    return reasoning_sub(args, ReasoningTask.MATCHMAKING)
 
 
 def info_sub(args) -> int:

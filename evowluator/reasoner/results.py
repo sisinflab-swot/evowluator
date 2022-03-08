@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import filecmp
 from typing import Dict, List, Union
 
-from pyutils.io.fileutils import file_hash
+from pyutils.io.fileutils import file_hash, readable_bytes
 from pyutils.proc.bench import Benchmark, EnergyProfiler
 from pyutils.proc.task import Task
 from pyutils.stringutils import string_hash
@@ -114,19 +113,31 @@ class Output:
         self.format = fmt
 
     def hash(self) -> str:
-        return file_hash(self.data) if self.is_file else string_hash(self.data)
+        if self.is_file:
+            return file_hash(self.data)
+        elif len(self.data) <= 40:
+            return self.data
+        else:
+            return string_hash(self.data)
 
-    def matches(self, other: Output) -> bool:
-        if self.is_file != other.is_file:
-            return False
 
-        try:
-            if self.is_file:
-                return filecmp.cmp(self.data, other.data, shallow=False)
-            else:
-                return self.data.strip() == other.data.strip()
-        except Exception:
-            return False
+class Field(StrEnum):
+    """Output field."""
+
+    OUTPUT = 'output'
+    """Output of the reasoning task."""
+
+    PARSING = 'parsing'
+    """Parsing time."""
+
+    REASONING = 'reasoning'
+    """Reasoning time."""
+
+    MEMORY = 'memory'
+    """Memory peak."""
+
+    ENERGY = 'energy'
+    """Energy score."""
 
 
 class Results:
@@ -135,56 +146,51 @@ class Results:
     :ivar output:
         Output of the reasoning task.
 
-    :ivar time_stats:
-        Turnaround time (in milliseconds) of each reasoning phase by name.
+    :ivar parsing:
+        Parsing time in milliseconds.
 
-    :ivar max_memory:
+    :ivar reasoning:
+        Reasoning time in milliseconds.
+
+    :ivar memory:
         Memory peak in bytes.
 
-    :ivar energy_stats:
+    :ivar energy:
         Energy statistics.
     """
 
     @property
-    def total_ms(self) -> float:
-        return sum(self.time_stats.values())
-
-    @property
-    def parsing_ms(self) -> float:
-        return sum(v for k, v in self.time_stats.items() if 'parsing' in k)
-
-    @property
-    def reasoning_ms(self) -> float:
-        return sum(v for k, v in self.time_stats.items() if 'parsing' not in k)
+    def total_time(self) -> float:
+        return self.parsing + self.reasoning
 
     @property
     def energy_score(self) -> float:
-        return self.energy_stats.score(self.total_ms)
+        return self.energy.score(self.total_time)
 
-    @property
-    def has_output(self) -> bool:
-        return True if self.output else False
-
-    @property
-    def has_time_stats(self) -> bool:
-        return True if self.time_stats and self.reasoning_ms else False
-
-    @property
-    def has_memory_stats(self) -> bool:
-        return self.max_memory > 0
-
-    @property
-    def has_performance_stats(self) -> bool:
-        return self.has_time_stats and self.has_memory_stats
-
-    @property
-    def has_energy_stats(self) -> bool:
-        return True if self.energy_stats else False
-
-    def __init__(self, output: Output | None = None,
-                 time_stats: Dict[str, float] | None = None, max_memory: int = 0,
-                 energy_stats: EnergyStats | None = None) -> None:
+    def __init__(self, output: Output | None = None, time_stats: Dict[str, float] | None = None,
+                 memory: int = 0, energy: EnergyStats | None = None) -> None:
         self.output = output
-        self.time_stats = time_stats if time_stats else {}
-        self.max_memory = max_memory
-        self.energy_stats = energy_stats
+        self.parsing = float(sum(v for k, v in time_stats.items() if 'parsing' in k))
+        self.reasoning = float(sum(v for k, v in time_stats.items() if 'parsing' not in k))
+        self.memory = int(memory)
+        self.energy = energy
+
+    def get(self, field: Field) -> float | int | str:
+        if field == Field.OUTPUT:
+            return self.output.data
+        elif field == Field.ENERGY:
+            return self.energy_score
+        else:
+            return getattr(self, field.value)
+
+    def get_readable(self, field: Field) -> str:
+        if field in (Field.PARSING, Field.REASONING):
+            return f'{self.get(field):.2f} ms'
+        elif field == Field.MEMORY:
+            return readable_bytes(self.memory)
+        elif field == Field.ENERGY:
+            return f'{self.energy_score:.2f}'
+        elif field == Field.OUTPUT:
+            return self.output.data
+        else:
+            raise AttributeError(f'No value for field \'{field}\'')

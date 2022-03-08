@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from functools import cached_property
 from subprocess import TimeoutExpired
 from threading import Lock
 from typing import Dict, Iterable, List, Set
@@ -18,28 +17,19 @@ from .. import config
 from ..config import Evaluation, Paths
 from ..data.dataset import DatasetEntry, Syntax
 from ..reasoner.base import Reasoner, ReasoningTask, RemoteReasoner
-from ..reasoner.results import Results
+from ..reasoner.results import Field, Results
 from ..visualization.correctness import CorrectnessStrategy, Status
 
 
 class ReasoningEvaluator(Evaluator, ABC):
 
-    @property
-    @abstractmethod
-    def result_fields(self) -> List[str]:
-        pass
-
     @abstractmethod
     def run_reasoners(self, entries: List[DatasetEntry]) -> List:
         pass
 
-    @cached_property
+    @property
     def name(self) -> str:
         return f'{self.task} {Evaluation.MODE}'
-
-    @property
-    def should_measure_energy(self) -> bool:
-        return Evaluation.ENERGY_PROBE is not None
 
     def __init__(self,
                  task: ReasoningTask,
@@ -48,6 +38,12 @@ class ReasoningEvaluator(Evaluator, ABC):
                  syntax: Syntax | None = None) -> None:
         super().__init__(dataset=dataset, reasoners=reasoners, syntax=syntax)
         self.task = task
+
+        if Evaluation.MODE == EvaluationMode.PERFORMANCE:
+            self.output_fields = task.performance_fields
+        else:
+            self.output_fields = [Field.OUTPUT]
+
         if not reasoners:
             self._reasoners = Reasoner.supporting_task(task)
 
@@ -58,8 +54,8 @@ class ReasoningEvaluator(Evaluator, ABC):
             csv_header.append('input')
 
         for reasoner in self._usable_reasoners():
-            for field in self.result_fields:
-                csv_header.append('{}: {}'.format(reasoner.name, field))
+            for field in self.output_fields:
+                csv_header.append(f'{reasoner.name}: {field}')
 
         self._csv_writer.write_row(csv_header)
 
@@ -135,10 +131,6 @@ class ReasoningEvaluator(Evaluator, ABC):
 
 class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
-    @cached_property
-    def result_fields(self) -> List[str]:
-        return ['output']
-
     def __init__(self,
                  task: ReasoningTask,
                  dataset: str | None = None,
@@ -163,9 +155,9 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
                 output = self._output_path_for_reasoner(reasoner)
                 pool.submit(self._run_reasoner_correctness, reasoner, inputs, output, results)
 
-        self._logger.log('')
+        results = {r: results[r] for r in self._usable_reasoners()}
 
-        results = self._hash_results(results)
+        self._logger.log('')
         self._log_results(results)
 
         return [e.name for e in entries] + list(results.values())
@@ -173,7 +165,7 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
     def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[str], output: str,
                                   results: Dict) -> None:
         try:
-            res = self.run_reasoner(reasoner, inputs, output)
+            res = self.run_reasoner(reasoner, inputs, output).output.hash()
         except Exception as e:
             if config.DEBUG:
                 raise e
@@ -207,21 +199,8 @@ class ReasoningCorrectnessEvaluator(ReasoningEvaluator):
 
         self._logger.log('')
 
-    def _hash_results(self, results: Dict[Reasoner, Results | str]) -> Dict[Reasoner, str]:
-        return {k: v.output.hash() if isinstance(v, Results) else v
-                for k, v in ((r, results[r]) for r in self._usable_reasoners())}
-
 
 class ReasoningPerformanceEvaluator(ReasoningEvaluator):
-
-    @cached_property
-    def result_fields(self) -> List[str]:
-        fields = ['parsing', 'reasoning', 'memory']
-
-        if self.should_measure_energy:
-            fields.append('energy')
-
-        return fields
 
     def __init__(self,
                  task: ReasoningTask,
@@ -256,7 +235,6 @@ class ReasoningPerformanceEvaluator(ReasoningEvaluator):
 
             try:
                 r = self.run_reasoner(reasoner, inputs)
-                self._validate_results(r)
                 self._log_results(r)
                 results[reasoner] = r
             except Exception as e:
@@ -269,36 +247,29 @@ class ReasoningPerformanceEvaluator(ReasoningEvaluator):
 
         return [e.name for e in entries] + self._extract_results(results)
 
-    def _validate_results(self, results: Results) -> None:
-        if not results.has_performance_stats:
-            raise ValueError('Missing performance stats.')
-
-        if self.should_measure_energy and not results.has_energy_stats:
-            raise ValueError('Missing energy stats.')
-
     def _log_results(self, results: Results) -> None:
-        self._logger.log('{:.0f} ms'.format(results.total_ms))
+        if len(self.output_fields) == 1:
+            self._logger.log(results.get_readable(self.output_fields[0]))
+        else:
+            if Field.PARSING in self.output_fields and Field.REASONING in self.output_fields:
+                self._logger.log(f'{results.total_time:.2f} ms')
+            else:
+                self._logger.log('')
 
-        self._logger.indent_level += 1
+            self._logger.indent_level += 1
 
-        self._logger.log(f'Parsing: {results.parsing_ms:.0f} ms')
-        self._logger.log(f'Reasoning: {results.reasoning_ms:.0f} ms')
-        self._logger.log(f'Memory: {fileutils.readable_bytes(results.max_memory)}')
+            for field in self.output_fields:
+                self._logger.log(f'{field.value.capitalize()}: {results.get_readable(field)}')
 
-        if self.should_measure_energy:
-            self._logger.log(f'Energy: {results.energy_score:.2f}')
-
-        self._logger.indent_level -= 1
+            self._logger.indent_level -= 1
 
     def _extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
         csv_row = []
 
         for res in results.values():
             if isinstance(res, str):
-                csv_row.extend([res] * len(self.result_fields))
+                csv_row.extend([res] * len(self.output_fields))
             else:
-                csv_row.extend((res.parsing_ms, res.reasoning_ms, res.max_memory))
-                if self.should_measure_energy:
-                    csv_row.append(res.energy_score)
+                csv_row.extend(res.get(f) for f in self.output_fields)
 
         return csv_row
