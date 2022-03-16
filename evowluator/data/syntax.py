@@ -1,4 +1,4 @@
-from ..util.strenum import StrEnum
+from pyutils.types.strenum import StrEnum
 
 
 class Syntax(StrEnum):

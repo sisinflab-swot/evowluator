@@ -10,8 +10,8 @@ from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
+from pyutils.types.strenum import StrEnum
 from .metric import Metric
-from ..util.strenum import StrEnum
 
 LineStyle = Union[str, tuple]
 
@@ -125,7 +125,7 @@ class Plot:
     def draw_legend(self) -> Legend:
         handles = list(self.legend_handles.values()) if self.legend_handles else None
         legend = self._ax.legend(handles=handles,
-                                 loc=self.legend_loc.value,
+                                 loc=self.legend_loc,
                                  mode='expand' if self.legend_only else None,
                                  ncol=self.legend_cols,
                                  handletextpad=0.4,
@@ -423,10 +423,10 @@ class ScatterPlot(Plot):
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color, linestyle=style)
 
     def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
-        if not self.xscale and xmax / xmin > 25.0:
+        if not self.xscale and (xmin == 0.0 or xmax / xmin > 25.0):
             self.xscale = 'log'
 
-        if not self.yscale and ymax / ymin > 25.0:
+        if not self.yscale and (ymin == 0.0 or ymax / ymin > 25.0):
             self.yscale = 'log'
 
         self.apply_scale()

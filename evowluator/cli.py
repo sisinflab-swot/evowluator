@@ -1,16 +1,15 @@
 import argparse
 import os
-
 from functools import cache
-from pyutils.proc.bench import EnergyProbe
 
+from pyutils.proc.bench import EnergyProbe
 from . import config
 from .config import Evaluation, EXE_NAME
 from .data import converter
 from .data.dataset import Dataset, SortBy, Syntax
-from .evaluation.info import InfoEvaluator
+from .evaluation import info
+from .evaluation.base import CorrectnessEvaluator, PerformanceEvaluator
 from .evaluation.mode import EvaluationMode
-from .evaluation.reasoning import ReasoningCorrectnessEvaluator, ReasoningPerformanceEvaluator
 from .reasoner.base import ReasoningTask
 from .util.process import incorrect_ontologies, process
 from .visualization.base import Visualizer
@@ -29,7 +28,10 @@ def process_args() -> int:
     Evaluation.TIMEOUT = getattr(args, 'timeout', Evaluation.TIMEOUT)
 
     energy_probe = getattr(args, 'energy_probe', None)
-    Evaluation.ENERGY_PROBE = EnergyProbe.with_name(energy_probe) if energy_probe else None
+    if energy_probe:
+        probe = EnergyProbe.with_name(energy_probe)
+        probe.interval = Evaluation.ENERGY_POLLING_INTERVALS.get(probe.name, probe.interval)
+        Evaluation.ENERGY_PROBE = probe
 
     if Evaluation.MODE == EvaluationMode.CORRECTNESS:
         Evaluation.ITERATIONS = 1
@@ -127,8 +129,10 @@ def add_info_parser(subparsers) -> None:
     parser = subparsers.add_parser('info',
                                    description=desc,
                                    help=desc,
-                                   parents=[help_parser(), config_parser()],
+                                   parents=[help_parser()],
                                    add_help=False)
+    parser.add_argument('-d', '--dataset',
+                        help='Show information about the dataset.')
     parser.set_defaults(func=info_sub)
 
 
@@ -278,14 +282,14 @@ def run_sub(args) -> int:
     evaluator_class = None
 
     if args.mode == EvaluationMode.CORRECTNESS:
-        evaluator_class = ReasoningCorrectnessEvaluator
+        evaluator_class = CorrectnessEvaluator
     elif args.mode == EvaluationMode.PERFORMANCE:
-        evaluator_class = ReasoningPerformanceEvaluator
+        evaluator_class = PerformanceEvaluator
 
     e = evaluator_class(ReasoningTask.with_name(args.task), dataset=args.dataset,
                         reasoners=args.reasoners, syntax=args.syntax)
 
-    if isinstance(e, ReasoningCorrectnessEvaluator):
+    if isinstance(e, CorrectnessEvaluator):
         e.set_strategy(args.correctness_strategy)
     elif args.correctness_results:
         for r, o in incorrect_ontologies(args.correctness_results,
@@ -298,10 +302,10 @@ def run_sub(args) -> int:
 
 
 def info_sub(args) -> int:
-    e = InfoEvaluator(dataset=args.dataset,
-                      reasoners=args.reasoners,
-                      syntax=args.syntax)
-    e.start(sort_by=args.sort_by, resume_after=args.resume_after)
+    if args.dataset:
+        info.dataset(args.dataset)
+    else:
+        info.general()
     return 0
 
 

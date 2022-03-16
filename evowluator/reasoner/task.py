@@ -3,11 +3,11 @@ from __future__ import annotations
 import re
 from typing import List
 
-from pyutils.inspectutils import get_subclasses
-from pyutils.io import fileutils
+from pyutils import inspect
+from pyutils.io import file
 from pyutils.proc.task import Task
-from .results import Output
 from .results import Field, Results
+from .results import Output
 from ..config import Evaluation
 from ..evaluation.mode import EvaluationMode
 from ..util import owltool
@@ -31,7 +31,7 @@ class ReasoningTask:
     def all(cls) -> List[ReasoningTask]:
         """All supported reasoning tasks."""
         if cls.__ALL is None:
-            cls.__ALL = list(sorted((s() for s in get_subclasses(cls)), key=lambda r: r.name))
+            cls.__ALL = list(sorted((s() for s in inspect.subclasses(cls)), key=lambda r: r.name))
         return cls.__ALL
 
     @classmethod
@@ -106,7 +106,7 @@ class ConsistencyTask(ReasoningTask):
             # TODO: use owltool to detect collapsed taxonomies.
             raise ValueError('Unsupported output format.')
         elif results.output.format == Output.Format.TEXT:
-            output = fileutils.file_contents(results.output.path)
+            output = file.contents(results.output.path)
         else:
             output = results.output.data
 

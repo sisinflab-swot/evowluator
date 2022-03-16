@@ -7,7 +7,7 @@ from typing import Callable, Dict, Iterable, List
 import numpy as np
 import pandas as pd
 
-from pyutils.io import fileutils
+from pyutils.io import file
 from .metric import Metric
 from .plot import Figure, LineStyle, MinMaxAvgHistogramPlot, ScatterPlot
 from ..config import ConfigKey, Paths
@@ -26,7 +26,7 @@ class Visualizer:
         pass
 
     def write_results(self) -> None:
-        fileutils.create_dir(self.output_dir)
+        file.create_dir(self.output_dir)
         csv.write(self._results, path.join(self.output_dir, 'avg_results.csv'))
 
     # Public
@@ -37,15 +37,27 @@ class Visualizer:
         from .performance import PerformanceVisualizer
 
         cfg = json.load(os.path.join(results_dir, Paths.CONFIG_FILE_NAME))
-        eval_name = cfg[ConfigKey.NAME]
+
+        # Legacy, keep support for compatibility
+        eval_name = cfg.get(ConfigKey.NAME)
+
+        if eval_name:
+            task, mode = eval_name.split(maxsplit=1)
+        else:
+            task = cfg[ConfigKey.TASK]
+            mode = cfg[ConfigKey.MODE]
+            eval_name = f'{task} {mode}'
+            cfg[ConfigKey.NAME] = eval_name
 
         if reasoners:
             reasoner_cfg = {r[ConfigKey.NAME]: r for r in cfg[ConfigKey.REASONERS]}
             cfg[ConfigKey.REASONERS] = [reasoner_cfg[r] for r in reasoners]
 
-        if EvaluationMode.CORRECTNESS.value in eval_name:
+        mode = EvaluationMode(mode)
+
+        if mode == EvaluationMode.CORRECTNESS:
             return CorrectnessVisualizer(results_dir, cfg)
-        elif EvaluationMode.PERFORMANCE.value in eval_name:
+        elif mode == EvaluationMode.PERFORMANCE:
             return PerformanceVisualizer(results_dir, cfg)
         else:
             raise NotImplementedError(f'Visualizer not implemented for "{eval_name}"')
@@ -165,7 +177,7 @@ class Visualizer:
 
     def add_scatter_plotter(self, metric: Metric,
                             col_filter: Callable[[str], bool] | None = None) -> None:
-        xscale, xunit = fileutils.readable_scale_and_unit(self._dataset.max_ontology_size())
+        xscale, xunit = file.readable_scale_and_unit(self._dataset.max_ontology_size())
         xmetric = Metric('ontology size', xunit, '.2f')
 
         data = []

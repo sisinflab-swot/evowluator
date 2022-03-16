@@ -5,10 +5,10 @@ from functools import cache, cached_property
 from operator import attrgetter
 from typing import Iterable, Iterator, List
 
+from pyutils.types.strenum import StrEnum
 from .syntax import Syntax
 from ..config import Paths
 from ..reasoner.base import ReasoningTask
-from ..util.strenum import StrEnum
 
 
 class SortBy(StrEnum):
@@ -23,7 +23,7 @@ class SortBy(StrEnum):
 
     def sorted(self, what: Iterable, name_attr: str = 'name', size_attr: str = 'size'):
         attr = size_attr if self in (SortBy.SIZE_ASC, SortBy.SIZE_DESC) else name_attr
-        reverse = self.value.endswith('-desc')
+        reverse = self.endswith('-desc')
         return sorted(what, key=attrgetter(attr), reverse=reverse)
 
 
@@ -33,7 +33,7 @@ class Ontology:
     @property
     def path(self) -> str:
         """Path of the ontology."""
-        return os.path.join(self.entry.base_path, self.syntax.value, self.entry.name)
+        return os.path.join(self.entry.base_path, self.syntax, self.entry.name)
 
     @property
     def name(self) -> str:
@@ -79,7 +79,7 @@ class DatasetEntry:
 
         try:
             syntax = _available_syntaxes(input_dir)[0]
-            for n in sorted(f for f in os.listdir(os.path.join(input_dir, syntax.value))
+            for n in sorted(f for f in os.listdir(os.path.join(input_dir, syntax))
                             if not f.startswith('.')):
                 yield DatasetEntry(input_dir, n)
         except (IndexError, FileNotFoundError):
@@ -155,7 +155,7 @@ class Dataset:
                                      resume_after=resume_after)[1]
 
     def get_dir(self, syntax: Syntax) -> str:
-        return os.path.join(self.path, syntax.value)
+        return os.path.join(self.path, syntax)
 
     def get_entry(self, name: str) -> DatasetEntry:
         return DatasetEntry(self.path, name)

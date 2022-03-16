@@ -4,8 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
-from pyutils import exc
-from pyutils.inspectutils import get_subclasses
+from pyutils import exc, inspect
 from .results import EnergyStats, EvaluationTask, Output
 from .results import Results
 from .task import ReasoningTask
@@ -22,7 +21,7 @@ class Reasoner(ABC):
     def all(cls) -> List[Reasoner]:
         """Returns all the available reasoners."""
         if cls.__ALL is None:
-            cls.__ALL = list(sorted((s() for s in get_subclasses(cls) if not s.is_template()),
+            cls.__ALL = list(sorted((s() for s in inspect.subclasses(cls) if not s.is_template()),
                                     key=lambda r: r.name))
         return cls.__ALL
 

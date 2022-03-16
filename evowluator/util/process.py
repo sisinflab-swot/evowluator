@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List
 import numpy as np
 import pandas as pd
 
+from pyutils import exc
 from pyutils.io import echo
 from ..config import ConfigKey, Paths
 from ..data import csv, json
@@ -68,7 +69,7 @@ def merge(input_dirs: Iterable[str], dataset: str | None = None) -> str:
         out_results = merge_results(out_results, input_dir)
         out_config = merge_configs(out_config, input_dir, dataset)
 
-    output_dir = Paths.new_results_dir(out_config[ConfigKey.NAME])
+    output_dir = Paths.new_results_dir(f'{out_config[ConfigKey.TASK]} {out_config[ConfigKey.MODE]}')
     write_csv(out_results, os.path.join(output_dir, Paths.RESULTS_FILE_NAME))
     json.save(out_config, os.path.join(output_dir, Paths.CONFIG_FILE_NAME))
 
@@ -81,8 +82,12 @@ def merge_configs(config: Dict, input_dir: str, dataset: str | None) -> Dict:
     if config is None:
         return cur
 
-    if config[ConfigKey.NAME] != cur[ConfigKey.NAME]:
-        raise ValueError(f'Cannot merge "{config[ConfigKey.NAME]}" and "{cur[ConfigKey.NAME]}".')
+    for key in (ConfigKey.TASK, ConfigKey.MODE, ConfigKey.FIELDS, ConfigKey.ITERATIONS):
+        try:
+            if config[key] != cur[key]:
+                raise ValueError(f'Cannot merge "{input_dir}", different values for key "{key}".')
+        except KeyError as e:
+            exc.re_raise_new_message(e, f'Cannot merge "{input_dir}, missing key "{key}".')
 
     # Merge reasoners
 

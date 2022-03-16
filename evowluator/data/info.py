@@ -39,10 +39,7 @@ class EntryInfo:
 
     def to_dict(self, syntaxes: List[Syntax] | None = None) -> Dict:
         sizes = {s: self.sizes[s] for s in syntaxes} if syntaxes else self.sizes
-        return {
-            ConfigKey.NAME: self.name,
-            ConfigKey.SIZE: {s.value: v for s, v in sizes.items()}
-        }
+        return {ConfigKey.NAME: self.name, ConfigKey.SIZE: sizes}
 
 
 class DatasetInfo:

@@ -7,10 +7,9 @@ import tempfile
 import time
 from os import environ, path
 
-from pyutils.io import fileutils
+from pyutils.io import file
 from pyutils.proc.bench import EnergyProbe
 from .evaluation.mode import EvaluationMode
-
 
 DEBUG = False
 EXE_NAME = environ.get('EVOWLUATOR_EXE', path.basename(sys.argv[0]))
@@ -46,7 +45,7 @@ class Paths:
         name = re.sub(r"[^\w\s]", '', name)
         name = re.sub(r"\s+", '_', name)
         prefix = time.strftime(f'{name}_%Y%m%d_%H%M%S_')
-        fileutils.create_dir(Paths.RESULTS_DIR)
+        file.create_dir(Paths.RESULTS_DIR)
         return tempfile.mkdtemp(dir=Paths.RESULTS_DIR, prefix=prefix)
 
     @staticmethod
@@ -65,18 +64,25 @@ class OWLTool:
 class ConfigKey:
     """Evaluation config dictionary keys."""
     DATASET = 'dataset'
+    ENERGY_PROBE = 'energy_probe'
+    FIELDS = 'fields'
+    ITERATIONS = 'iterations'
+    MODE = 'mode'
     NAME = 'name'
     ONTOLOGIES = 'ontologies'
+    POLLING_INTERVAL = 'polling_interval'
     REASONERS = 'reasoners'
     SIZE = 'size'
     SYNTAX = 'syntax'
+    TASK = 'task'
+    TIMEOUT = 'timeout'
 
 
 class Evaluation:
     """Evaluation config namespace."""
     MODE = EvaluationMode.CORRECTNESS
-    TIMEOUT = 1200.0
-    ITERATIONS = 5
+    TIMEOUT = 1800.0
+    ITERATIONS = 1
     ENERGY_PROBE: EnergyProbe | None = None
     ENERGY_POLLING_INTERVALS = {
         'powertop': 1000,

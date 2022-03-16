@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Dict, List, Union
 
-from pyutils.io.fileutils import file_hash, readable_bytes
+from pyutils.io.file import hex_hash as file_hash, readable_bytes
 from pyutils.proc.bench import Benchmark, EnergyProfiler
 from pyutils.proc.task import Task
-from pyutils.stringutils import string_hash
-from ..util.strenum import StrEnum
+from pyutils.types.strenum import StrEnum
+from pyutils.types.stringutils import hex_hash as string_hash
 
 EvaluationTask = Union[Task, Benchmark, EnergyProfiler]
 
@@ -181,7 +181,7 @@ class Results:
         elif field == Field.ENERGY:
             return self.energy_score
         else:
-            return getattr(self, field.value)
+            return getattr(self, field)
 
     def get_readable(self, field: Field) -> str:
         if field in (Field.PARSING, Field.REASONING):

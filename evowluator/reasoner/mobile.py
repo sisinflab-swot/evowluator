@@ -9,6 +9,7 @@ from typing import List
 from pyutils import exc
 from pyutils.proc.task import OutputAction, Task
 from pyutils.proc.util import find_executable
+from pyutils.types.stringutils import split
 from .base import ReasoningTask, RemoteReasoner
 from ..config import Paths
 
@@ -204,8 +205,8 @@ class IOSReasoner(RemoteReasoner, ABC):
 
     def _detect_connected_device(self) -> str:
         """Returns the name of a connected device."""
-        for line in Task.spawn('instruments', args=['-s', 'devices']).stdout.splitlines():
-            components = line.split(' (', 1)
+        for line in split(Task.spawn('instruments', args=['-s', 'devices']).stdout, sep='\n'):
+            components = line.split(' (', maxsplit=1)
 
             if len(components) == 2 and not components[1].endswith('(Simulator)'):
                 return components[0]

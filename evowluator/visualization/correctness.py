@@ -9,8 +9,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from pyutils.io import fileutils
-from pyutils.stringutils import camel_case_split
+from pyutils.io import file
+from pyutils.types.stringutils import camel_case_split
 from .base import Visualizer
 from .metric import Metric
 from .plot import GroupedHistogramPlot
@@ -64,7 +64,7 @@ class CorrectnessStrategy(ABC):
 
     @cached_property
     def name(self) -> str:
-        return '_'.join(t.lower() for t in camel_case_split(type(self).__name__)[:-1])
+        return '_'.join(list(t.lower() for t in camel_case_split(type(self).__name__))[:-1])
 
     @abstractmethod
     def evaluate(self, results: List) -> List:
@@ -152,7 +152,7 @@ class CorrectnessVisualizer(Visualizer):
                          groups=cols)
 
     def write_results(self) -> None:
-        fileutils.create_dir(self.output_dir)
+        file.create_dir(self.output_dir)
 
         reasoners = self._reasoners
         res: pd.DataFrame = self.results_grouped_by_reasoner(drop_missing=False).first()[reasoners]
