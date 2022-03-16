@@ -98,29 +98,30 @@ def add_correctness_arguments(parser) -> None:
 
 
 def add_run_parser(subparsers) -> None:
-    mode_parser = argparse.ArgumentParser(add_help=False)
-    modes = EvaluationMode.all()
-
-    group = mode_parser.add_argument_group('Mode')
-    group.add_argument('-m', '--mode',
-                       type=EvaluationMode,
-                       choices=modes,
-                       default=modes[0],
-                       help='Evaluation mode.')
-    group.add_argument('-e', '--energy-probe',
-                       choices=[p.name.lower() for p in EnergyProbe.all()],
-                       help='Probe to use for energy measurements.')
-    add_correctness_arguments(group)
-
     desc = 'Runs an evaluation.'
     parser = subparsers.add_parser('run',
                                    description=desc,
                                    help=desc,
-                                   parents=[help_parser(), mode_parser, config_parser()],
+                                   parents=[help_parser(), config_parser()],
                                    add_help=False)
     parser.add_argument('task',
                         choices=[t.name.lower() for t in ReasoningTask.all()],
                         help='Reasoning task to evaluate.')
+
+    modes = EvaluationMode.all()
+    parser.add_argument('-m', '--mode',
+                        type=EvaluationMode,
+                        choices=modes,
+                        default=modes[0],
+                        help='Evaluation mode.')
+    parser.add_argument('-e', '--energy-probe',
+                        choices=[p.name.lower() for p in EnergyProbe.all()],
+                        help='Probe to use for energy measurements.')
+    add_correctness_arguments(parser)
+    parser.add_argument('--max-workers',
+                        type=positive_int,
+                        help='Maximum number of reasoners to run in parallel.')
+
     parser.set_defaults(func=run_sub)
 
 
@@ -291,6 +292,7 @@ def run_sub(args) -> int:
 
     if isinstance(e, CorrectnessEvaluator):
         e.set_strategy(args.correctness_strategy)
+        e.set_max_workers(args.max_workers)
     elif args.correctness_results:
         for r, o in incorrect_ontologies(args.correctness_results,
                                          args.correctness_strategy).items():

@@ -301,17 +301,21 @@ class CorrectnessEvaluator(Evaluator):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._strategy = CorrectnessStrategy.default()
+        self._max_workers: int | None = None
         self._lock = Lock()
 
     def set_strategy(self, strategy: str | None) -> None:
         self._strategy = CorrectnessStrategy.with_name(strategy, [r.name for r in self._reasoners])
+
+    def set_max_workers(self, workers: int) -> None:
+        self._max_workers = workers
 
     def _run_reasoners(self, entries: List[DatasetEntry]) -> List:
         results = {}
 
         self._log.yellow('Done: ', endl=False)
 
-        with ThreadPoolExecutor() as pool:
+        with ThreadPoolExecutor(max_workers=self._max_workers) as pool:
             for reasoner in self._usable_reasoners():
                 syntax = self._syntax_for_reasoner(reasoner)
                 inputs = [e.ontology(syntax).path for e in entries]
