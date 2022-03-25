@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import Dict, List, Union
 
-from pyutils.io.file import hex_hash as file_hash, readable_bytes
+from pyutils.io.file import hex_hash as file_hash
 from pyutils.proc.bench import Benchmark, EnergyProfiler
 from pyutils.proc.task import Task
 from pyutils.types.strenum import StrEnum
-from pyutils.types.stringutils import hex_hash as string_hash
+from pyutils.types.string import hex_hash as string_hash
+from pyutils.types.unit import MemoryUnit, TimeUnit
 
 EvaluationTask = Union[Task, Benchmark, EnergyProfiler]
 
@@ -185,9 +186,9 @@ class Results:
 
     def get_readable(self, field: Field) -> str:
         if field in (Field.PARSING, Field.REASONING):
-            return f'{self.get(field):.2f} ms'
+            return TimeUnit.MS(self.get(field)).readable().format(2)
         elif field == Field.MEMORY:
-            return readable_bytes(self.memory)
+            return MemoryUnit.B(self.memory).readable().format()
         elif field == Field.ENERGY:
             return f'{self.energy_score:.2f}'
         elif field == Field.OUTPUT:

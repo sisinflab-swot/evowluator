@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from pyutils.io import file
+from pyutils.types.unit import MemoryUnit
 from .metric import Metric
 from .plot import Figure, LineStyle, MinMaxAvgHistogramPlot, ScatterPlot
 from ..config import ConfigKey, Paths
@@ -177,7 +178,7 @@ class Visualizer:
 
     def add_scatter_plotter(self, metric: Metric,
                             col_filter: Callable[[str], bool] | None = None) -> None:
-        xscale, xunit = file.readable_scale_and_unit(self._dataset.max_ontology_size())
+        xunit = MemoryUnit.B(self._dataset.max_ontology_size()).readable().unit
         xmetric = Metric('ontology size', xunit, '.2f')
 
         data = []
@@ -196,7 +197,7 @@ class Visualizer:
                 yi = results.loc[onto.name].sum(skipna=False)
 
                 if not np.isnan(yi):
-                    x.append(onto.size / xscale)
+                    x.append(MemoryUnit.B(onto.size).to_value(xunit))
                     y.append(yi)
 
             data.append((x, y))

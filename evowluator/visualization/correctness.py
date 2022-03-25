@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from pyutils.io import file
-from pyutils.types.stringutils import camel_case_split
+from pyutils.types.string import camel_case_split
 from .base import Visualizer
 from .metric import Metric
 from .plot import GroupedHistogramPlot

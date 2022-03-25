@@ -9,7 +9,7 @@ from typing import List
 from pyutils import exc
 from pyutils.proc.task import OutputAction, Task
 from pyutils.proc.util import find_executable
-from pyutils.types.stringutils import split
+from pyutils.types.string import split
 from .base import ReasoningTask, RemoteReasoner
 from ..config import Paths
 

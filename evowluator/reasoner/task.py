@@ -25,7 +25,7 @@ class ReasoningTask:
     @classmethod
     def standard(cls) -> List[ReasoningTask]:
         """Standard reasoning tasks."""
-        return [cls.with_name('classification'), cls.with_name('consistency')]
+        return [cls.with_name(n) for n in ('classification', 'consistency')]
 
     @classmethod
     def all(cls) -> List[ReasoningTask]:

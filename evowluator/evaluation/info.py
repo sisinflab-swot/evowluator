@@ -1,8 +1,8 @@
 from sys import stdout
 
-from pyutils.io.file import readable_bytes
 from pyutils.io.pretty_printer import PrettyPrinter
 from pyutils.proc.bench import EnergyProbe
+from pyutils.types.unit import MemoryUnit
 from ..data.dataset import Dataset
 from ..reasoner.base import Reasoner
 from ..reasoner.task import ReasoningTask
@@ -15,7 +15,7 @@ def general() -> None:
     for d in Dataset.all():
         stats = d.cumulative_stats()
         log.yellow(f'{d.name}: ', endl=False)
-        log(f'{stats[0]} ontologies, {readable_bytes(stats[1])}')
+        log(f'{stats[0]} ontologies, {MemoryUnit.B(stats[1]).readable()}')
 
     log.spacer(2)
     log.green('Reasoning tasks', underline='-')
@@ -46,12 +46,12 @@ def dataset(name: str) -> None:
     log.green(f'{data.name} dataset', underline='-')
     stats = data.cumulative_stats()
     log.yellow(f'Total size: ', endl=False)
-    log(f'{stats[0]} ontologies, {readable_bytes(stats[1])}')
+    log(f'{stats[0]} ontologies, {MemoryUnit.B(stats[1]).readable()}')
     log.yellow('Syntaxes')
     with log.indent:
         for s in sorted(data.syntaxes):
             log.yellow(f'{s}: ', endl=False)
-            log(readable_bytes(data.cumulative_size((s,))))
+            log(MemoryUnit.B(data.cumulative_size((s,))).readable())
 
     log.spacer(2)
     log.green('Ontologies', underline='-')
@@ -60,5 +60,5 @@ def dataset(name: str) -> None:
         with log.indent:
             for s in sorted(data.syntaxes):
                 log.yellow(f'{s}: ', endl=False)
-                log(readable_bytes(e.cumulative_size((s,))))
+                log(MemoryUnit.B(e.cumulative_size((s,))).readable())
         log.spacer(2)

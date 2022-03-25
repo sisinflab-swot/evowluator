@@ -12,10 +12,10 @@ from typing import Dict, Iterable, List, Set
 
 from pyutils import exc
 from pyutils.io import echo, file
-from pyutils.io.file import readable_bytes, readable_scale_and_unit
 from pyutils.io.pretty_printer import PrettyPrinter
 from pyutils.proc.bench import Benchmark, EnergyProfiler
 from pyutils.proc.task import Task
+from pyutils.types.unit import MemoryUnit
 from .mode import EvaluationMode
 from .. import config
 from ..config import ConfigKey
@@ -126,14 +126,14 @@ class Evaluator(ABC):
         dataset_count, dataset_size = self._data.cumulative_stats(syntaxes=used_syntaxes,
                                                                   sort_by=sort_by,
                                                                   resume_after=resume_after)
-        scale, _ = readable_scale_and_unit(dataset_size)
-        dataset_size = readable_bytes(dataset_size)
+        dataset_size = MemoryUnit.B(dataset_size).readable()
         tot_size = 0
 
         for idx, entry in enumerate(self._data.get_entries(sort_by=sort_by,
                                                            resume_after=resume_after)):
             sizes = list(sorted((o.syntax, o.size) for o in entry.ontologies()))
-            size_str = ' | '.join(f'{syntax}: {readable_bytes(size)}' for syntax, size in sizes)
+            size_str = ' | '.join(f'{syntax}: {MemoryUnit.B(size).readable()}'
+                                  for syntax, size in sizes)
             tot_size += sum(size for syntax, size in sizes if syntax in used_syntaxes)
 
             self._log.spacer(2)
@@ -141,7 +141,8 @@ class Evaluator(ABC):
             self._log.yellow('Sizes: ', endl=False)
             self._log(size_str, endl=False)
             self._log.yellow(' Progress: ', endl=False)
-            self._log(f'{idx + 1}/{dataset_count} ({tot_size / scale:.1f}/{dataset_size})')
+            self._log(f'{idx + 1}/{dataset_count} '
+                      f'({MemoryUnit.B(tot_size).to_value(dataset_size.unit):.1f}/{dataset_size})')
 
             with self._log.indent:
                 try:
