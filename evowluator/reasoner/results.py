@@ -140,6 +140,14 @@ class Field(StrEnum):
     ENERGY = 'energy'
     """Energy score."""
 
+    @classmethod
+    def correctness(cls) -> List[Field]:
+        return [cls.OUTPUT]
+
+    @classmethod
+    def performance(cls) -> List[Field]:
+        return [cls.PARSING, cls.REASONING, cls.MEMORY, cls.ENERGY]
+
 
 class Results:
     """Contains results of a reasoning task.
@@ -171,8 +179,8 @@ class Results:
     def __init__(self, output: Output | None = None, time_stats: Dict[str, float] | None = None,
                  memory: int = 0, energy: EnergyStats | None = None) -> None:
         self.output = output
-        self.parsing = float(sum(v for k, v in time_stats.items() if 'parsing' in k))
-        self.reasoning = float(sum(v for k, v in time_stats.items() if 'parsing' not in k))
+        self.parsing = float(sum(v for k, v in time_stats.items() if Field.PARSING in k))
+        self.reasoning = float(sum(v for k, v in time_stats.items() if Field.PARSING not in k))
         self.memory = int(memory)
         self.energy = energy
 
