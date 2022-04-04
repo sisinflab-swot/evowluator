@@ -21,7 +21,7 @@ class PerformanceVisualizer(Visualizer):
 
     def __init__(self, results_dir: str, cfg) -> None:
         super().__init__(results_dir, cfg)
-        self._fields = cfg[ConfigKey.FIELDS]
+        self.fields = set(cfg[ConfigKey.FIELDS])
         self._summary: pd.DataFrame | None = None
         self._cumulative_time_metric = Metric('time', 'ms', '.2f')
         if self._has(Field.MEMORY):
@@ -50,25 +50,26 @@ class PerformanceVisualizer(Visualizer):
         # Memory histogram
         if self._has(Field.MEMORY):
             self.add_min_max_avg_plotter(self._summary, memory_metric,
-                                         col_filter=lambda c: 'memory' in c)
+                                         col_filter=lambda c: Field.MEMORY in c)
 
         # Energy histogram
         if self._has(Field.ENERGY):
             self.add_min_max_avg_plotter(self._summary, energy_metric,
-                                         col_filter=lambda c: 'energy' in c)
+                                         col_filter=lambda c: Field.ENERGY in c)
 
         # Time scatter
         if self._has(Field.PARSING) or self._has(Field.REASONING):
-            self.add_scatter_plotter(time_metric,
-                                     col_filter=lambda c: c not in ('memory', 'energy'))
+            excluded = [Field.MEMORY, Field.ENERGY]
+            excluded.extend(f for f in (Field.PARSING, Field.REASONING) if not self._has(f))
+            self.add_scatter_plotter(time_metric, col_filter=lambda c: c not in excluded)
 
         # Memory scatter
         if self._has(Field.MEMORY):
-            self.add_scatter_plotter(memory_metric, col_filter=lambda c: c == 'memory')
+            self.add_scatter_plotter(memory_metric, col_filter=lambda c: c == Field.MEMORY)
 
         # Energy scatter
         if self._has(Field.ENERGY):
-            self.add_scatter_plotter(energy_metric, col_filter=lambda c: c == 'energy')
+            self.add_scatter_plotter(energy_metric, col_filter=lambda c: c == Field.ENERGY)
 
     def write_results(self):
         super().write_results()
@@ -78,7 +79,7 @@ class PerformanceVisualizer(Visualizer):
     # Private
 
     def _has(self, field: Field) -> bool:
-        return field in self._fields
+        return field in self.fields
 
     @cache
     def _cols(self, field: Field) -> List:
@@ -99,18 +100,22 @@ class PerformanceVisualizer(Visualizer):
         parsing = reasoning = None
         inf_time = float('inf')
         min_time = inf_time
+        max_time = 0
 
         if self._has(Field.PARSING):
             parsing = self.results_grouped_by_reasoner(self._cols(Field.PARSING)).sum().sum()
             parsing = np.array([parsing[r] for r in reasoners])
             min_time = np.min(np.ma.masked_equal(parsing, 0))
+            max_time = np.max(parsing)
 
         if self._has(Field.REASONING):
             reasoning = self.results_grouped_by_reasoner(self._cols(Field.REASONING)).sum().sum()
             reasoning = np.array([reasoning[r] for r in reasoners])
             min_time = min(np.min(np.ma.masked_equal(reasoning, 0)), min_time)
+            max_time = max(np.max(reasoning), max_time)
 
-        if min_time != inf_time and min_time >= 1000.0:
+        if min_time != inf_time and ((min_time >= 1000.0) or
+                                     (min_time >= 100.0 and max_time >= 10000.0)):
             self._cumulative_time_metric.unit = 's'
             self._cumulative_time_metric.fmt = '.2f'
             if parsing is not None:

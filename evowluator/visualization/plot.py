@@ -14,6 +14,7 @@ from pyutils.types.strenum import StrEnum
 from .metric import Metric
 
 LineStyle = Union[str, tuple]
+INFINITY = float('inf')
 
 
 class LegendLocation(StrEnum):
@@ -193,7 +194,7 @@ class HistogramPlot(Plot):
         return label
 
     def fit_labels(self) -> None:
-        ymin, ymax = float('inf'), -float('inf')
+        ymin, ymax = INFINITY, -INFINITY
         renderer = self._ax.figure.canvas.get_renderer()
 
         for box in (label.get_window_extent(renderer=renderer) for label in self._labels):
@@ -418,7 +419,7 @@ class ScatterPlot(Plot):
         # Force start from first data points
         count = max(count // (100 if count > 100 else 5), 1)
         y[0] = sum(y[:count]) / count
-        weights[0] = max(y) * 10.0
+        weights[0] = sum(y)
 
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color, linestyle=style)
 
