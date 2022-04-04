@@ -96,7 +96,7 @@ class Evaluator(ABC):
                 self._start(sort_by=sort_by, resume_after=resume_after)
                 self._log.spacer(2, flush=True)
         finally:
-            file.chmod(self._work_dir, 0o666, recursive=True, dir_mode=0o777)
+            file.chmod(self._work_dir, 0o644, recursive=True, dir_mode=0o755)
             self._teardown_reasoners()
             echo.success('Evaluation results: ', endl=False)
             echo.info(self._work_dir)

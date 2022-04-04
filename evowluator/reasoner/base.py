@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List
 
 from pyutils import exc, inspect
+from pyutils.types.unit import MemoryUnit, TimeUnit
 from .results import EnergyStats, EvaluationTask, Output
 from .results import Results
 from .task import ReasoningTask
@@ -15,7 +16,8 @@ class Reasoner(ABC):
     """Abstract reasoner interface."""
 
     __ALL: List[Reasoner] = None
-    __TIME_REGEX = re.compile(r'^(.+):[ \t]*([\d.]+)[ \t]*ms[ \t]*$', re.MULTILINE)
+    __TIME_REGEX = re.compile(rf'^(.+):[ \t]*([\d.]+)[ \t]*({"|".join(TimeUnit.all())})[ \t]*$',
+                              re.MULTILINE)
 
     @classmethod
     def all(cls) -> List[Reasoner]:
@@ -172,7 +174,8 @@ class Reasoner(ABC):
         times = {}
 
         for match in self.__TIME_REGEX.finditer(task.stdout):
-            times[match.group(1).strip().lower()] = float(match.group(2))
+            value = TimeUnit(match.group(3))(match.group(2)).to_value(TimeUnit.MS)
+            times[match.group(1).strip().lower()] = value
 
         return times
 
@@ -188,9 +191,11 @@ class Reasoner(ABC):
 class RemoteReasoner(Reasoner, ABC):
     """Abstract class for reasoners running on remote devices."""
 
-    __MEMORY_REGEX = re.compile(r'Memory:[ \t]*([\d.]+)[ \t]*B')
-    __SAMPLING_INTERVAL_REGEX = re.compile(r'Energy sampling interval:[ \t]*([\d.]+)[ \t]*ms')
-    __SAMPLES_REGEX = re.compile(r'Energy samples:([\d.;\t ]+)$', re.MULTILINE)
+    __MEMORY_REGEX = re.compile(rf'Memory:[ \t]*([\d.]+)[ \t]*({"|".join(MemoryUnit.all())})',
+                                re.IGNORECASE)
+    __INTERVAL_REGEX = re.compile(rf'Interval:[ \t]*([\d.]+)[ \t]*({"|".join(TimeUnit.all())})',
+                                  re.IGNORECASE)
+    __SAMPLES_REGEX = re.compile(r'Samples:([\d.;\t ]+)$', re.MULTILINE | re.IGNORECASE)
 
     @classmethod
     def is_template(cls) -> bool:
@@ -198,11 +203,11 @@ class RemoteReasoner(Reasoner, ABC):
 
     def _parse_memory(self, task: EvaluationTask) -> int:
         res = self.__MEMORY_REGEX.search(task.stdout)
-        return int(res.group(1)) if res else 0
+        return int(MemoryUnit(res.group(2))(res.group(1)).to_value(MemoryUnit.B)) if res else 0
 
     def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
-        res = self.__SAMPLING_INTERVAL_REGEX.search(task.stdout)
-        interval = int(res.group(1)) if res else 0
+        res = self.__INTERVAL_REGEX.search(task.stdout)
+        interval = int(TimeUnit(res.group(2))(res.group(1)).to_value(TimeUnit.MS)) if res else 0
 
         res = self.__SAMPLES_REGEX.search(task.stdout)
         samples = [float(r.strip()) for r in res.group(1).split(';')] if res else []
