@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import cache
 from os import path
-from typing import List
+from typing import List, Set
 
 import numpy as np
 import pandas as pd
@@ -32,7 +32,7 @@ class PerformanceVisualizer(Visualizer):
 
         time_metric = Metric('time', 'ms', '.0f')
         memory_metric = Metric('memory peak', 'MiB', '.2f')
-        energy_metric = Metric('energy', None, '.2f')
+        energy_fields = sorted(self._energy_fields())
 
         # Time histogram
         cols = [f.capitalize() for f in (Field.PARSING, Field.REASONING) if self._has(f)]
@@ -53,14 +53,14 @@ class PerformanceVisualizer(Visualizer):
                                          col_filter=lambda c: Field.MEMORY in c)
 
         # Energy histogram
-        if self._has(Field.ENERGY):
-            self.add_min_max_avg_plotter(self._summary, energy_metric,
-                                         col_filter=lambda c: Field.ENERGY in c)
+        for ef in energy_fields:
+            self.add_min_max_avg_plotter(self._summary, Metric('energy', ef, '.2f'),
+                                         col_filter=lambda c: ef in c)
 
         # Time scatter
         if self._has(Field.PARSING) or self._has(Field.REASONING):
-            excluded = [Field.MEMORY, Field.ENERGY]
-            excluded.extend(f for f in (Field.PARSING, Field.REASONING) if not self._has(f))
+            excluded = set(energy_fields).union((Field.MEMORY,))
+            excluded.update(f for f in (Field.PARSING, Field.REASONING) if not self._has(f))
             self.add_scatter_plotter(time_metric, col_filter=lambda c: c not in excluded)
 
         # Memory scatter
@@ -68,8 +68,8 @@ class PerformanceVisualizer(Visualizer):
             self.add_scatter_plotter(memory_metric, col_filter=lambda c: c == Field.MEMORY)
 
         # Energy scatter
-        if self._has(Field.ENERGY):
-            self.add_scatter_plotter(energy_metric, col_filter=lambda c: c == Field.ENERGY)
+        for ef in energy_fields:
+            self.add_scatter_plotter(Metric('energy', ef, '.2f'), col_filter=lambda c: c == ef)
 
     def write_results(self):
         super().write_results()
@@ -78,13 +78,19 @@ class PerformanceVisualizer(Visualizer):
 
     # Private
 
-    def _has(self, field: Field) -> bool:
+    def _has(self, field: str) -> bool:
         return field in self.fields
 
+    def _energy_fields(self) -> Set[str]:
+        return self.fields.difference(Field.performance())
+
+    def _has_energy(self) -> bool:
+        return len(self._energy_fields()) > 0
+
     @cache
-    def _cols(self, field: Field) -> List:
+    def _cols(self, field: str) -> List:
         if self._has(field):
-            return [c for c in self._results.columns if field in c.lower()]
+            return [c for c in self._results.columns if field in c]
         return []
 
     def _write_total_times(self, file_path: str) -> None:
@@ -132,10 +138,9 @@ class PerformanceVisualizer(Visualizer):
             if parsing is not None and reasoning is not None:
                 summary['total time' + time_unit] = parsing + reasoning
 
-        min_max_avg_metrics = (
-            ('memory peak (MiB)', self._cols(Field.MEMORY)),
-            ('energy score', self._cols(Field.ENERGY))
-        )
+        min_max_avg_metrics = [('memory peak (MiB)', self._cols(Field.MEMORY))]
+        min_max_avg_metrics.extend((f'energy ({f})', self._cols(f))
+                                   for f in sorted(self._energy_fields()))
 
         for metric, cols in [(m, c) for m, c in min_max_avg_metrics if c]:
             res = self.results_grouped_by_reasoner(cols).sum()

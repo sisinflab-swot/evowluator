@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import Dict, List, Union
+from collections.abc import Sequence
+from typing import Any, Dict, List, Union
 
 from pyutils.io.file import hex_hash as file_hash
-from pyutils.proc.bench import Benchmark, EnergyProfiler
+from pyutils.proc.bench import Benchmark
+from pyutils.proc.energy import EnergyProfiler
 from pyutils.proc.task import Task
 from pyutils.types.strenum import StrEnum
 from pyutils.types.string import hex_hash as string_hash
@@ -19,7 +21,7 @@ class EnergyStats:
     :ivar interval: Sampling interval in milliseconds.
     """
 
-    def __init__(self, samples: List[float], interval: int):
+    def __init__(self, samples: Sequence[float], interval: int):
         self.samples = samples
         self.interval = interval
 
@@ -37,7 +39,7 @@ class EnergyStats:
             return 0.0
 
         interval = self.interval
-        full_samples = self.samples.copy()[:-1]
+        full_samples = list(self.samples)[:-1]
 
         # The last sample needs special treatment since the reported power estimate is normalized
         # based on the actual execution time. Example:
@@ -122,7 +124,7 @@ class Output:
             return string_hash(self.data)
 
 
-class Field(StrEnum):
+class Field:
     """Output field."""
 
     OUTPUT = 'output'
@@ -137,16 +139,13 @@ class Field(StrEnum):
     MEMORY = 'memory'
     """Memory peak."""
 
-    ENERGY = 'energy'
-    """Energy score."""
-
     @classmethod
-    def correctness(cls) -> List[Field]:
+    def correctness(cls) -> List[str]:
         return [cls.OUTPUT]
 
     @classmethod
-    def performance(cls) -> List[Field]:
-        return [cls.PARSING, cls.REASONING, cls.MEMORY, cls.ENERGY]
+    def performance(cls) -> List[str]:
+        return [cls.PARSING, cls.REASONING, cls.MEMORY]
 
 
 class Results:
@@ -172,34 +171,30 @@ class Results:
     def total_time(self) -> float:
         return self.parsing + self.reasoning
 
-    @property
-    def energy_score(self) -> float:
-        return self.energy.score(self.total_time)
-
     def __init__(self, output: Output | None = None, time_stats: Dict[str, float] | None = None,
-                 memory: int = 0, energy: EnergyStats | None = None) -> None:
+                 memory: int = 0, energy: Dict[str, EnergyStats] | None = None) -> None:
         self.output = output
         self.parsing = float(sum(v for k, v in time_stats.items() if Field.PARSING in k))
         self.reasoning = float(sum(v for k, v in time_stats.items() if Field.PARSING not in k))
         self.memory = int(memory)
         self.energy = energy
 
-    def get(self, field: Field) -> float | int | str:
-        if field == Field.OUTPUT:
+    def get(self, what: str) -> int | float | str:
+        if what == Field.OUTPUT:
             return self.output.data
-        elif field == Field.ENERGY:
-            return self.energy_score
-        else:
-            return getattr(self, field)
+        try:
+            return self.energy[what].score(self.total_time)
+        except KeyError:
+            return getattr(self, what)
 
-    def get_readable(self, field: Field) -> str:
-        if field in (Field.PARSING, Field.REASONING):
-            return TimeUnit.MS(self.get(field)).readable().format(2)
-        elif field == Field.MEMORY:
+    def get_readable(self, what: str) -> str:
+        if what in (Field.PARSING, Field.REASONING):
+            return TimeUnit.MS(self.get(what)).readable().format(2)
+        if what == Field.MEMORY:
             return MemoryUnit.B(self.memory).readable().format()
-        elif field == Field.ENERGY:
-            return f'{self.energy_score:.2f}'
-        elif field == Field.OUTPUT:
+        if what == Field.OUTPUT:
             return self.output.data
-        else:
-            raise AttributeError(f'No value for field \'{field}\'')
+        try:
+            return f'{self.energy[what].score(self.total_time):.2f}'
+        except KeyError:
+            raise AttributeError(f'No value for attribute \'{what}\'')

@@ -5,10 +5,11 @@ import re
 import sys
 import tempfile
 import time
+from typing import List
 from os import environ, path
 
 from pyutils.io import file
-from pyutils.proc.bench import EnergyProbe
+from pyutils.proc.energy import EnergyProbe
 from .evaluation.mode import EvaluationMode
 
 DEBUG = False
@@ -64,7 +65,7 @@ class OWLTool:
 class ConfigKey:
     """Evaluation config dictionary keys."""
     DATASET = 'dataset'
-    ENERGY_PROBE = 'energy_probe'
+    ENERGY_PROBES = 'energy_probes'
     FIELDS = 'fields'
     ITERATIONS = 'iterations'
     MODE = 'mode'
@@ -83,7 +84,7 @@ class Evaluation:
     MODE = EvaluationMode.CORRECTNESS
     TIMEOUT = 1800.0
     ITERATIONS = 1
-    ENERGY_PROBE: EnergyProbe | None = None
+    ENERGY_PROBES: List[EnergyProbe] = []
     ENERGY_POLLING_INTERVALS = {
         'powertop': 1000,
         'powermetrics': 500

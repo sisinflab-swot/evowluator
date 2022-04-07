@@ -1,7 +1,7 @@
 from sys import stdout
 
 from pyutils.io.pretty_printer import PrettyPrinter
-from pyutils.proc.bench import EnergyProbe
+from pyutils.proc.energy import EnergyProbe
 from pyutils.types.unit import MemoryUnit
 from ..data.dataset import Dataset
 from ..reasoner.base import Reasoner

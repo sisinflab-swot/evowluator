@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sys
 from math import ceil
 from typing import Dict, List, Tuple, Union
@@ -204,6 +205,9 @@ class HistogramPlot(Plot):
             if box.ymax > ymax:
                 ymax = box.ymax
 
+        if not (math.isfinite(ymin) and math.isfinite(ymax)):
+            return
+
         transform = self._ax.transData.inverted()
         ymin = transform.transform_point((0, ymin))[1]
         ymax = transform.transform_point((0, ymax))[1]
@@ -225,6 +229,12 @@ class HistogramPlot(Plot):
         return False
 
     def configure_limits(self, data_min: float, data_max: float) -> None:
+        if data_min == 0.0:
+            data_min = sys.float_info.epsilon
+
+        if data_max == 0.0:
+            data_max = sys.float_info.epsilon
+
         if 'log' in self._ax.get_yscale():
             bottom, top = self.ylim_log_scale(data_min, data_max)
         else:
@@ -233,17 +243,13 @@ class HistogramPlot(Plot):
         self._ax.set_ylim(bottom=bottom, top=top)
 
     def configure_scale(self, data_min: float, data_max: float) -> None:
+        if data_min == data_max:
+            return
         if not self.yscale and (data_min == 0.0 or data_max / data_min > 25.0):
             self.yscale = 'log' if data_min > 1.0 else 'symlog'
         self.apply_scale()
 
     def ylim_log_scale(self, data_min: float, data_max: float) -> (float, float):
-        if data_min == 0.0:
-            data_min = sys.float_info.epsilon
-
-        if data_max == 0.0:
-            data_max = sys.float_info.epsilon
-
         bottom = 10.0 ** np.floor(np.log10(data_min))
         top = 10.0 ** np.ceil(np.log10(data_max))
 
@@ -255,7 +261,7 @@ class HistogramPlot(Plot):
         return bottom, top
 
     def ylim_linear_scale(self, data_min: float, data_max: float) -> (float, float):
-        mult = 10.0 ** np.floor(np.log10(data_max - data_min))
+        mult = 1.0 if data_min == data_max else 10.0 ** np.floor(np.log10(data_max - data_min))
 
         bottom = (data_min // mult) * mult
         top = (data_max // mult + 1.0) * mult
@@ -424,10 +430,10 @@ class ScatterPlot(Plot):
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color, linestyle=style)
 
     def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
-        if not self.xscale and (xmin == 0.0 or xmax / xmin > 25.0):
+        if not self.xscale and xmin != xmax and (xmin == 0.0 or xmax / xmin > 25.0):
             self.xscale = 'log'
 
-        if not self.yscale and (ymin == 0.0 or ymax / ymin > 25.0):
+        if not self.yscale and ymin != ymax and (ymin == 0.0 or ymax / ymin > 25.0):
             self.yscale = 'log'
 
         self.apply_scale()

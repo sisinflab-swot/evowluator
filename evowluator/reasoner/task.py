@@ -54,12 +54,9 @@ class ReasoningTask:
         return name.lower()
 
     @property
-    def performance_fields(self) -> List[Field]:
+    def performance_fields(self) -> List[str]:
         """Output fields for the 'performance' evaluation mode."""
-        fields = [Field.PARSING, Field.REASONING, Field.MEMORY]
-        if Evaluation.ENERGY_PROBE:
-            fields.append(Field.ENERGY)
-        return fields
+        return Field.performance() + [p.name for p in Evaluation.ENERGY_PROBES]
 
     @property
     def requires_additional_inputs(self) -> bool:

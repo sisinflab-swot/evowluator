@@ -13,7 +13,8 @@ from typing import Dict, Iterable, List, Set
 from pyutils import exc
 from pyutils.io import echo, file
 from pyutils.io.pretty_printer import PrettyPrinter
-from pyutils.proc.bench import Benchmark, EnergyProfiler
+from pyutils.proc.bench import Benchmark
+from pyutils.proc.energy import EnergyProfiler
 from pyutils.proc.task import Task
 from pyutils.types.unit import MemoryUnit
 from .mode import EvaluationMode
@@ -236,8 +237,8 @@ class Evaluator(ABC):
         if Evaluation.MODE == EvaluationMode.PERFORMANCE:
             if not isinstance(reasoner, RemoteReasoner):
                 task = Benchmark(task)
-            if Evaluation.ENERGY_PROBE:
-                task = EnergyProfiler(task, Evaluation.ENERGY_PROBE)
+            if Evaluation.ENERGY_PROBES:
+                task = EnergyProfiler(task, Evaluation.ENERGY_PROBES)
 
         task.run(timeout=Evaluation.TIMEOUT if Evaluation.TIMEOUT else None).raise_if_failed()
         results = self._task.process_results(reasoner.parse_results(self._task, task, output), task)
@@ -436,10 +437,10 @@ class PerformanceEvaluator(Evaluator):
     def _config(self) -> Dict:
         cfg = super()._config()
 
-        if Evaluation.ENERGY_PROBE:
-            cfg[ConfigKey.ENERGY_PROBE] = {
-                ConfigKey.NAME: Evaluation.ENERGY_PROBE.name,
-                ConfigKey.POLLING_INTERVAL: Evaluation.ENERGY_PROBE.interval
-            }
+        if Evaluation.ENERGY_PROBES:
+            cfg[ConfigKey.ENERGY_PROBES] = [
+                {ConfigKey.NAME: p.name, ConfigKey.POLLING_INTERVAL: p.interval}
+                for p in Evaluation.ENERGY_PROBES
+            ]
 
         return cfg

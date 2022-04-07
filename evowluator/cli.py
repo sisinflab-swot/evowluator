@@ -2,7 +2,7 @@ import argparse
 import os
 from functools import cache
 
-from pyutils.proc.bench import EnergyProbe
+from pyutils.proc.energy import EnergyProbe
 from . import config
 from .config import Evaluation, EXE_NAME
 from .data import converter
@@ -28,11 +28,13 @@ def process_args() -> int:
     Evaluation.MODE = getattr(args, 'mode', Evaluation.MODE)
     Evaluation.TIMEOUT = getattr(args, 'timeout', Evaluation.TIMEOUT)
 
-    energy_probe = getattr(args, 'energy_probe', None)
-    if energy_probe:
-        probe = EnergyProbe.with_name(energy_probe)
-        probe.interval = Evaluation.ENERGY_POLLING_INTERVALS.get(probe.name, probe.interval)
-        Evaluation.ENERGY_PROBE = probe
+    energy_probes = getattr(args, 'energy_probes', None)
+    if energy_probes:
+        def get_probe(name: str) -> EnergyProbe:
+            probe = EnergyProbe.with_name(name)
+            probe.interval = Evaluation.ENERGY_POLLING_INTERVALS.get(probe.name, probe.interval)
+            return probe
+        Evaluation.ENERGY_PROBES = [get_probe(n) for n in energy_probes]
 
     if Evaluation.MODE == EvaluationMode.CORRECTNESS:
         Evaluation.ITERATIONS = 1
@@ -115,9 +117,10 @@ def add_run_parser(subparsers) -> None:
                         choices=modes,
                         default=modes[0],
                         help='Evaluation mode.')
-    parser.add_argument('-e', '--energy-probe',
+    parser.add_argument('-e', '--energy-probes',
                         choices=[p.name.lower() for p in EnergyProbe.all()],
-                        help='Probe to use for energy measurements.')
+                        nargs='+',
+                        help='Probes to use for energy measurements.')
     add_correctness_arguments(parser)
     parser.add_argument('--max-workers',
                         type=positive_int,

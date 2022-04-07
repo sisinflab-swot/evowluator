@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List
 
 from pyutils import exc, inspect
+from pyutils.proc.energy import EnergyProfiler
 from pyutils.types.unit import MemoryUnit, TimeUnit
 from .results import EnergyStats, EvaluationTask, Output
 from .results import Results
@@ -182,10 +183,10 @@ class Reasoner(ABC):
     def _parse_memory(self, task: EvaluationTask) -> int:
         return task.max_memory if hasattr(task, 'max_memory') else 0
 
-    def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
-        if hasattr(task, 'samples') and hasattr(task, 'interval'):
-            return EnergyStats(task.samples, task.interval)
-        return EnergyStats([], 0)
+    def _parse_energy(self, task: EvaluationTask) -> Dict[str, EnergyStats]:
+        if isinstance(task, EnergyProfiler):
+            return {p.name: EnergyStats(s, p.interval) for p, s in task.samples.items()}
+        return {}
 
 
 class RemoteReasoner(Reasoner, ABC):
@@ -205,11 +206,11 @@ class RemoteReasoner(Reasoner, ABC):
         res = self.__MEMORY_REGEX.search(task.stdout)
         return int(MemoryUnit(res.group(2))(res.group(1)).to_value(MemoryUnit.B)) if res else 0
 
-    def _parse_energy(self, task: EvaluationTask) -> EnergyStats:
+    def _parse_energy(self, task: EvaluationTask) -> Dict[str, EnergyStats]:
         res = self.__INTERVAL_REGEX.search(task.stdout)
         interval = int(TimeUnit(res.group(2))(res.group(1)).to_value(TimeUnit.MS)) if res else 0
 
         res = self.__SAMPLES_REGEX.search(task.stdout)
         samples = [float(r.strip()) for r in res.group(1).split(';')] if res else []
 
-        return EnergyStats(samples, interval)
+        return {'energy': EnergyStats(samples, interval)}
