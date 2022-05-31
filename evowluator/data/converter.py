@@ -43,7 +43,7 @@ def convert_dataset(dataset: Dataset, syntax: Syntax, source_syntax: Syntax | No
 
     for entry in dataset.get_entries():
         _convert_entry(entry)
-        with log.indent_context():
+        with log.indent:
             for i_entry in (e for t in ReasoningTask.all() for e in entry.inputs_for_task(t)):
                 _convert_entry(i_entry)
 
