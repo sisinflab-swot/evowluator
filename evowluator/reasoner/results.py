@@ -108,6 +108,7 @@ class Results:
     def __init__(self, output: Output | None = None, time_stats: Dict[str, float] | None = None,
                  memory: int = 0, energy: Dict[str, float] | None = None) -> None:
         self.output = output
+        self.times = time_stats
         self.parsing = float(sum(v for k, v in time_stats.items() if Field.PARSING in k))
         self.reasoning = float(sum(v for k, v in time_stats.items() if Field.PARSING not in k))
         self.memory = int(memory)
@@ -116,13 +117,14 @@ class Results:
     def get(self, what: str) -> int | float | str:
         if what == Field.OUTPUT:
             return self.output.data
-        try:
+        if what in self.times:
+            return self.times[what]
+        if what in self.energy:
             return self.energy[what]
-        except KeyError:
-            return getattr(self, what)
+        return getattr(self, what)
 
     def get_readable(self, what: str) -> str:
-        if what in (Field.PARSING, Field.REASONING):
+        if what in (Field.PARSING, Field.REASONING) or what in self.times:
             return TimeUnit.MS(self.get(what)).readable().format(2)
         if what == Field.MEMORY:
             return MemoryUnit.B(self.memory).readable().format()

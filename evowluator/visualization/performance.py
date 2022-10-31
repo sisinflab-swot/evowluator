@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from functools import cache
+from functools import cached_property
 from os import path
-from typing import List, Set
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -21,21 +21,21 @@ class PerformanceVisualizer(Visualizer):
 
     def __init__(self, results_dir: str, cfg) -> None:
         super().__init__(results_dir, cfg)
-        self.fields = set(cfg[ConfigKey.FIELDS])
+        self.fields = list(cfg[ConfigKey.FIELDS])
+        self._energy_probes = {p[ConfigKey.NAME] for p in cfg.get(ConfigKey.ENERGY_PROBES, [])}
         self._summary: pd.DataFrame | None = None
         self._cumulative_time_metric = Metric('time', 'ms', '.2f')
-        if self._has(Field.MEMORY):
-            self._results[self._cols(Field.MEMORY)] /= (1024 * 1024)
+        if self._has_memory:
+            self._results[self._memory_cols] /= (1024 * 1024)
 
     def configure_plotters(self) -> None:
         super().configure_plotters()
 
         time_metric = Metric('time', 'ms', '.0f')
         memory_metric = Metric('memory peak', 'MiB', '.2f')
-        energy_fields = sorted(self._energy_fields())
 
         # Time histogram
-        cols = [f.capitalize() for f in (Field.PARSING, Field.REASONING) if self._has(f)]
+        cols = [f.capitalize() for f in self._time_fields]
         if cols:
             data = self._summary.iloc[:, :len(cols)]
             reasoners = list(data.index.values)
@@ -48,27 +48,26 @@ class PerformanceVisualizer(Visualizer):
                              show_zero_labels=False)
 
         # Memory histogram
-        if self._has(Field.MEMORY):
+        if self._has_memory:
             self.add_min_max_avg_plotter(self._summary, memory_metric,
                                          col_filter=lambda c: Field.MEMORY in c)
 
         # Energy histogram
-        for ef in energy_fields:
+        for ef in self._energy_fields:
             self.add_min_max_avg_plotter(self._summary, Metric('energy', ef, '.2f'),
-                                         col_filter=lambda c: ef in c)
+                                         col_filter=lambda c: any(f in c
+                                                                  for f in self._energy_fields))
 
         # Time scatter
-        if self._has(Field.PARSING) or self._has(Field.REASONING):
-            excluded = set(energy_fields).union((Field.MEMORY,))
-            excluded.update(f for f in (Field.PARSING, Field.REASONING) if not self._has(f))
-            self.add_scatter_plotter(time_metric, col_filter=lambda c: c not in excluded)
+        if self._time_fields:
+            self.add_scatter_plotter(time_metric, col_filter=lambda c: c in self._time_fields)
 
         # Memory scatter
-        if self._has(Field.MEMORY):
-            self.add_scatter_plotter(memory_metric, col_filter=lambda c: c == Field.MEMORY)
+        if self._has_memory:
+            self.add_scatter_plotter(memory_metric, col_filter=lambda c: Field.MEMORY in c)
 
         # Energy scatter
-        for ef in energy_fields:
+        for ef in self._energy_fields:
             self.add_scatter_plotter(Metric('energy', ef, '.2f'), col_filter=lambda c: c == ef)
 
     def write_results(self):
@@ -78,69 +77,84 @@ class PerformanceVisualizer(Visualizer):
 
     # Private
 
-    def _has(self, field: str) -> bool:
-        return field in self.fields
+    @cached_property
+    def _has_memory(self) -> bool:
+        return True if Field.MEMORY in self.fields else False
 
-    def _energy_fields(self) -> Set[str]:
-        return self.fields.difference(Field.performance())
+    @cached_property
+    def _time_fields(self) -> List[str]:
+        excluded = [Field.MEMORY] + self._energy_fields
+        return [f for f in self.fields if f not in excluded]
 
-    def _has_energy(self) -> bool:
-        return len(self._energy_fields()) > 0
+    @cached_property
+    def _energy_fields(self) -> List[str]:
+        return list(sorted(f for f in self.fields if f in self._energy_probes))
 
-    @cache
-    def _cols(self, field: str) -> List:
-        if self._has(field):
-            return [c for c in self._results.columns if field in c]
-        return []
+    @cached_property
+    def _time_cols(self) -> List:
+        return [c for c in self._results.columns if any(f in c for f in self._time_fields)]
+
+    @cached_property
+    def _parsing_cols(self) -> List:
+        return [c for c in self._time_cols if Field.PARSING in c]
+
+    @cached_property
+    def _reasoning_cols(self) -> List:
+        return [c for c in self._time_cols if c not in self._parsing_cols]
+
+    @cached_property
+    def _memory_cols(self) -> List:
+        return [c for c in self._results.columns if Field.MEMORY in c] if self._has_memory else []
+
+    @cached_property
+    def _energy_cols(self) -> List:
+        return [c for c in self._results.columns if any(f in c for f in self._energy_fields)]
+
+    def _energy_probe_cols(self, probe: str) -> List:
+        return [c for c in self._energy_cols if probe in c]
+
+    def _time_field_cols(self, field: str) -> List:
+        return [c for c in self._time_cols if field in c]
 
     def _write_total_times(self, file_path: str) -> None:
-        cols = self._cols(Field.PARSING) + self._cols(Field.REASONING)
-        if cols:
-            totals = self.results_grouped_by_reasoner(cols, drop_missing=False).sum(min_count=1)
+        if self._time_cols:
+            totals = self.results_grouped_by_reasoner(self._time_cols,
+                                                      drop_missing=False).sum(min_count=1)
             csv.write(totals, file_path)
 
     def _write_summary(self, file_path: str) -> None:
         reasoners = self._reasoners
         summary = pd.DataFrame({'reasoner': reasoners}).set_index('reasoner')
 
-        parsing = reasoning = None
+        times = {}
         inf_time = float('inf')
         min_time = inf_time
         max_time = 0
 
-        if self._has(Field.PARSING):
-            parsing = self.results_grouped_by_reasoner(self._cols(Field.PARSING)).sum().sum()
-            parsing = np.array([parsing[r] for r in reasoners])
-            min_time = np.min(np.ma.masked_equal(parsing, 0))
-            max_time = np.max(parsing)
-
-        if self._has(Field.REASONING):
-            reasoning = self.results_grouped_by_reasoner(self._cols(Field.REASONING)).sum().sum()
-            reasoning = np.array([reasoning[r] for r in reasoners])
-            min_time = min(np.min(np.ma.masked_equal(reasoning, 0)), min_time)
-            max_time = max(np.max(reasoning), max_time)
+        for field in self._time_fields:
+            data = self.results_grouped_by_reasoner(self._time_field_cols(field)).sum().sum()
+            data = np.array([data[r] for r in reasoners])
+            min_time = min(np.min(np.ma.masked_equal(data, 0)), min_time)
+            max_time = max(np.max(data), max_time)
+            times[field] = data
 
         if min_time != inf_time and ((min_time >= 1000.0) or
                                      (min_time >= 100.0 and max_time >= 10000.0)):
             self._cumulative_time_metric.unit = 's'
             self._cumulative_time_metric.fmt = '.2f'
-            if parsing is not None:
-                parsing /= 1000.0
-            if reasoning is not None:
-                reasoning /= 1000.0
+            for field in times:
+                times[field] /= 1000.0
 
         if min_time != inf_time:
             time_unit = f' ({self._cumulative_time_metric.unit})'
-            if parsing is not None:
-                summary['total parsing time' + time_unit] = parsing
-            if reasoning is not None:
-                summary['total reasoning time' + time_unit] = reasoning
-            if parsing is not None and reasoning is not None:
-                summary['total time' + time_unit] = parsing + reasoning
+            for field, data in times.items():
+                summary[field + time_unit] = data
+            if len(times) > 1:
+                summary['total time' + time_unit] = np.sum(list(times.values()))
 
-        min_max_avg_metrics = [('memory peak (MiB)', self._cols(Field.MEMORY))]
-        min_max_avg_metrics.extend((f'energy ({f})', self._cols(f))
-                                   for f in sorted(self._energy_fields()))
+        min_max_avg_metrics = [('memory peak (MiB)', self._memory_cols)]
+        min_max_avg_metrics.extend((f'energy ({f})', self._energy_probe_cols(f))
+                                   for f in self._energy_fields)
 
         for metric, cols in [(m, c) for m, c in min_max_avg_metrics if c]:
             res = self.results_grouped_by_reasoner(cols).sum()

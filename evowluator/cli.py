@@ -11,7 +11,6 @@ from .evaluation import info
 from .evaluation.base import CorrectnessEvaluator, PerformanceEvaluator
 from .evaluation.mode import EvaluationMode
 from .reasoner.base import ReasoningTask
-from .reasoner.results import Field
 from .util.process import incorrect_ontologies, process
 from .visualization.base import Visualizer
 from .visualization.correctness import CorrectnessStrategy, OracleStrategy
@@ -188,9 +187,8 @@ def add_visualize_parser(subparsers) -> None:
                         nargs='+',
                         help='Reasoners to show.')
     parser.add_argument('--exclude-fields',
-                        metavar='EXCLUDED_FIELDS',
+                        metavar='FIELD',
                         nargs='+',
-                        choices=Field.performance(),
                         help='Fields to exclude.')
     parser.add_argument('--no-gui',
                         dest='gui',
@@ -334,7 +332,8 @@ def visualize_sub(args) -> int:
         visualizer.set_strategy(args.correctness_strategy)
 
     if hasattr(visualizer, 'fields') and args.exclude_fields:
-        visualizer.fields.difference_update(args.exclude_fields)
+        for f in args.exclude_fields:
+            visualizer.fields.remove(f)
 
     if args.colors:
         visualizer.set_colors(args.colors)
