@@ -404,8 +404,14 @@ class PerformanceEvaluator(Evaluator):
             except Exception as e:
                 if config.DEBUG:
                     raise e
-                fail_reason = Status.TIMEOUT if isinstance(e, TimeoutExpired) else Status.ERROR
-                self._log.red(fail_reason)
+
+                if isinstance(e, TimeoutExpired):
+                    fail_reason = Status.TIMEOUT
+                    self._log.red(fail_reason)
+                else:
+                    fail_reason = Status.ERROR
+                    self._log.red(f'{fail_reason}: {str(e)}')
+
                 results[reasoner] = fail_reason
                 self._skip[reasoner.name].add(root_ontology)
 
