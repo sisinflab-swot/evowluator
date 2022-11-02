@@ -12,7 +12,6 @@ from .metric import Metric
 from .plot import GroupedHistogramPlot
 from ..config import ConfigKey
 from ..data import csv
-from ..reasoner.results import Field
 
 
 class PerformanceVisualizer(Visualizer):
@@ -50,7 +49,7 @@ class PerformanceVisualizer(Visualizer):
         # Memory histogram
         if self._has_memory:
             self.add_min_max_avg_plotter(self._summary, memory_metric,
-                                         col_filter=lambda c: Field.MEMORY in c)
+                                         col_filter=lambda c: 'memory' in c)
 
         # Energy histogram
         for ef in self._energy_fields:
@@ -64,7 +63,7 @@ class PerformanceVisualizer(Visualizer):
 
         # Memory scatter
         if self._has_memory:
-            self.add_scatter_plotter(memory_metric, col_filter=lambda c: Field.MEMORY in c)
+            self.add_scatter_plotter(memory_metric, col_filter=lambda c: 'memory' in c)
 
         # Energy scatter
         for ef in self._energy_fields:
@@ -79,11 +78,11 @@ class PerformanceVisualizer(Visualizer):
 
     @cached_property
     def _has_memory(self) -> bool:
-        return True if Field.MEMORY in self.fields else False
+        return True if 'memory' in self.fields else False
 
     @cached_property
     def _time_fields(self) -> List[str]:
-        excluded = [Field.MEMORY] + self._energy_fields
+        excluded = ['memory'] + self._energy_fields
         return [f for f in self.fields if f not in excluded]
 
     @cached_property
@@ -96,7 +95,7 @@ class PerformanceVisualizer(Visualizer):
 
     @cached_property
     def _parsing_cols(self) -> List:
-        return [c for c in self._time_cols if Field.PARSING in c]
+        return [c for c in self._time_cols if 'parsing' in c]
 
     @cached_property
     def _reasoning_cols(self) -> List:
@@ -104,7 +103,7 @@ class PerformanceVisualizer(Visualizer):
 
     @cached_property
     def _memory_cols(self) -> List:
-        return [c for c in self._results.columns if Field.MEMORY in c] if self._has_memory else []
+        return [c for c in self._results.columns if 'memory' in c] if self._has_memory else []
 
     @cached_property
     def _energy_cols(self) -> List:

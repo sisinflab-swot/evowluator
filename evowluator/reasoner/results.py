@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 from pyutils.io.file import hex_hash as file_hash
 from pyutils.proc.bench import Benchmark
@@ -58,64 +58,28 @@ class Output:
             return string_hash(self.data)
 
 
-class Field:
-    """Output field."""
-
-    OUTPUT = 'output'
-    """Output of the reasoning task."""
-
-    PARSING = 'parsing'
-    """Parsing time."""
-
-    REASONING = 'reasoning'
-    """Reasoning time."""
-
-    MEMORY = 'memory'
-    """Memory peak."""
-
-    @classmethod
-    def correctness(cls) -> List[str]:
-        return [cls.OUTPUT]
-
-    @classmethod
-    def performance(cls) -> List[str]:
-        return [cls.PARSING, cls.REASONING, cls.MEMORY]
-
-
 class Results:
     """Contains results of a reasoning task.
 
-    :ivar output:
-        Output of the reasoning task.
-
-    :ivar parsing:
-        Parsing time in milliseconds.
-
-    :ivar reasoning:
-        Reasoning time in milliseconds.
-
-    :ivar memory:
-        Memory peak in bytes.
-
-    :ivar energy:
-        Energy statistics.
+    :ivar output: Output of the reasoning task.
+    :ivar times: Times in milliseconds.
+    :ivar memory: Memory peak in bytes.
+    :ivar energy: Energy statistics.
     """
 
     @property
     def total_time(self) -> float:
-        return self.parsing + self.reasoning
+        return sum(self.times.values())
 
     def __init__(self, output: Output | None = None, time_stats: Dict[str, float] | None = None,
                  memory: int = 0, energy: Dict[str, float] | None = None) -> None:
         self.output = output
         self.times = time_stats
-        self.parsing = float(sum(v for k, v in time_stats.items() if Field.PARSING in k))
-        self.reasoning = float(sum(v for k, v in time_stats.items() if Field.PARSING not in k))
         self.memory = int(memory)
         self.energy = energy
 
     def get(self, what: str) -> int | float | str:
-        if what == Field.OUTPUT:
+        if what == 'output':
             return self.output.data
         if what in self.times:
             return self.times[what]
@@ -124,12 +88,12 @@ class Results:
         return getattr(self, what)
 
     def get_readable(self, what: str) -> str:
-        if what in (Field.PARSING, Field.REASONING) or what in self.times:
-            return TimeUnit.MS(self.get(what)).readable().format(2)
-        if what == Field.MEMORY:
+        if what == 'memory':
             return MemoryUnit.B(self.memory).readable().format()
-        if what == Field.OUTPUT:
+        if what == 'output':
             return self.output.data
+        if what in self.times:
+            return TimeUnit.MS(self.get(what)).readable().format(2)
         try:
             return f'{self.energy[what]:.2f}'
         except KeyError:

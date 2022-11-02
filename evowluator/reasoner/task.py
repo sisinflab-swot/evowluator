@@ -6,7 +6,7 @@ from typing import List
 from pyutils import inspect
 from pyutils.io import file
 from pyutils.proc.task import Task
-from .results import Field, Results
+from .results import Results
 from .results import Output
 from ..config import Evaluation
 from ..evaluation.mode import EvaluationMode
@@ -56,7 +56,7 @@ class ReasoningTask:
     @property
     def performance_fields(self) -> List[str]:
         """Output fields for the 'performance' evaluation mode."""
-        return Field.performance() + [p.name for p in Evaluation.ENERGY_PROBES]
+        return ['parsing', 'reasoning', 'memory']
 
     @property
     def requires_additional_inputs(self) -> bool:

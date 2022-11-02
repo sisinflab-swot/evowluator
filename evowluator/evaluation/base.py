@@ -27,7 +27,7 @@ from ..data.dataset import Dataset, SortBy
 from ..data.dataset import DatasetEntry, Syntax
 from ..data.info import DatasetInfo
 from ..reasoner.base import Reasoner, ReasoningTask, RemoteReasoner
-from ..reasoner.results import Field, Results
+from ..reasoner.results import Results
 from ..visualization.correctness import CorrectnessStrategy, Status
 
 
@@ -77,9 +77,9 @@ class Evaluator(ABC):
             self._reasoners = Reasoner.supporting_task(task)
 
         if Evaluation.MODE == EvaluationMode.PERFORMANCE:
-            self._fields = task.performance_fields
+            self._fields = task.performance_fields + [p.name for p in Evaluation.ENERGY_PROBES]
         else:
-            self._fields = [Field.OUTPUT]
+            self._fields = ['output']
 
     def start(self, sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> None:
         """Starts the evaluation."""
@@ -415,7 +415,7 @@ class PerformanceEvaluator(Evaluator):
         if len(self._fields) == 1:
             self._log(results.get_readable(self._fields[0]))
         else:
-            if Field.PARSING in self._fields and Field.REASONING in self._fields:
+            if len(results.times) > 1:
                 self._log(f'{results.total_time:.2f} ms')
 
             self._log.spacer()
