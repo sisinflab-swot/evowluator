@@ -81,6 +81,8 @@ class Results:
     def get(self, what: str) -> int | float | str:
         if what == 'output':
             return self.output.data
+        if what == 'total_time':
+            return self.total_time
         if what in self.times:
             return self.times[what]
         if what in self.energy:
@@ -90,6 +92,8 @@ class Results:
     def get_readable(self, what: str) -> str:
         if what == 'memory':
             return MemoryUnit.B(self.memory).readable().format()
+        if what == 'total_time':
+            return TimeUnit.MS(self.total_time).readable().format(2)
         if what == 'output':
             return self.output.data
         if what in self.times:

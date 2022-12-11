@@ -422,7 +422,7 @@ class PerformanceEvaluator(Evaluator):
             self._log(results.get_readable(self._fields[0]))
         else:
             if len(results.times) > 1:
-                self._log(f'{results.total_time:.2f} ms')
+                self._log(results.get_readable('total_time'))
 
             self._log.spacer()
             with self._log.indent:
