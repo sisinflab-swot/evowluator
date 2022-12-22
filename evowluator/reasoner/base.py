@@ -153,15 +153,9 @@ class Reasoner(ABC):
         :param output: Output argument as passed to the reasoner.
         :return: Results of the reasoning task.
         """
-        exc.raise_if_falsy(stdout=etask.stdout)
-
-        if rtask == ReasoningTask.CLASSIFICATION:
-            output_fmt = Output.Format.ONTOLOGY
-        elif rtask == ReasoningTask.CONSISTENCY:
-            output_fmt = Output.Format.STRING
+        output_fmt = rtask.expected_output_format
+        if output_fmt == Output.Format.STRING:
             output = etask.stdout
-        else:
-            output_fmt = Output.Format.TEXT
 
         return Results(output=Output(output, output_fmt),
                        time_stats=self._parse_time(etask),
