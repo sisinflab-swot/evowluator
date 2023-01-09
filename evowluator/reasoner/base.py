@@ -4,7 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
-from pyutils import exc, inspect
+from pyutils import inspect
 from pyutils.proc.energy import EnergyProfiler
 from pyutils.types.unit import MemoryUnit, TimeUnit
 from .results import EvaluationTask, Output, Results

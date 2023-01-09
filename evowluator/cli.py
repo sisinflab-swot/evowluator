@@ -4,7 +4,7 @@ from functools import cache
 
 from pyutils.proc.energy import EnergyProbe
 from . import config
-from .config import Evaluation, EXE_NAME
+from .config import Evaluation, EXE_NAME, OnError
 from .data import converter
 from .data.dataset import Dataset, SortBy, Syntax
 from .evaluation import info
@@ -23,7 +23,8 @@ from .visualization.plot import LegendLocation
 def process_args() -> int:
     args = main_parser().parse_args()
 
-    config.DEBUG = getattr(args, 'debug', config.DEBUG)
+    config.Debug.TRACE = getattr(args, 'debug', config.Debug.TRACE)
+    config.Debug.ON_ERROR = getattr(args, 'on_error', config.Debug.ON_ERROR)
     Evaluation.MODE = getattr(args, 'mode', Evaluation.MODE)
     Evaluation.TIMEOUT = getattr(args, 'timeout', Evaluation.TIMEOUT)
 
@@ -50,6 +51,11 @@ def help_parser() -> argparse.ArgumentParser:
     group.add_argument('--debug',
                        help='Enable debug output.',
                        action='store_true')
+    group.add_argument('--on-error',
+                       type=OnError,
+                       choices=OnError.all(),
+                       default=OnError.LOG,
+                       help='Error handling strategy.')
     group.add_argument('-h', '--help',
                        help='Show this help message and exit.',
                        action='help')

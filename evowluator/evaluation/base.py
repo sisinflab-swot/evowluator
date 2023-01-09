@@ -19,12 +19,10 @@ from pyutils.proc.task import Task
 from pyutils.types.unit import MemoryUnit
 from .mode import EvaluationMode
 from .. import config
-from ..config import ConfigKey
-from ..config import Evaluation, Paths
+from ..config import ConfigKey, Debug, Evaluation, Paths, OnError
 from ..data import json
 from ..data.csv import CSVWriter
-from ..data.dataset import Dataset, SortBy
-from ..data.dataset import DatasetEntry, Syntax
+from ..data.dataset import Dataset, DatasetEntry, SortBy, Syntax
 from ..data.info import DatasetInfo
 from ..reasoner.base import Reasoner, ReasoningTask, RemoteReasoner
 from ..reasoner.results import Results
@@ -149,10 +147,23 @@ class Evaluator(ABC):
                 try:
                     self._run(entry)
                 except Exception as e:
-                    if config.DEBUG:
-                        raise e
-                    else:
-                        self._log.error(str(e))
+                    self._handle(e)
+
+    def _handle(self, e: Exception | Dict[Reasoner, Exception]) -> None:
+        if Debug.ON_ERROR == OnError.IGNORE:
+            return
+
+        if Debug.ON_ERROR == OnError.ABORT:
+            raise next(iter(e.values())) if isinstance(e, dict) else e
+
+        if isinstance(e, dict):
+            for k, v in e.items():
+                self._log.red(f'{k.name}: {Debug.format(v)}')
+        else:
+            self._log.red(Debug.format(e))
+
+        if Debug.ON_ERROR == OnError.PAUSE:
+            input('Press Enter to continue...')
 
     def _output_path_for_reasoner(self, reasoner: Reasoner) -> str:
         return os.path.join(self._temp_dir, reasoner.name.lower().replace(' ', '_'))
@@ -314,6 +325,7 @@ class CorrectnessEvaluator(Evaluator):
 
     def _run_reasoners(self, entries: List[DatasetEntry]) -> List:
         results = {}
+        errors = {}
 
         self._log.yellow('Done: ', endl=False)
 
@@ -322,28 +334,30 @@ class CorrectnessEvaluator(Evaluator):
                 syntax = self._syntax_for_reasoner(reasoner)
                 inputs = [e.ontology(syntax).path for e in entries]
                 output = self._output_path_for_reasoner(reasoner)
-                pool.submit(self._run_reasoner_correctness, reasoner, inputs, output, results)
+                pool.submit(self._run_reasoner_correctness, reasoner, inputs, output,
+                            results, errors)
 
         results = {r: results[r] for r in self._usable_reasoners()}
         self._log.spacer()
-        self._log_results(results)
+        self._log_results(results, errors)
 
         return [e.name for e in entries] + list(results.values())
 
     def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[str], output: str,
-                                  results: Dict) -> None:
+                                  results: Dict, errors: Dict) -> None:
         try:
             res = self._run_reasoner(reasoner, inputs, output).output.hash()
         except Exception as e:
-            if config.DEBUG:
-                raise e
-            res = Status.TIMEOUT if isinstance(e, TimeoutExpired) else Status.ERROR
+            res = Status.TIMEOUT if isinstance(e, TimeoutExpired) else e
 
         with self._lock:
+            if isinstance(res, Exception):
+                errors[reasoner] = res
+                res = Status.ERROR
             results[reasoner] = res
             self._log(('' if len(results) == 1 else ', ') + reasoner.name, endl=False)
 
-    def _log_results(self, results: Dict[Reasoner]) -> None:
+    def _log_results(self, results: Dict[Reasoner], errors: Dict[Reasoner, Exception]) -> None:
         if not self._strategy:
             return
 
@@ -365,7 +379,10 @@ class CorrectnessEvaluator(Evaluator):
             self._log.red('Incorrect: ', endl=False)
             self._log(', '.join(wrong), endl=False)
 
-        self._log.spacer()
+        self._log.spacer(flush=True)
+
+        if errors:
+            self._handle(errors)
 
 
 class PerformanceEvaluator(Evaluator):
@@ -402,18 +419,13 @@ class PerformanceEvaluator(Evaluator):
                 self._log_results(r)
                 results[reasoner] = r
             except Exception as e:
-                if config.DEBUG:
-                    raise e
-
-                if isinstance(e, TimeoutExpired):
-                    fail_reason = Status.TIMEOUT
-                    self._log.red(fail_reason)
-                else:
-                    fail_reason = Status.ERROR
-                    self._log.red(f'{fail_reason}: {str(e)}')
+                fail_reason = Status.TIMEOUT if isinstance(e, TimeoutExpired) else Status.ERROR
+                self._log.red(fail_reason)
 
                 results[reasoner] = fail_reason
                 self._skip[reasoner.name].add(root_ontology)
+
+                self._handle(e)
 
         return [e.name for e in entries] + self._extract_results(results)
 
