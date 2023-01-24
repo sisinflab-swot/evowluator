@@ -28,6 +28,7 @@ class Status:
     NOT_OK = [INCORRECT, TIMEOUT, ERROR]
     KNOWN = [OK] + NOT_OK
     ALL = KNOWN + [UNKNOWN]
+    ANY_ERROR = [TIMEOUT, ERROR, UNKNOWN]
 
 
 class CorrectnessStrategy(ABC):
@@ -37,7 +38,7 @@ class CorrectnessStrategy(ABC):
     @classmethod
     def all(cls) -> List[CorrectnessStrategy]:
         if cls.__ALL is None:
-            cls.__ALL = [RandomMajorityStrategy(), OracleStrategy()]
+            cls.__ALL = [RandomMajorityStrategy(), AssumeCorrectStrategy(), OracleStrategy()]
         return cls.__ALL
 
     @classmethod
@@ -126,6 +127,12 @@ class RandomMajorityStrategy(CorrectnessStrategy):
                     out[idx] = Status.OK if group is correct else Status.INCORRECT
 
         return out
+
+
+class AssumeCorrectStrategy(CorrectnessStrategy):
+
+    def evaluate(self, results: List) -> List:
+        return [r if r in Status.ANY_ERROR else Status.OK for r in results]
 
 
 class CorrectnessVisualizer(Visualizer):
