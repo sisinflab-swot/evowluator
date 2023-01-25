@@ -89,7 +89,7 @@ class Reasoner(ABC):
         return self.supported_syntaxes[0]
 
     @abstractmethod
-    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str) -> List[str]:
         """
         Command line arguments to pass to the reasoner executable for each task.
 
@@ -104,7 +104,7 @@ class Reasoner(ABC):
         """Called at the beginning of the evaluation."""
         pass
 
-    def pre_run(self, task: ReasoningTask, inputs: List[str], output: str | None) -> None:
+    def pre_run(self, task: ReasoningTask, inputs: List[str], output: str) -> None:
         """
         Called before running each reasoning task.
 
@@ -114,7 +114,7 @@ class Reasoner(ABC):
         """
         pass
 
-    def post_run(self, task: ReasoningTask, inputs: List[str], output: str | None) -> None:
+    def post_run(self, task: ReasoningTask, inputs: List[str], output: str) -> None:
         """
         Called after running each reasoning task.
 
@@ -140,8 +140,7 @@ class Reasoner(ABC):
         """
         return cls == Reasoner
 
-    def parse_results(self, rtask: ReasoningTask, etask: EvaluationTask,
-                      output: str | None) -> Results:
+    def parse_results(self, rtask: ReasoningTask, etask: EvaluationTask, output: str) -> Results:
         """
         Parses the results of a reasoning task.
 

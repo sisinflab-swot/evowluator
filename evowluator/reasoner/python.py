@@ -23,7 +23,7 @@ class PythonReasoner(Reasoner, ABC):
         pass
 
     @abstractmethod
-    def script_args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
+    def script_args(self, task: ReasoningTask, inputs: List[str], output: str) -> List[str]:
         """Args to pass to the script."""
         pass
 
@@ -43,5 +43,5 @@ class PythonReasoner(Reasoner, ABC):
 
         return find_executable(self.interpreter)
 
-    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str) -> List[str]:
         return [Paths.absolute(self.script_path)] + self.script_args(task, inputs, output)

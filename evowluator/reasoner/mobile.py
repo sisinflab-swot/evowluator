@@ -47,7 +47,7 @@ class AndroidReasoner(RemoteReasoner, ABC):
     def path(self) -> str:
         return find_executable('adb')
 
-    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str) -> List[str]:
         resource = self._ontology_path(inputs[0])
         instrument_env = [('task', task.name), ('resource', resource)]
 
@@ -82,11 +82,11 @@ class AndroidReasoner(RemoteReasoner, ABC):
         self._uninstall_instrumentation()
         self._delete_dataset_dir()
 
-    def pre_run(self, task: ReasoningTask, inputs: List[str], output: str | None) -> None:
+    def pre_run(self, task: ReasoningTask, inputs: List[str], output: str) -> None:
         for ontology in inputs:
             self._push_ontology(ontology)
 
-    def post_run(self, task: ReasoningTask, inputs: List[str], output: str | None) -> None:
+    def post_run(self, task: ReasoningTask, inputs: List[str], output: str) -> None:
         for ontology in inputs:
             self._delete_ontology(ontology)
 
@@ -181,7 +181,7 @@ class IOSReasoner(RemoteReasoner, ABC):
         args = self._common_args() + ['build-for-testing']
         Task.spawn(self.path, args=args, output_action=OutputAction.DISCARD)
 
-    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str) -> List[str]:
         inputs = [os.path.basename(f) for f in inputs]
 
         args = self._common_args() + [

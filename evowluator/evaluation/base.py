@@ -229,16 +229,15 @@ class Evaluator(ABC):
 
         return csv_rows
 
-    def _run_reasoner(self, reasoner: Reasoner, inputs: str | List[str],
-                      output: str | None = None) -> Results:
+    def _run_reasoner(self, reasoner: Reasoner, inputs: str | List[str]) -> Results:
         if not isinstance(inputs, list):
             inputs = [inputs]
 
         for i in inputs:
             exc.raise_if_not_found(i, file_type=exc.FileType.FILE)
 
-        if output:
-            file.remove(output)
+        output = self._output_path_for_reasoner(reasoner)
+        file.remove(output)
 
         # Run reasoner
 
@@ -333,9 +332,7 @@ class CorrectnessEvaluator(Evaluator):
             for reasoner in self._usable_reasoners():
                 syntax = self._syntax_for_reasoner(reasoner)
                 inputs = [e.ontology(syntax).path for e in entries]
-                output = self._output_path_for_reasoner(reasoner)
-                pool.submit(self._run_reasoner_correctness, reasoner, inputs, output,
-                            results, errors)
+                pool.submit(self._run_reasoner_correctness, reasoner, inputs, results, errors)
 
         results = {r: results[r] for r in self._usable_reasoners()}
         self._log.spacer()
@@ -343,10 +340,10 @@ class CorrectnessEvaluator(Evaluator):
 
         return [e.name for e in entries] + list(results.values())
 
-    def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[str], output: str,
+    def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[str],
                                   results: Dict, errors: Dict) -> None:
         try:
-            res = self._run_reasoner(reasoner, inputs, output).output.hash()
+            res = self._run_reasoner(reasoner, inputs).output.hash()
         except Exception as e:
             res = Status.TIMEOUT if isinstance(e, TimeoutExpired) else e
 

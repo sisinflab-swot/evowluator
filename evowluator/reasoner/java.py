@@ -28,7 +28,7 @@ class JavaReasoner(Reasoner, ABC):
         pass
 
     @abstractmethod
-    def jar_args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
+    def jar_args(self, task: ReasoningTask, inputs: List[str], output: str) -> List[str]:
         """Args to pass to the Jar."""
         pass
 
@@ -38,7 +38,7 @@ class JavaReasoner(Reasoner, ABC):
     def path(self) -> str:
         return find_executable('java')
 
-    def args(self, task: ReasoningTask, inputs: List[str], output: str | None) -> List[str]:
+    def args(self, task: ReasoningTask, inputs: List[str], output: str) -> List[str]:
         return java_args(Paths.absolute(self.jar_path),
                          jar_args=self.jar_args(task, inputs, output),
                          jvm_opts=self.vm_opts)
