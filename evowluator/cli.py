@@ -250,6 +250,9 @@ def add_visualize_parser(subparsers) -> None:
                         metavar='STYLE',
                         nargs='+',
                         help="Line styles to use for each reasoner.")
+    parser.add_argument('--transparent-bg',
+                        action='store_true',
+                        help='Use a transparent background when saving the figure.')
 
     parser.set_defaults(func=visualize_sub)
 
@@ -355,7 +358,8 @@ def visualize_sub(args) -> int:
 
     visualizer.figure.set_attrs(**vars(args))
     visualizer.write_results()
-    visualizer.plot_results(gui=args.gui, plots=[p - 1 for p in args.plots] if args.plots else None)
+    visualizer.plot_results(gui=args.gui, transparent_bg=args.transparent_bg,
+                            plots=[p - 1 for p in args.plots] if args.plots else None)
 
     return 0
 

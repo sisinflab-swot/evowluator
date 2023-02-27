@@ -517,6 +517,6 @@ class Figure:
         if self._is_drawn:
             plt.show()
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, transparent: bool = False) -> None:
         if self._is_drawn:
-            plt.savefig(path, bbox_inches='tight', pad_inches=0.0)
+            plt.savefig(path, bbox_inches='tight', pad_inches=0.0, transparent=transparent)

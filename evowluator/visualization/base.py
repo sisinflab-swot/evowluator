@@ -123,10 +123,11 @@ class Visualizer:
 
         return results.groupby(lambda x: x.split(':', maxsplit=1)[0], axis=1)
 
-    def plot_results(self, gui: bool = True, plots: List[int] | None = None) -> None:
+    def plot_results(self, gui: bool = True, transparent_bg: bool = False,
+                     plots: List[int] | None = None) -> None:
         self.configure_plotters()
         self.figure.draw(plots=plots)
-        self.figure.save(path.join(self.output_dir, 'figure.pdf'))
+        self.figure.save(path.join(self.output_dir, 'figure.pdf'), transparent=transparent_bg)
 
         if gui:
             self.figure.show()
