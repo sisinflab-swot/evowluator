@@ -71,6 +71,14 @@ class Results:
     def total_time(self) -> float:
         return sum(self.times.values())
 
+    @property
+    def parsing_time(self) -> float:
+        return sum((v for k, v in self.times.items() if 'parsing' in k.lower()), 0.0)
+
+    @property
+    def reasoning_time(self) -> float:
+        return self.total_time - self.parsing_time
+
     def __init__(self, output: Output | None = None, time_stats: Dict[str, float] | None = None,
                  memory: int = 0, energy: Dict[str, float] | None = None) -> None:
         self.output = output
@@ -83,6 +91,10 @@ class Results:
             return self.output.data
         if what == 'total_time':
             return self.total_time
+        if what == 'parsing':
+            return self.parsing_time
+        if what == 'reasoning':
+            return self.reasoning_time
         if what in self.times:
             return self.times[what]
         if what in self.energy:
@@ -96,7 +108,7 @@ class Results:
             return TimeUnit.MS(self.total_time).readable().format(2)
         if what == 'output':
             return self.output.data
-        if what in self.times:
+        if what in self.times or what in ('parsing', 'reasoning'):
             return TimeUnit.MS(self.get(what)).readable().format(2)
         try:
             return f'{self.energy[what]:.2f}'
