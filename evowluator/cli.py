@@ -196,6 +196,9 @@ def add_visualize_parser(subparsers) -> None:
                         metavar='FIELD',
                         nargs='+',
                         help='Fields to exclude.')
+    parser.add_argument('--separate-fields',
+                        action='store_true',
+                        help='Plot individual fields rather than cumulative metrics.')
     parser.add_argument('--no-gui',
                         dest='gui',
                         action='store_false',
@@ -343,6 +346,9 @@ def visualize_sub(args) -> int:
     if hasattr(visualizer, 'fields') and args.exclude_fields:
         for f in args.exclude_fields:
             visualizer.fields.remove(f)
+
+    if hasattr(visualizer, 'separate_fields') and args.separate_fields:
+        visualizer.separate_fields = True
 
     if args.colors:
         visualizer.set_colors(args.colors)

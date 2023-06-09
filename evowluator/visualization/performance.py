@@ -21,6 +21,7 @@ class PerformanceVisualizer(Visualizer):
     def __init__(self, results_dir: str, cfg) -> None:
         super().__init__(results_dir, cfg)
         self.fields = list(cfg[ConfigKey.FIELDS])
+        self.separate_fields = False
         self._energy_probes = {p[ConfigKey.NAME] for p in cfg.get(ConfigKey.ENERGY_PROBES, [])}
         self._summary: pd.DataFrame | None = None
         self._cumulative_time_metric = Metric('time', 'ms', '.2f')
@@ -59,7 +60,8 @@ class PerformanceVisualizer(Visualizer):
 
         # Time scatter
         if self._time_fields:
-            self.add_scatter_plotter(time_metric, col_filter=lambda c: c in self._time_fields)
+            self.add_scatter_plotter(time_metric, separate_cols=self.separate_fields,
+                                     col_filter=lambda c: c in self._time_fields)
 
         # Memory scatter
         if self._has_memory:

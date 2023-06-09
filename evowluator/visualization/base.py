@@ -177,12 +177,12 @@ class Visualizer:
         kwargs['line_styles'] = self.line_styles
         self.figure.add_plotter(plot_type, **kwargs)
 
-    def add_scatter_plotter(self, metric: Metric,
+    def add_scatter_plotter(self, metric: Metric, separate_cols: bool = False,
                             col_filter: Callable[[str], bool] | None = None) -> None:
         xunit = MemoryUnit.B(self._dataset.max_ontology_size()).readable().unit
         xmetric = Metric('ontology size', xunit, '.2f')
 
-        data = []
+        data = {}
 
         for reasoner in self._reasoners:
             results = self.results_for_reasoner(reasoner, col_filter=col_filter, drop_missing=False)
@@ -194,16 +194,23 @@ class Visualizer:
 
             x, y = [], []
 
-            for onto in ontologies:
-                yi = results.loc[onto.name].sum(skipna=False)
+            if separate_cols:
+                for col in results.columns:
+                    x, y = [], []
+                    for onto in ontologies:
+                        yi = results.loc[onto.name][col]
+                        if not np.isnan(yi):
+                            x.append(MemoryUnit.B(onto.size).to_value(xunit))
+                            y.append(yi)
+                    data[f'{reasoner}: {col}'] = (x, y)
+            else:
+                for onto in ontologies:
+                    yi = results.loc[onto.name].sum(skipna=False)
+                    if not np.isnan(yi):
+                        x.append(MemoryUnit.B(onto.size).to_value(xunit))
+                        y.append(yi)
+                data[reasoner] = (x, y)
 
-                if not np.isnan(yi):
-                    x.append(MemoryUnit.B(onto.size).to_value(xunit))
-                    y.append(yi)
-
-            data.append((x, y))
-
-        data = dict(zip(self._reasoners, data))
         self.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric)
 
     def add_min_max_avg_plotter(self, data: pd.DataFrame, metric: Metric,
