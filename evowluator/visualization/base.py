@@ -202,7 +202,8 @@ class Visualizer:
                         if not np.isnan(yi):
                             x.append(MemoryUnit.B(onto.size).to_value(xunit))
                             y.append(yi)
-                    data[f'{reasoner}: {col}'] = (x, y)
+                    label = f'{reasoner}: {col}' if len(self._reasoners) > 1 else col.capitalize()
+                    data[label] = (x, y)
             else:
                 for onto in ontologies:
                     yi = results.loc[onto.name].sum(skipna=False)

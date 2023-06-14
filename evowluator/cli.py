@@ -253,6 +253,11 @@ def add_visualize_parser(subparsers) -> None:
                         metavar='STYLE',
                         nargs='+',
                         help="Line styles to use for each reasoner.")
+    parser.add_argument('--fit-poly',
+                        dest='fit_poly_degree',
+                        type=positive_int,
+                        default=0,
+                        help='Fit a polyline of the specified degree to the data.')
     parser.add_argument('--transparent-bg',
                         action='store_true',
                         help='Use a transparent background when saving the figure.')

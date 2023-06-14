@@ -101,7 +101,7 @@ class Plot:
         self.draw_plot()
         self.draw_grid()
 
-        if self.legend_loc != LegendLocation.NONE:
+        if self.legend_loc != LegendLocation.NONE and len(self.data) > 1:
             self.draw_legend()
 
         if self.show_titles:
@@ -356,10 +356,15 @@ class StackedHistogramPlot(HistogramPlot):
 
 class ScatterPlot(Plot):
 
+    @property
+    def should_draw_line(self) -> bool:
+        return self.fit_poly_degree > 0
+
     def __init__(self, ax: plt.Axes):
         super().__init__(ax)
         self.data: Dict[str, Tuple[List[float], List[float]]] = {}
         self.markers: Dict[str, str] = {}
+        self.fit_poly_degree = 0
         self.line_styles: Dict[str, LineStyle] = {}
         self.legend_handle_length = 2.5
         self.marker_size = 0.0
@@ -387,7 +392,14 @@ class ScatterPlot(Plot):
             x, y = self.data[label]
             marker = self.markers.get(label, 'o')
             color = self.colors.get(label)
-            line_style = self.line_styles.get(label)
+
+            if self.should_draw_line:
+                line_style = self.line_styles.get(label)
+                line_width = 1.5
+            else:
+                line_style = 'none'
+                line_width = 0.0
+
             lines = self._ax.plot(x, y, label=label, color=color,
                                   linestyle='none', linewidth=1.0,
                                   marker=marker, markersize=marker_size)
@@ -404,7 +416,7 @@ class ScatterPlot(Plot):
 
                 # Setup legend handle
                 handle = Line2D([], [], label=label, color=line_color,
-                                linestyle=line_style, linewidth=1.5,
+                                linestyle=line_style, linewidth=line_width,
                                 marker=marker, markersize=marker_size,
                                 markeredgecolor=me_color, markerfacecolor=mf_color)
                 self.legend_handles[label] = handle
@@ -419,6 +431,9 @@ class ScatterPlot(Plot):
 
     def draw_polyline(self, x: List[float], y: List[float], color: str | None = None,
                       style: str | tuple | None = None) -> None:
+        if not self.should_draw_line:
+            return
+
         count = len(x)
         weights = [1.0] * count
 
@@ -427,7 +442,8 @@ class ScatterPlot(Plot):
         y[0] = sum(y[:count]) / count
         weights[0] = sum(y)
 
-        self._ax.plot(x, np.poly1d(np.polyfit(x, y, 1, w=weights))(x), color=color, linestyle=style)
+        self._ax.plot(x, np.poly1d(np.polyfit(x, y, self.fit_poly_degree, w=weights))(x),
+                      color=color, linestyle=style)
 
     def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
         if not self.xscale and xmin != xmax and (xmin == 0.0 or xmax / xmin > 25.0):
@@ -468,6 +484,7 @@ class Figure:
         self.ytick_rot = 0.0
         self.xscale: str | None = None
         self.yscale: str | None = None
+        self.fit_poly_degree = 0
         self._plotters: List[Plotter] = []
         self._is_drawn = False
 
@@ -480,7 +497,8 @@ class Figure:
         attrs = ('label_fmt', 'show_titles', 'show_labels',
                  'legend_loc', 'legend_cols', 'legend_only',
                  'label_rot', 'xtick_rot', 'ytick_rot',
-                 'xscale', 'yscale', 'marker_size')
+                 'xscale', 'yscale', 'marker_size',
+                 'fit_poly_degree')
 
         for attr in attrs:
             kwargs[attr] = getattr(self, attr)
