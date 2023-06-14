@@ -247,6 +247,7 @@ class HistogramPlot(Plot):
             return
         if not self.yscale and (data_min == 0.0 or data_max / data_min > 25.0):
             self.yscale = 'log' if data_min > 1.0 else 'symlog'
+        self.xscale = None
         self.apply_scale()
 
     def ylim_log_scale(self, data_min: float, data_max: float) -> (float, float):
