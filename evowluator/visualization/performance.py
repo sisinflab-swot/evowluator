@@ -6,6 +6,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+from pyutils.types.unit import MemoryUnit
 
 from .base import Visualizer
 from .metric import Metric
@@ -24,15 +25,23 @@ class PerformanceVisualizer(Visualizer):
         self.separate_fields = False
         self._energy_probes = {p[ConfigKey.NAME] for p in cfg.get(ConfigKey.ENERGY_PROBES, [])}
         self._summary: pd.DataFrame | None = None
+        self._time_metric = Metric('time', 'ms', '.0f')
         self._cumulative_time_metric = Metric('time', 'ms', '.2f')
+        self._memory_metric = Metric('memory', 'B', '.0f')
+        self._autoscale_results()
+
+    def _autoscale_results(self) -> None:
         if self._has_memory:
-            self._results[self._memory_cols] /= (1024 * 1024)
+            avg_mem = self._results[self._memory_cols].mean(axis=0).mean()
+            mem_unit = MemoryUnit.B(avg_mem).readable().unit
+            if mem_unit != MemoryUnit.B:
+                self._results[self._memory_cols] /= mem_unit.multiplier
+                self._memory_metric.unit = mem_unit
+                self._memory_metric.fmt = '.2f'
+
 
     def configure_plotters(self) -> None:
         super().configure_plotters()
-
-        time_metric = Metric('time', 'ms', '.0f')
-        memory_metric = Metric('memory peak', 'MiB', '.2f')
 
         # Time histogram
         cols = [f.capitalize() for f in self._time_fields]
@@ -49,7 +58,7 @@ class PerformanceVisualizer(Visualizer):
 
         # Memory histogram
         if self._has_memory:
-            self.add_min_max_avg_plotter(self._summary, memory_metric,
+            self.add_min_max_avg_plotter(self._summary, self._memory_metric,
                                          col_filter=lambda c: 'memory' in c)
 
         # Energy histogram
@@ -60,12 +69,12 @@ class PerformanceVisualizer(Visualizer):
 
         # Time scatter
         if self._time_fields:
-            self.add_scatter_plotter(time_metric, separate_cols=self.separate_fields,
+            self.add_scatter_plotter(self._time_metric, separate_cols=self.separate_fields,
                                      col_filter=lambda c: c in self._time_fields)
 
         # Memory scatter
         if self._has_memory:
-            self.add_scatter_plotter(memory_metric, col_filter=lambda c: 'memory' in c)
+            self.add_scatter_plotter(self._memory_metric, col_filter=lambda c: 'memory' in c)
 
         # Energy scatter
         for ef in self._energy_fields:
