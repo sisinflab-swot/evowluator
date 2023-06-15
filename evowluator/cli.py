@@ -226,6 +226,16 @@ def add_visualize_parser(subparsers) -> None:
                         help='Scale of the x axis.')
     parser.add_argument('--yscale',
                         help='Scale of the y axis.')
+    parser.add_argument('--xlimits',
+                        metavar=('XMIN', 'XMAX'),
+                        nargs=2,
+                        type=float,
+                        help='Limits of the x axis.')
+    parser.add_argument('--ylimits',
+                        metavar=('YMIN', 'YMAX'),
+                        nargs=2,
+                        type=float,
+                        help='Limits of the y axis.')
     parser.add_argument('--legend-loc',
                         type=LegendLocation,
                         choices=LegendLocation.all(),
@@ -363,6 +373,12 @@ def visualize_sub(args) -> int:
 
     if args.markers:
         visualizer.set_markers(args.markers)
+
+    if args.xlimits:
+        args.xlimits = (args.xlimits[0], args.xlimits[1])
+
+    if args.ylimits:
+        args.ylimits = (args.ylimits[0], args.ylimits[1])
 
     if args.size:
         args.size = (args.size[0], args.size[1])

@@ -36,12 +36,17 @@ class Plot:
 
     # Override
 
-    def draw_plot(self) -> None:
-        for label in self._ax.get_xticklabels():
-            label.set_rotation(self.xtick_rot)
+    def compute_xbounds(self) -> Tuple[float, float] | None:
+        return None
 
-        for label in self._ax.get_yticklabels():
-            label.set_rotation(self.ytick_rot)
+    def compute_ybounds(self) -> Tuple[float, float] | None:
+        return None
+
+    def pre_draw(self) -> None:
+        pass
+
+    def draw_plot(self) -> None:
+        pass
 
     # Public
 
@@ -60,6 +65,8 @@ class Plot:
         self.ylabel: str | None = None
         self.xscale: str | None = None
         self.yscale: str | None = None
+        self.xlimits: Tuple[float, float] | None = None
+        self.ylimits: Tuple[float, float] | None = None
         self.xtick_rot = 0.0
         self.ytick_rot = 0.0
 
@@ -93,19 +100,47 @@ class Plot:
         self._ax.yaxis.set_major_formatter(y_maj)
         self._ax.yaxis.set_minor_formatter(y_min)
 
+    def apply_limits(self) -> None:
+        if self.xlimits:
+            self._ax.set_xlim(self.xlimits[0], self.xlimits[1])
+        if self.ylimits:
+            self._ax.set_ylim(self.ylimits[0], self.ylimits[1])
+
+    def compute_limits(self, bounds: Tuple[float, float], scale: str) -> (float, float):
+        return _compute_limits(bounds, scale, False)
+
+    def compute_scale(self, bounds: Tuple[float, float]) -> str:
+        return _compute_scale(bounds)
+
+    def configure(self) -> None:
+        if not (self.xlimits and self.xscale):
+            bounds = self.compute_xbounds()
+            if bounds:
+                if not self.xscale:
+                    self.xscale = self.compute_scale(bounds)
+                if not self.xlimits:
+                    self.xlimits = self.compute_limits(bounds, self.xscale)
+
+        if not (self.ylimits and self.yscale):
+            bounds = self.compute_ybounds()
+            if bounds:
+                if not self.yscale:
+                    self.yscale = self.compute_scale(bounds)
+                if not self.ylimits:
+                    self.ylimits = self.compute_limits(bounds, self.yscale)
+
     def draw(self) -> None:
         if self.legend_only:
             self.draw_legend_only()
             return
-
+        self.pre_draw()
+        self.configure()
         self.draw_plot()
+        self.apply_scale()
+        self.apply_limits()
         self.draw_grid()
-
-        if self.legend_loc != LegendLocation.NONE and len(self.data) > 1:
-            self.draw_legend()
-
-        if self.show_titles:
-            self.draw_titles()
+        self.draw_legend()
+        self.draw_titles()
 
     def draw_legend_only(self) -> None:
         self.draw_plot()
@@ -124,7 +159,16 @@ class Plot:
         self._ax.grid(b=True, axis=self.grid_axis, which='major')
         self._ax.grid(b=True, axis=self.grid_axis, which='minor', alpha=0.25)
 
-    def draw_legend(self) -> Legend:
+        for label in self._ax.get_xticklabels():
+            label.set_rotation(self.xtick_rot)
+
+        for label in self._ax.get_yticklabels():
+            label.set_rotation(self.ytick_rot)
+
+    def draw_legend(self) -> Legend | None:
+        if self.legend_loc == LegendLocation.NONE or len(self.data) <= 1:
+            return None
+
         handles = list(self.legend_handles.values()) if self.legend_handles else None
         legend = self._ax.legend(handles=handles,
                                  loc=self.legend_loc,
@@ -139,6 +183,9 @@ class Plot:
         return legend
 
     def draw_titles(self) -> None:
+        if not self.show_titles:
+            return
+
         if self.title:
             self._ax.set_title(self.title)
 
@@ -164,12 +211,15 @@ class HistogramPlot(Plot):
         self.show_labels = True
         self._labels: List[plt.Annotation] = []
 
-    def draw_plot(self) -> None:
-        if self.show_labels:
-            self.draw_labels()
-        super().draw_plot()
+    def configure(self) -> None:
+        super().configure()
+        self.xlimits = None
+        self.xscale = None
 
     def draw_labels(self) -> None:
+        if not self.show_labels:
+            return
+
         fmt = self.label_fmt if self.label_fmt else self.metric.fmt
 
         if not fmt:
@@ -178,7 +228,8 @@ class HistogramPlot(Plot):
         for rect in (p for p in self._ax.patches if p.get_height() > 0.0):
             self._labels.append(self.draw_label(rect, fmt))
 
-        self.fit_labels()
+        if not self.ylimits:
+            self.fit_labels()
 
     def draw_label(self, bar: Rectangle, fmt: str) -> plt.Annotation:
         w, h = bar.get_width(), bar.get_height()
@@ -215,8 +266,7 @@ class HistogramPlot(Plot):
         # Zero labels are not plotted, in which case ymin is larger than
         # the actual required minimum (zero).
         ymin = min(self._ax.get_ylim()[0], ymin)
-
-        self.configure_limits(ymin, ymax)
+        self.ylimits = (ymin, ymax)
 
     def artist_overlaps_labels(self, artist: plt.Artist) -> bool:
         renderer = self._ax.figure.canvas.get_renderer()
@@ -228,53 +278,6 @@ class HistogramPlot(Plot):
 
         return False
 
-    def configure_limits(self, data_min: float, data_max: float) -> None:
-        if data_min == 0.0:
-            data_min = sys.float_info.epsilon
-
-        if data_max == 0.0:
-            data_max = sys.float_info.epsilon
-
-        if 'log' in self._ax.get_yscale():
-            bottom, top = self.ylim_log_scale(data_min, data_max)
-        else:
-            bottom, top = self.ylim_linear_scale(data_min, data_max)
-
-        self._ax.set_ylim(bottom=bottom, top=top)
-
-    def configure_scale(self, data_min: float, data_max: float) -> None:
-        if data_min == data_max:
-            return
-        if not self.yscale and (data_min == 0.0 or data_max / data_min > 25.0):
-            self.yscale = 'log' if data_min > 1.0 else 'symlog'
-        self.xscale = None
-        self.apply_scale()
-
-    def ylim_log_scale(self, data_min: float, data_max: float) -> (float, float):
-        bottom = 10.0 ** np.floor(np.log10(data_min))
-        top = 10.0 ** np.ceil(np.log10(data_max))
-
-        if data_max / top > 0.9:
-            top *= 2.0
-        elif data_max / top < 0.2:
-            top *= 0.2
-
-        return bottom, top
-
-    def ylim_linear_scale(self, data_min: float, data_max: float) -> (float, float):
-        mult = 1.0 if data_min == data_max else 10.0 ** np.floor(np.log10(data_max - data_min))
-
-        bottom = (data_min // mult) * mult
-        top = (data_max // mult + 1.0) * mult
-
-        if top - data_max < mult * 0.1:
-            top += mult * 0.1
-
-        if data_min - bottom < mult * 0.2:
-            bottom = max(bottom - mult, 0.0)
-
-        return bottom, top
-
 
 class GroupedHistogramPlot(HistogramPlot):
 
@@ -283,16 +286,16 @@ class GroupedHistogramPlot(HistogramPlot):
         self.show_zero_labels = show_zero_labels
         self.groups: List[str] = []
 
-    def draw_plot(self) -> None:
+    def compute_ybounds(self) -> Tuple[float, float]:
+        return (min(p for v in self.data.values() for p in v),
+                max(p for v in self.data.values() for p in v))
+
+    def pre_draw(self) -> None:
         if not self.show_zero_labels:
             for label in [label for label, d in self.data.items() if sum(d) == 0]:
                 del self.data[label]
 
-        data_min = min(p for v in self.data.values() for p in v)
-        data_max = max(p for v in self.data.values() for p in v)
-        self.configure_scale(data_min, data_max)
-        self.configure_limits(data_min, data_max)
-
+    def draw_plot(self) -> None:
         labels = list(self.data.keys())
         n_labels = len(labels)
         n_groups = len(self.groups)
@@ -310,15 +313,14 @@ class GroupedHistogramPlot(HistogramPlot):
 
         self.ylabel = self.metric.to_string(capitalize=True)
         self.title = self.metric.capitalized_name
-        super().draw_plot()
+        self.draw_labels()
 
 
 class MinMaxAvgHistogramPlot(GroupedHistogramPlot):
 
-    def draw(self) -> None:
+    def pre_draw(self) -> None:
         self.title = 'Minimum, average and maximum ' + self.metric.name
         self.groups = ['Min', 'Avg', 'Max']
-        super().draw()
 
 
 class StackedHistogramPlot(HistogramPlot):
@@ -328,12 +330,11 @@ class StackedHistogramPlot(HistogramPlot):
         self.data: Dict[str, List[float]] = {}
         self.labels: List[str] = []
 
-    def draw_plot(self) -> None:
-        data_min = min(p for v in self.data.values() for p in v)
-        data_max = max(sum(v) for v in self.data.values())
-        self.configure_scale(data_min, data_max)
-        self.configure_limits(data_min, data_max)
+    def compute_ybounds(self) -> Tuple[float, float] | None:
+        return (min(p for v in self.data.values() for p in v),
+                max(sum(v) for v in self.data.values()))
 
+    def draw_plot(self) -> None:
         group_labels = list(self.data.keys())
         n_group_labels = len(group_labels)
 
@@ -352,7 +353,7 @@ class StackedHistogramPlot(HistogramPlot):
 
         self._ax.set_xticks(pos)
         self._ax.set_xticklabels(group_labels)
-        super().draw_plot()
+        self.draw_labels()
 
 
 class ScatterPlot(Plot):
@@ -372,22 +373,25 @@ class ScatterPlot(Plot):
         self.xmetric: Metric | None = None
         self.ymetric: Metric | None = None
 
+    def compute_xbounds(self) -> Tuple[float, float] | None:
+        return (min(p for t in self.data.values() for p in t[0]),
+                max(p for t in self.data.values() for p in t[0]))
+
+    def compute_ybounds(self) -> Tuple[float, float] | None:
+        return (min(p for t in self.data.values() for p in t[1]),
+                max(p for t in self.data.values() for p in t[1]))
+
+    def compute_limits(self, bounds: Tuple[float, float], scale: str) -> (float, float):
+        return _compute_limits(bounds, scale, True)
+
     def draw_plot(self) -> None:
         labels = list(self.data.keys())
-
         dataset_size = len(next(iter(self.data.values()))[0])
 
         if self.marker_size:
             marker_size = self.marker_size
         else:
             marker_size = 3.0 if dataset_size > 100 else 7.0
-
-        xmin = min(p for t in self.data.values() for p in t[0])
-        xmax = max(p for t in self.data.values() for p in t[0])
-        ymin = min(p for t in self.data.values() for p in t[1])
-        ymax = max(p for t in self.data.values() for p in t[1])
-
-        self.configure_scale(xmin, xmax, ymin, ymax)
 
         for label in labels:
             x, y = self.data[label]
@@ -446,15 +450,6 @@ class ScatterPlot(Plot):
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, self.fit_poly_degree, w=weights))(x),
                       color=color, linestyle=style)
 
-    def configure_scale(self, xmin: float, xmax: float, ymin: float, ymax: float) -> None:
-        if not self.xscale and xmin != xmax and (xmin == 0.0 or xmax / xmin > 25.0):
-            self.xscale = 'log'
-
-        if not self.yscale and ymin != ymax and (ymin == 0.0 or ymax / ymin > 25.0):
-            self.yscale = 'log'
-
-        self.apply_scale()
-
 
 class Plotter:
 
@@ -483,6 +478,8 @@ class Figure:
         self.marker_size = 0.0
         self.xtick_rot = 0.0
         self.ytick_rot = 0.0
+        self.xlimits: Tuple[float, float] | None = None
+        self.ylimits: Tuple[float, float] | None = None
         self.xscale: str | None = None
         self.yscale: str | None = None
         self.fit_poly_degree = 0
@@ -498,8 +495,8 @@ class Figure:
         attrs = ('label_fmt', 'show_titles', 'show_labels',
                  'legend_loc', 'legend_cols', 'legend_only',
                  'label_rot', 'xtick_rot', 'ytick_rot',
-                 'xscale', 'yscale', 'marker_size',
-                 'fit_poly_degree')
+                 'xlimits', 'ylimits', 'xscale', 'yscale',
+                 'marker_size', 'fit_poly_degree')
 
         for attr in attrs:
             kwargs[attr] = getattr(self, attr)
@@ -539,3 +536,59 @@ class Figure:
     def save(self, path: str, transparent: bool = False) -> None:
         if self._is_drawn:
             plt.savefig(path, bbox_inches='tight', pad_inches=0.0, transparent=transparent)
+
+
+def _compute_scale(bounds: Tuple[float, float]) -> str:
+    xmin, xmax = bounds
+    if xmin != xmax and (xmin == 0.0 or xmax / xmin > 25.0):
+        return 'log'
+    return 'linear'
+
+
+def _compute_limits(bounds: Tuple[float, float], scale: str, tight: bool) -> (float, float):
+    data_min, data_max = bounds
+
+    if data_min == 0.0:
+        data_min = sys.float_info.epsilon
+
+    if data_max == 0.0:
+        data_max = sys.float_info.epsilon
+
+    if 'log' in scale:
+        return _log_limit(data_min, data_max, tight=tight)
+    else:
+        return _linear_limit(data_min, data_max, tight=tight)
+
+def _log_limit(data_min: float, data_max: float, tight: bool) -> (float, float):
+    if tight:
+        bottom = 10.0 ** (np.floor(np.log10(data_min) * 10.0) / 10.0)
+        top = 10.0 ** (np.ceil(np.log10(data_max) * 10.0) / 10.0)
+        return bottom, top
+
+    bottom = 10.0 ** np.floor(np.log10(data_min))
+    top = 10.0 ** np.ceil(np.log10(data_max))
+
+    if data_max / top > 0.9:
+        top /= 0.9
+    if bottom / data_min > 0.9:
+        bottom *= 0.8
+
+    return bottom, top
+
+def _linear_limit(data_min: float, data_max: float, tight: bool) -> (float, float):
+    mult = 1.0 if data_min == data_max else 10.0 ** np.floor(np.log10(data_max - data_min))
+    bottom = (data_min // mult) * mult
+    top = (data_max // mult + 1.0) * mult
+
+    if tight:
+        if top - data_max > mult * 0.5:
+            top -= mult * 0.5
+        if data_min - bottom > mult * 0.5:
+            bottom += mult * 0.5
+    else:
+        if top - data_max < mult * 0.1:
+            top += mult * 0.1
+        if data_min - bottom < mult * 0.2:
+            bottom = max(bottom - mult, 0.0)
+
+    return bottom, top
