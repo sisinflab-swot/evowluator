@@ -59,6 +59,8 @@ class Plot:
         self.legend_handles: Dict[str, Line2D] = {}
         self.legend_handle_length = 0.7
         self.legend_only = False
+        self.edge_alpha = 1.0
+        self.face_alpha = 0.85
         self.show_titles = True
         self.title: str | None = None
         self.xlabel: str | None = None
@@ -305,8 +307,11 @@ class GroupedHistogramPlot(HistogramPlot):
 
         for i, label in enumerate(labels):
             color = self.colors.get(label)
-            self._ax.bar([j + width * i for j in range(n_groups)], self.data[label],
-                         width=bar_width, alpha=0.9, label=label, color=color)
+            for bar in self._ax.bar([j + width * i for j in range(n_groups)], self.data[label],
+                                    width=bar_width, label=label, color=color):
+                bar_color = bar.get_facecolor()
+                bar.set_edgecolor(colors.to_rgba(bar_color, alpha=self.edge_alpha))
+                bar.set_facecolor(colors.to_rgba(bar_color, alpha=self.face_alpha))
 
         self._ax.set_xticks([p + width * ((n_labels - 1) / 2) for p in range(n_groups)])
         self._ax.set_xticklabels(self.groups)
@@ -323,39 +328,6 @@ class MinMaxAvgHistogramPlot(GroupedHistogramPlot):
         self.groups = ['Min', 'Avg', 'Max']
 
 
-class StackedHistogramPlot(HistogramPlot):
-
-    def __init__(self, ax: plt.Axes):
-        super().__init__(ax)
-        self.data: Dict[str, List[float]] = {}
-        self.labels: List[str] = []
-
-    def compute_ybounds(self) -> Tuple[float, float] | None:
-        return (min(p for v in self.data.values() for p in v),
-                max(sum(v) for v in self.data.values()))
-
-    def draw_plot(self) -> None:
-        group_labels = list(self.data.keys())
-        n_group_labels = len(group_labels)
-
-        n_sections = len(next(iter(self.data.values())))
-        pos = np.arange(n_group_labels)
-        width = 0.5
-
-        values = [self.data[r][0] for r in group_labels]
-        self._ax.bar(pos, values, width, alpha=0.9, label=self.labels[0])
-
-        for section in range(1, n_sections):
-            prev_values = values
-            values = [self.data[r][section] for r in group_labels]
-            self._ax.bar(pos, values, width, alpha=0.9, bottom=prev_values,
-                         label=self.labels[section])
-
-        self._ax.set_xticks(pos)
-        self._ax.set_xticklabels(group_labels)
-        self.draw_labels()
-
-
 class ScatterPlot(Plot):
 
     @property
@@ -370,6 +342,8 @@ class ScatterPlot(Plot):
         self.line_styles: Dict[str, LineStyle] = {}
         self.legend_handle_length = 2.5
         self.marker_size = 0.0
+        self.edge_alpha = 0.8
+        self.face_alpha = 0.5
         self.xmetric: Metric | None = None
         self.ymetric: Metric | None = None
 
@@ -414,27 +388,27 @@ class ScatterPlot(Plot):
 
                 # Update marker color
                 line_color = line.get_color()
-                me_color = colors.to_rgba(line_color, alpha=0.8)
-                mf_color = colors.to_rgba(line_color, alpha=0.5)
-                line.set_markeredgecolor(me_color)
-                line.set_markerfacecolor(mf_color)
+                e_color = colors.to_rgba(line_color, alpha=self.edge_alpha)
+                f_color = colors.to_rgba(line_color, alpha=self.face_alpha)
+                line.set_markeredgecolor(e_color)
+                line.set_markerfacecolor(f_color)
 
                 # Setup legend handle
-                handle = Line2D([], [], label=label, color=line_color,
+                handle = Line2D([], [], label=label, color=e_color,
                                 linestyle=line_style, linewidth=line_width,
                                 marker=marker, markersize=marker_size,
-                                markeredgecolor=me_color, markerfacecolor=mf_color)
+                                markeredgecolor=e_color, markerfacecolor=f_color)
                 self.legend_handles[label] = handle
 
                 # Draw polyline
-                self.draw_polyline(x, y, color=line_color, style=line_style)
+                self.draw_polyline(x, y, color=e_color, style=line_style)
 
         self.title = f'{self.ymetric.capitalized_name} by {self.xmetric.name}'
         self.xlabel = self.xmetric.to_string(capitalize=True)
         self.ylabel = self.ymetric.to_string(capitalize=True)
         super().draw_plot()
 
-    def draw_polyline(self, x: List[float], y: List[float], color: str | None = None,
+    def draw_polyline(self, x: List[float], y: List[float], color: Tuple | str | None = None,
                       style: str | tuple | None = None) -> None:
         if not self.should_draw_line:
             return
@@ -464,25 +438,17 @@ class Plotter:
 
 
 class Figure:
+    _PLOTTER_ATTRS = ('show_titles', 'show_labels', 'fit_poly_degree',
+                      'legend_loc', 'legend_cols', 'legend_only',
+                      'label_fmt', 'label_rot', 'xtick_rot', 'ytick_rot',
+                      'xlimits', 'ylimits', 'xscale', 'yscale',
+                      'edge_alpha', 'face_alpha', 'marker_size')
 
     def __init__(self, title: str = 'evOWLuator'):
         self.title = title
         self.size: Tuple[float, float] | None = None
-        self.show_titles = True
-        self.show_labels = True
-        self.label_fmt: str | None = None
-        self.label_rot = 0.0
-        self.legend_loc = LegendLocation.BEST
-        self.legend_cols = 1
-        self.legend_only = True
-        self.marker_size = 0.0
-        self.xtick_rot = 0.0
-        self.ytick_rot = 0.0
-        self.xlimits: Tuple[float, float] | None = None
-        self.ylimits: Tuple[float, float] | None = None
-        self.xscale: str | None = None
-        self.yscale: str | None = None
-        self.fit_poly_degree = 0
+        for attr in self._PLOTTER_ATTRS:
+            setattr(self, attr, None)
         self._plotters: List[Plotter] = []
         self._is_drawn = False
 
@@ -492,15 +458,10 @@ class Figure:
                 setattr(self, k, v)
 
     def add_plotter(self, plot_type: type, **kwargs) -> None:
-        attrs = ('label_fmt', 'show_titles', 'show_labels',
-                 'legend_loc', 'legend_cols', 'legend_only',
-                 'label_rot', 'xtick_rot', 'ytick_rot',
-                 'xlimits', 'ylimits', 'xscale', 'yscale',
-                 'marker_size', 'fit_poly_degree')
-
-        for attr in attrs:
-            kwargs[attr] = getattr(self, attr)
-
+        for attr in self._PLOTTER_ATTRS:
+            val = getattr(self, attr)
+            if val is not None:
+                kwargs[attr] = val
         self._plotters.append(Plotter(plot_type, **kwargs))
 
     def draw(self, plots: List[int] | None = None) -> None:

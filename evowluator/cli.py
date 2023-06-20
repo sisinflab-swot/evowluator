@@ -268,6 +268,12 @@ def add_visualize_parser(subparsers) -> None:
                         type=positive_int,
                         default=0,
                         help='Fit a polyline of the specified degree to the data.')
+    parser.add_argument('--edge-alpha',
+                        type=float,
+                        help='Edge alpha.')
+    parser.add_argument('--face-alpha',
+                        type=float,
+                        help='Face alpha.')
     parser.add_argument('--transparent-bg',
                         action='store_true',
                         help='Use a transparent background when saving the figure.')
