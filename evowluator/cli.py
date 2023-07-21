@@ -274,6 +274,9 @@ def add_visualize_parser(subparsers) -> None:
     parser.add_argument('--face-alpha',
                         type=float,
                         help='Face alpha.')
+    parser.add_argument('--line-alpha',
+                        type=float,
+                        help='Line alpha.')
     parser.add_argument('--transparent-bg',
                         action='store_true',
                         help='Use a transparent background when saving the figure.')

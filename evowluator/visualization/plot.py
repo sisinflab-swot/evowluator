@@ -344,6 +344,7 @@ class ScatterPlot(Plot):
         self.marker_size = 0.0
         self.edge_alpha = 0.8
         self.face_alpha = 0.5
+        self.line_alpha = 1.0
         self.xmetric: Metric | None = None
         self.ymetric: Metric | None = None
 
@@ -390,18 +391,19 @@ class ScatterPlot(Plot):
                 line_color = line.get_color()
                 e_color = colors.to_rgba(line_color, alpha=self.edge_alpha)
                 f_color = colors.to_rgba(line_color, alpha=self.face_alpha)
+                l_color = colors.to_rgba(line_color, alpha=self.line_alpha)
                 line.set_markeredgecolor(e_color)
                 line.set_markerfacecolor(f_color)
 
                 # Setup legend handle
-                handle = Line2D([], [], label=label, color=e_color,
+                handle = Line2D([], [], label=label, color=l_color,
                                 linestyle=line_style, linewidth=line_width,
                                 marker=marker, markersize=marker_size,
                                 markeredgecolor=e_color, markerfacecolor=f_color)
                 self.legend_handles[label] = handle
 
                 # Draw polyline
-                self.draw_polyline(x, y, color=e_color, style=line_style)
+                self.draw_polyline(x, y, color=l_color, style=line_style)
 
         self.title = f'{self.ymetric.capitalized_name} by {self.xmetric.name}'
         self.xlabel = self.xmetric.to_string(capitalize=True)
@@ -417,7 +419,14 @@ class ScatterPlot(Plot):
         weights = [1.0] * count
 
         # Force start from first data points
-        count = max(count // (100 if count > 100 else 5), 1)
+        vmax = x[0] + (x[count - 1] - x[0]) / 100.0
+        count = 1
+
+        for i, v in enumerate(x):
+            if v > vmax:
+                count = i
+                break
+
         y[0] = sum(y[:count]) / count
         weights[0] = sum(y)
 
@@ -442,7 +451,7 @@ class Figure:
                       'legend_loc', 'legend_cols', 'legend_only',
                       'label_fmt', 'label_rot', 'xtick_rot', 'ytick_rot',
                       'xlimits', 'ylimits', 'xscale', 'yscale',
-                      'edge_alpha', 'face_alpha', 'marker_size')
+                      'edge_alpha', 'face_alpha', 'line_alpha', 'marker_size')
 
     def __init__(self, title: str = 'evOWLuator'):
         self.title = title
