@@ -412,6 +412,12 @@ class ScatterPlot(Plot):
 
     def draw_polyline(self, x: List[float], y: List[float], color: Tuple | str | None = None,
                       style: str | tuple | None = None) -> None:
+        def find_where(values, check, default) -> int:
+            for idx, val in enumerate(values):
+                if check(val):
+                    return idx
+            return default
+
         if not self.should_draw_line:
             return
 
@@ -419,16 +425,17 @@ class ScatterPlot(Plot):
         weights = [1.0] * count
 
         # Force start from first data points
-        vmax = x[0] + (x[count - 1] - x[0]) / 100.0
-        count = 1
+        x_min, x_max = x[0], x[count - 1]
+        vmax = x_min + (x_max - x_min) / 100.0
+        count = find_where(x, lambda v: v > vmax, 1)
+        count = min(count, int(len(x) / 100), 100)
 
-        for i, v in enumerate(x):
-            if v > vmax:
-                count = i
-                break
+        new_x = sum(x[:count]) / count
+        index = find_where(x, lambda v: v > new_x, 1) - 1
 
-        y[0] = sum(y[:count]) / count
-        weights[0] = sum(y)
+        x.insert(index, new_x)
+        y.insert(index, sum(y[:count]) / count)
+        weights.insert(index, sum(y))
 
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, self.fit_poly_degree, w=weights))(x),
                       color=color, linestyle=style)
