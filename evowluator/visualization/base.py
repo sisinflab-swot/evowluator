@@ -142,8 +142,6 @@ class Visualizer:
                 columns = [c for c in columns if c not in non_numeric_columns]
             else:
                 columns = []
-        else:
-            columns = columns
 
         if columns:
             res[columns] = res[columns].apply(pd.to_numeric, errors='coerce')

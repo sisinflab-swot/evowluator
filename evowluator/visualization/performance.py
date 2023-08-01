@@ -6,7 +6,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from pyutils.types.unit import MemoryUnit
+from pyutils.types.unit import MemoryUnit, TimeUnit
 
 from .base import Visualizer
 from .metric import Metric
@@ -17,7 +17,44 @@ from ..data import csv
 
 class PerformanceVisualizer(Visualizer):
 
-    # Overrides
+    @property
+    def time_unit(self) -> TimeUnit:
+        return self._time_unit if self._time_unit else TimeUnit.MS
+
+    @time_unit.setter
+    def time_unit(self, unit: TimeUnit) -> None:
+        if not hasattr(unit, 'multiplier'):
+            unit = TimeUnit(unit)
+        mult = unit.multiplier / self.time_unit.multiplier
+        self._results[self._time_cols] /= mult
+        self._time_unit = unit
+
+    @property
+    def memory_unit(self) -> MemoryUnit:
+        return self._memory_unit if self._memory_unit else MemoryUnit.B
+
+    @memory_unit.setter
+    def memory_unit(self, unit: MemoryUnit) -> None:
+        if not hasattr(unit, 'multiplier'):
+            unit = MemoryUnit(unit)
+        mult = unit.multiplier / self.memory_unit.multiplier
+        self._results[self._memory_cols] /= mult
+        self._memory_unit = unit
+
+    @property
+    def time_metric(self) -> Metric:
+        unit = self.time_unit
+        return Metric('time', unit, '.0f' if unit.multiplier < TimeUnit.S.multiplier else '.2f')
+
+    @property
+    def cumulative_time_metric(self) -> Metric:
+        unit = self._cumulative_time_unit
+        return Metric('time', unit, '.2f')
+
+    @property
+    def memory_metric(self) -> Metric:
+        unit = self.memory_unit
+        return Metric('memory', unit, '.0f' if unit == MemoryUnit.B else '.2f')
 
     def __init__(self, results_dir: str, cfg) -> None:
         super().__init__(results_dir, cfg)
@@ -25,19 +62,15 @@ class PerformanceVisualizer(Visualizer):
         self.separate_fields = False
         self._energy_probes = {p[ConfigKey.NAME] for p in cfg.get(ConfigKey.ENERGY_PROBES, [])}
         self._summary: pd.DataFrame | None = None
-        self._time_metric = Metric('time', 'ms', '.0f')
-        self._cumulative_time_metric = Metric('time', 'ms', '.2f')
-        self._memory_metric = Metric('memory', 'B', '.0f')
+        self._time_unit: TimeUnit | None = None
+        self._cumulative_time_unit: TimeUnit | None = None
+        self._memory_unit: MemoryUnit | None = None
         self._autoscale_results()
 
     def _autoscale_results(self) -> None:
         if self._has_memory:
             avg_mem = self._results[self._memory_cols].mean(axis=0).mean()
-            mem_unit = MemoryUnit.B(avg_mem).readable().unit
-            if mem_unit != MemoryUnit.B:
-                self._results[self._memory_cols] /= mem_unit.multiplier
-                self._memory_metric.unit = mem_unit
-                self._memory_metric.fmt = '.2f'
+            self.memory_unit = MemoryUnit.B(avg_mem).readable().unit
 
 
     def configure_plotters(self) -> None:
@@ -52,13 +85,13 @@ class PerformanceVisualizer(Visualizer):
             self.add_plotter(GroupedHistogramPlot,
                              title='Total time',
                              data=dict(zip(cols, list(data))),
-                             metric=self._cumulative_time_metric,
+                             metric=self.cumulative_time_metric,
                              groups=reasoners,
                              show_zero_labels=False)
 
         # Memory histogram
         if self._has_memory:
-            self.add_min_max_avg_plotter(self._summary, self._memory_metric,
+            self.add_min_max_avg_plotter(self._summary, self.memory_metric,
                                          col_filter=lambda c: 'memory' in c)
 
         # Energy histogram
@@ -69,12 +102,12 @@ class PerformanceVisualizer(Visualizer):
 
         # Time scatter
         if self._time_fields:
-            self.add_scatter_plotter(self._time_metric, separate_cols=self.separate_fields,
+            self.add_scatter_plotter(self.time_metric, separate_cols=self.separate_fields,
                                      col_filter=lambda c: c in self._time_fields)
 
         # Memory scatter
         if self._has_memory:
-            self.add_scatter_plotter(self._memory_metric, col_filter=lambda c: 'memory' in c)
+            self.add_scatter_plotter(self.memory_metric, col_filter=lambda c: 'memory' in c)
 
         # Energy scatter
         for ef in self._energy_fields:
@@ -150,13 +183,15 @@ class PerformanceVisualizer(Visualizer):
 
         if min_time != inf_time and ((min_time >= 1000.0) or
                                      (min_time >= 100.0 and max_time >= 10000.0)):
-            self._cumulative_time_metric.unit = 's'
-            self._cumulative_time_metric.fmt = '.2f'
-            for field in times:
-                times[field] /= 1000.0
+            if self._time_unit:
+                self._cumulative_time_unit = self._time_unit
+            else:
+                self._cumulative_time_unit = TimeUnit.S
+                for field in times:
+                    times[field] /= 1000.0
 
         if min_time != inf_time:
-            time_unit = f' ({self._cumulative_time_metric.unit})'
+            time_unit = f' ({self._cumulative_time_unit})'
             for field, data in times.items():
                 summary[field + time_unit] = data
             if len(times) > 1:

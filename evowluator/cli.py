@@ -3,6 +3,7 @@ import os
 from functools import cache
 
 from pyutils.proc.energy import EnergyProbe
+from pyutils.types.unit import TimeUnit, MemoryUnit
 from . import config
 from .config import Evaluation, EXE_NAME, OnError
 from .data import converter
@@ -199,6 +200,12 @@ def add_visualize_parser(subparsers) -> None:
     parser.add_argument('--separate-fields',
                         action='store_true',
                         help='Plot individual fields rather than cumulative metrics.')
+    parser.add_argument('--time-unit',
+                        choices=TimeUnit.all(),
+                        help='Time unit.')
+    parser.add_argument('--memory-unit',
+                        choices=MemoryUnit.all(),
+                        help='Memory unit.')
     parser.add_argument('--no-gui',
                         dest='gui',
                         action='store_false',
@@ -373,6 +380,12 @@ def visualize_sub(args) -> int:
 
     if hasattr(visualizer, 'separate_fields') and args.separate_fields:
         visualizer.separate_fields = True
+
+    if hasattr(visualizer, 'memory_unit') and args.memory_unit:
+        visualizer.memory_unit = args.memory_unit
+
+    if hasattr(visualizer, 'time_unit') and args.time_unit:
+        visualizer.time_unit = args.time_unit
 
     if args.colors:
         visualizer.set_colors(args.colors)
