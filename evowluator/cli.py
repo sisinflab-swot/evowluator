@@ -275,6 +275,12 @@ def add_visualize_parser(subparsers) -> None:
                         type=positive_int,
                         default=0,
                         help='Fit a polyline of the specified degree to the data.')
+    parser.add_argument('--fit-poly-start-samples',
+                        type=non_negative_int,
+                        help='Forces the polyline to pass from the average of the first samples.')
+    parser.add_argument('--fit-poly-end-samples',
+                        type=non_negative_int,
+                        help='Forces the polyline to pass from the average of the last samples.')
     parser.add_argument('--edge-alpha',
                         type=float,
                         help='Edge alpha.')
@@ -421,6 +427,12 @@ def convert_sub(args) -> int:
 
 # Utils
 
+
+def non_negative_int(value: str) -> int:
+    ivalue = int(value)
+    if ivalue < 0:
+        raise argparse.ArgumentTypeError(f'{value} is a negative int')
+    return ivalue
 
 def positive_int(value: str) -> int:
     ivalue = int(value)

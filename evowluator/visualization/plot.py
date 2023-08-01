@@ -339,6 +339,8 @@ class ScatterPlot(Plot):
         self.data: Dict[str, Tuple[List[float], List[float]]] = {}
         self.markers: Dict[str, str] = {}
         self.fit_poly_degree = 0
+        self.fit_poly_start_samples: int | None = None
+        self.fit_poly_end_samples: int | None = None
         self.line_styles: Dict[str, LineStyle] = {}
         self.legend_handle_length = 2.5
         self.marker_size = 0.0
@@ -423,19 +425,34 @@ class ScatterPlot(Plot):
 
         count = len(x)
         weights = [1.0] * count
+        start_samples, end_samples = self.fit_poly_start_samples, self.fit_poly_end_samples
 
-        # Force start from first data points
-        x_min, x_max = x[0], x[count - 1]
-        vmax = x_min + (x_max - x_min) / 100.0
-        count = find_where(x, lambda v: v > vmax, 1)
-        count = min(count, int(len(x) / 100), 100)
+        if start_samples is None:
+            # Heuristic to estimate good start point
+            x_min, x_max = x[0], x[count - 1]
+            vmax = x_min + (x_max - x_min) / 100.0
+            start_samples = find_where(x, lambda v: v > vmax, 1)
+            start_samples = min(start_samples, int(len(x) / 100), 100)
 
-        new_x = sum(x[:count]) / count
-        index = find_where(x, lambda v: v > new_x, 1) - 1
+        if end_samples is None:
+            end_samples = 0
 
-        x.insert(index, new_x)
-        y.insert(index, sum(y[:count]) / count)
-        weights.insert(index, sum(y))
+        force_points = []
+        force_weight = sum(y)
+
+        if start_samples:
+            force_points.append((sum(x[:start_samples]) / start_samples,
+                                 sum(y[:start_samples]) / start_samples))
+
+        if end_samples:
+            force_points.append((sum(x[-end_samples:]) / end_samples,
+                                 sum(y[-end_samples:]) / end_samples))
+
+        for point_x, point_y in force_points:
+            index = find_where(x, lambda v: v > point_x, 1) - 1
+            x.insert(index, point_x)
+            y.insert(index, point_y)
+            weights.insert(index, force_weight)
 
         self._ax.plot(x, np.poly1d(np.polyfit(x, y, self.fit_poly_degree, w=weights))(x),
                       color=color, linestyle=style)
@@ -454,7 +471,8 @@ class Plotter:
 
 
 class Figure:
-    _PLOTTER_ATTRS = ('show_titles', 'show_labels', 'fit_poly_degree',
+    _PLOTTER_ATTRS = ('show_titles', 'show_labels',
+                      'fit_poly_degree', 'fit_poly_start_samples', 'fit_poly_end_samples',
                       'legend_loc', 'legend_cols', 'legend_only',
                       'label_fmt', 'label_rot', 'xtick_rot', 'ytick_rot',
                       'xlimits', 'ylimits', 'xscale', 'yscale',
