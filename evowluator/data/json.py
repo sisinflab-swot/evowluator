@@ -3,7 +3,7 @@ import json
 
 def save(data, path: str) -> None:
     with open(path, mode='w') as out_file:
-        json.dump(data, out_file)
+        json.dump(data, out_file, indent=2)
 
 
 def load(path: str):
