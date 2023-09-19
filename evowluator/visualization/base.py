@@ -88,9 +88,6 @@ class Visualizer:
         self._reasoners: List[str] = [r[ConfigKey.NAME] for r in cfg[ConfigKey.REASONERS]]
         self._results: pd.DataFrame = self.load_results(non_numeric_columns)
 
-        self.colors: Dict[str, str] = {}
-        self.markers: Dict[str, str] = {}
-        self.line_styles: Dict[str, str] = {}
         self.figure = Figure(f'evOWLuator: {cfg[ConfigKey.NAME]} '
                              f'on "{self._dataset.name}" dataset '
                              f'({path.basename(self._results_dir)})')
@@ -151,28 +148,7 @@ class Visualizer:
 
         return res
 
-    def set_colors(self, colors: List[str]) -> None:
-        self.colors = {
-            self._reasoners[idx]: color
-            for idx, color in enumerate(colors[:len(self._reasoners)]) if color != 'auto'
-        }
-    
-    def set_line_styles(self, styles: List[str]) -> None:
-        self.line_styles = {
-            self._reasoners[idx]: self._parse_line_style(style)
-            for idx, style in enumerate(styles[:len(self._reasoners)]) if style != 'auto'
-        }
-
-    def set_markers(self, markers: List[str]) -> None:
-        self.markers = {
-            self._reasoners[idx]: marker
-            for idx, marker in enumerate(markers[:len(self._reasoners)]) if marker != 'auto'
-        }
-
     def add_plotter(self, plot_type: type, **kwargs) -> None:
-        kwargs['colors'] = self.colors
-        kwargs['markers'] = self.markers
-        kwargs['line_styles'] = self.line_styles
         self.figure.add_plotter(plot_type, **kwargs)
 
     def add_scatter_plotter(self, metric: Metric, separate_cols: bool = False,

@@ -11,6 +11,8 @@ from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
+from pyutils.types import listutils
+from pyutils.types.listutils import Overflow
 from pyutils.types.strenum import StrEnum
 from .metric import Metric
 
@@ -52,11 +54,11 @@ class Plot:
 
     def __init__(self, ax: plt.Axes):
         self.data = None
-        self.colors: Dict[str, str] = {}
+        self.colors: List[str] = []
         self.grid_axis = 'both'
         self.legend_loc = LegendLocation.BEST
         self.legend_cols = 1
-        self.legend_handles: Dict[str, Line2D] = {}
+        self.legend_handles: List[Line2D] = []
         self.legend_handle_length = 0.7
         self.legend_only = False
         self.edge_alpha = 1.0
@@ -170,9 +172,7 @@ class Plot:
     def draw_legend(self) -> Legend | None:
         if self.legend_loc == LegendLocation.NONE or len(self.data) <= 1:
             return None
-
-        handles = list(self.legend_handles.values()) if self.legend_handles else None
-        legend = self._ax.legend(handles=handles,
+        legend = self._ax.legend(handles=self.legend_handles if self.legend_handles else None,
                                  loc=self.legend_loc,
                                  mode='expand' if self.legend_only else None,
                                  ncol=self.legend_cols,
@@ -306,7 +306,7 @@ class GroupedHistogramPlot(HistogramPlot):
         bar_width = 0.8 * width
 
         for i, label in enumerate(labels):
-            color = self.colors.get(label)
+            color = listutils.get(self.colors, i, overflow=Overflow.MOD)
             for bar in self._ax.bar([j + width * i for j in range(n_groups)], self.data[label],
                                     width=bar_width, label=label, color=color):
                 bar_color = bar.get_facecolor()
@@ -330,18 +330,14 @@ class MinMaxAvgHistogramPlot(GroupedHistogramPlot):
 
 class ScatterPlot(Plot):
 
-    @property
-    def should_draw_line(self) -> bool:
-        return self.fit_poly_degree > 0
-
     def __init__(self, ax: plt.Axes):
         super().__init__(ax)
         self.data: Dict[str, Tuple[List[float], List[float]]] = {}
-        self.markers: Dict[str, str] = {}
-        self.fit_poly_degree = 0
-        self.fit_poly_start_samples: int | None = None
-        self.fit_poly_end_samples: int | None = None
-        self.line_styles: Dict[str, LineStyle] = {}
+        self.markers: List[str] = []
+        self.fit_poly_degrees: List[int] = []
+        self.fit_poly_start_samples: List[int] = []
+        self.fit_poly_end_samples: List[int] = []
+        self.line_styles: List[LineStyle] = []
         self.legend_handle_length = 2.5
         self.marker_size = 0.0
         self.edge_alpha = 0.8
@@ -370,17 +366,18 @@ class ScatterPlot(Plot):
         else:
             marker_size = 3.0 if dataset_size > 100 else 7.0
 
-        for label in labels:
+        for i, label in enumerate(labels):
             x, y = self.data[label]
-            marker = self.markers.get(label, 'o')
-            color = self.colors.get(label)
+            marker = listutils.get(self.markers, i, overflow=Overflow.MOD, default='o')
+            color = listutils.get(self.colors, i, overflow=Overflow.MOD)
+            degree = listutils.get(self.fit_poly_degrees, i, overflow=Overflow.MOD)
 
-            if self.should_draw_line:
-                line_style = self.line_styles.get(label)
-                line_width = 1.5
-            else:
+            if degree is None:
                 line_style = 'none'
                 line_width = 0.0
+            else:
+                line_style = listutils.get(self.line_styles, i, overflow=Overflow.MOD)
+                line_width = 1.5
 
             lines = self._ax.plot(x, y, label=label, color=color,
                                   linestyle='none', linewidth=1.0,
@@ -402,30 +399,31 @@ class ScatterPlot(Plot):
                                 linestyle=line_style, linewidth=line_width,
                                 marker=marker, markersize=marker_size,
                                 markeredgecolor=e_color, markerfacecolor=f_color)
-                self.legend_handles[label] = handle
+                self.legend_handles.append(handle)
 
                 # Draw polyline
-                self.draw_polyline(x, y, color=l_color, style=line_style)
+                if degree is not None:
+                    start = listutils.get(self.fit_poly_start_samples, i, overflow=Overflow.MOD)
+                    end = listutils.get(self.fit_poly_end_samples, i, overflow=Overflow.MOD)
+                    self.draw_polyline(x, y, degree=degree, start_samples=start, end_samples=end,
+                                       color=l_color, style=line_style)
 
         self.title = f'{self.ymetric.capitalized_name} by {self.xmetric.name}'
         self.xlabel = self.xmetric.to_string(capitalize=True)
         self.ylabel = self.ymetric.to_string(capitalize=True)
         super().draw_plot()
 
-    def draw_polyline(self, x: List[float], y: List[float], color: Tuple | str | None = None,
-                      style: str | tuple | None = None) -> None:
+    def draw_polyline(self, x: List[float], y: List[float], degree: int = 1,
+                      start_samples: int | None = None, end_samples: int | None = None,
+                      color: Tuple | str | None = None, style: str | tuple | None = None) -> None:
         def find_where(values, check, default) -> int:
             for idx, val in enumerate(values):
                 if check(val):
                     return idx
             return default
 
-        if not self.should_draw_line:
-            return
-
         count = len(x)
         weights = [1.0] * count
-        start_samples, end_samples = self.fit_poly_start_samples, self.fit_poly_end_samples
 
         if start_samples is None:
             # Heuristic to estimate good start point
@@ -454,7 +452,7 @@ class ScatterPlot(Plot):
             y.insert(index, point_y)
             weights.insert(index, force_weight)
 
-        self._ax.plot(x, np.poly1d(np.polyfit(x, y, self.fit_poly_degree, w=weights))(x),
+        self._ax.plot(x, np.poly1d(np.polyfit(x, y, degree, w=weights))(x),
                       color=color, linestyle=style)
 
 
@@ -471,8 +469,8 @@ class Plotter:
 
 
 class Figure:
-    _PLOTTER_ATTRS = ('show_titles', 'show_labels',
-                      'fit_poly_degree', 'fit_poly_start_samples', 'fit_poly_end_samples',
+    _PLOTTER_ATTRS = ('colors', 'markers', 'line_styles', 'show_titles', 'show_labels',
+                      'fit_poly_degrees', 'fit_poly_start_samples', 'fit_poly_end_samples',
                       'legend_loc', 'legend_cols', 'legend_only',
                       'label_fmt', 'label_rot', 'xtick_rot', 'ytick_rot',
                       'xlimits', 'ylimits', 'xscale', 'yscale',

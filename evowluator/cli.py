@@ -258,27 +258,30 @@ def add_visualize_parser(subparsers) -> None:
     parser.add_argument('--colors',
                         metavar='COLOR',
                         nargs='+',
-                        help='Colors to use for each reasoner.')
+                        help='Plot colors.')
     parser.add_argument('--markers',
                         metavar='MARKER',
                         nargs='+',
-                        help='Markers to use for each reasoner.')
+                        help='Marker styles.')
     parser.add_argument('--marker-size',
                         type=positive_float,
                         help='Marker size in points.')
     parser.add_argument('--line-styles',
                         metavar='STYLE',
                         nargs='+',
-                        help="Line styles to use for each reasoner.")
+                        help="Line styles.")
     parser.add_argument('--fit-poly',
-                        dest='fit_poly_degree',
+                        dest='fit_poly_degrees',
+                        nargs='+',
                         type=positive_int,
                         default=0,
                         help='Fit a polyline of the specified degree to the data.')
     parser.add_argument('--fit-poly-start-samples',
+                        nargs='+',
                         type=non_negative_int,
                         help='Forces the polyline to pass from the average of the first samples.')
     parser.add_argument('--fit-poly-end-samples',
+                        nargs='+',
                         type=non_negative_int,
                         help='Forces the polyline to pass from the average of the last samples.')
     parser.add_argument('--edge-alpha',
@@ -392,15 +395,6 @@ def visualize_sub(args) -> int:
 
     if hasattr(visualizer, 'time_unit') and args.time_unit:
         visualizer.time_unit = args.time_unit
-
-    if args.colors:
-        visualizer.set_colors(args.colors)
-
-    if args.line_styles:
-        visualizer.set_line_styles(args.line_styles)
-
-    if args.markers:
-        visualizer.set_markers(args.markers)
 
     if args.xlimits:
         args.xlimits = (args.xlimits[0], args.xlimits[1])
