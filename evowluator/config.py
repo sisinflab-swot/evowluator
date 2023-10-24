@@ -96,6 +96,8 @@ class ConfigKey:
     SYNTAX = 'syntax'
     TASK = 'task'
     TIMEOUT = 'timeout'
+    START = 'start'
+    END = 'end'
 
 
 class Evaluation:

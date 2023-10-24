@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from functools import cached_property
 from os import path
 from subprocess import TimeoutExpired
@@ -45,6 +46,22 @@ class Evaluator(ABC):
         new_dir = path.join(self._work_dir, 'temp')
         file.create_dir(new_dir)
         return new_dir
+
+    @cached_property
+    def _config(self) -> Dict:
+        return {
+            ConfigKey.TASK: self._task.name,
+            ConfigKey.MODE: Evaluation.MODE,
+            ConfigKey.FIELDS: self._fields,
+            ConfigKey.TIMEOUT: Evaluation.TIMEOUT,
+            ConfigKey.ITERATIONS: Evaluation.ITERATIONS,
+            ConfigKey.START: _cur_datetime_string(),
+            ConfigKey.REASONERS: [{
+                ConfigKey.NAME: r.name,
+                ConfigKey.SYNTAX: self._syntax_for_reasoner(r)
+            } for r in self._usable_reasoners()],
+            ConfigKey.DATASET: DatasetInfo.with_dataset(self._data).to_dict(self._syntaxes()),
+        }
 
     @property
     def _requires_inputs(self) -> bool:
@@ -97,6 +114,7 @@ class Evaluator(ABC):
         finally:
             file.chmod(self._work_dir, 0o644, recursive=True, dir_mode=0o755)
             self._teardown_reasoners()
+            self._save_config(end=True)
             echo.success('Evaluation results: ', endl=False)
             echo.info(self._work_dir)
 
@@ -290,22 +308,11 @@ class Evaluator(ABC):
         syntaxes = [f'[{s}]' if s == syntax else s for s in syntaxes]
         self._log(f'{reasoner.name}: {" ".join(syntaxes)}')
 
-    def _config(self) -> Dict:
-        return {
-            ConfigKey.TASK: self._task.name,
-            ConfigKey.MODE: Evaluation.MODE,
-            ConfigKey.FIELDS: self._fields,
-            ConfigKey.TIMEOUT: Evaluation.TIMEOUT,
-            ConfigKey.ITERATIONS: Evaluation.ITERATIONS,
-            ConfigKey.DATASET: DatasetInfo.with_dataset(self._data).to_dict(self._syntaxes()),
-            ConfigKey.REASONERS: [{
-                ConfigKey.NAME: r.name,
-                ConfigKey.SYNTAX: self._syntax_for_reasoner(r)
-            } for r in self._usable_reasoners()]
-        }
-
-    def _save_config(self) -> None:
-        json.save(self._config(), path.join(self._work_dir, config.Paths.CONFIG_FILE_NAME))
+    def _save_config(self, end=False) -> None:
+        cfg = self._config
+        if end:
+            cfg = _add_after(cfg, ConfigKey.START, ConfigKey.END, _cur_datetime_string())
+        json.save(cfg, path.join(self._work_dir, config.Paths.CONFIG_FILE_NAME))
 
 
 class CorrectnessEvaluator(Evaluator):
@@ -384,6 +391,19 @@ class CorrectnessEvaluator(Evaluator):
 
 class PerformanceEvaluator(Evaluator):
 
+    @cached_property
+    def _config(self) -> Dict:
+        cfg = super()._config
+
+        if Evaluation.ENERGY_PROBES:
+            probes = [
+                {ConfigKey.NAME: p.name, ConfigKey.POLLING_INTERVAL: p.interval}
+                for p in Evaluation.ENERGY_PROBES
+            ]
+            cfg = _add_after(cfg, ConfigKey.FIELDS, ConfigKey.ENERGY_PROBES, probes)
+
+        return cfg
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._skip: Dict[str, Set[str]] = {r.name: set() for r in self._reasoners}
@@ -449,13 +469,17 @@ class PerformanceEvaluator(Evaluator):
 
         return csv_row
 
-    def _config(self) -> Dict:
-        cfg = super()._config()
 
-        if Evaluation.ENERGY_PROBES:
-            cfg[ConfigKey.ENERGY_PROBES] = [
-                {ConfigKey.NAME: p.name, ConfigKey.POLLING_INTERVAL: p.interval}
-                for p in Evaluation.ENERGY_PROBES
-            ]
+def _cur_datetime_string() -> str:
+    return datetime.now().isoformat(timespec='seconds')
 
-        return cfg
+
+def _add_after(dictionary: Dict, after, key, value) -> Dict:
+    new_dictionary = {}
+    for k, v in dictionary.items():
+        new_dictionary[k] = v
+        if k == after:
+            new_dictionary[key] = value
+    if key not in new_dictionary:
+        new_dictionary[key] = value
+    return new_dictionary
