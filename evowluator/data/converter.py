@@ -26,7 +26,7 @@ def convert_dataset(dataset: Dataset, syntax: Syntax, source_syntax: Syntax | No
             log.yellow(f'{target_ontology.name}: ', endl=False)
             file.create_dir(os.path.dirname(target_ontology.path))
 
-            if convert_ontology(entry.ontology(source_syntax), target_ontology):
+            if convert_ontology(lentry.ontology(source_syntax), target_ontology):
                 log('converted')
             else:
                 log('already converted')
