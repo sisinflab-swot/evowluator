@@ -78,9 +78,9 @@ def config_parser() -> argparse.ArgumentParser:
                        default=Evaluation.ITERATIONS,
                        help='Number of iterations.')
     group.add_argument('-t', '--timeout',
-                       type=positive_float,
-                       default=Evaluation.TIMEOUT,
-                       help='Timeout in seconds.')
+                       default=str(Evaluation.TIMEOUT),
+                       help='Timeout in seconds. Can be an arithmetic expression of \"s\", '
+                            'the size of the ontology in MB.')
     group.add_argument('-s', '--syntax',
                        type=Syntax,
                        choices=Syntax.all(),

@@ -23,10 +23,11 @@ from .. import config
 from ..config import ConfigKey, Debug, Evaluation, Paths, OnError
 from ..data import json
 from ..data.csv import CSVWriter
-from ..data.dataset import Dataset, DatasetEntry, SortBy, Syntax
+from ..data.dataset import Dataset, DatasetEntry, Ontology, SortBy, Syntax
 from ..data.info import DatasetInfo
 from ..reasoner.base import Reasoner, ReasoningTask, RemoteReasoner
 from ..reasoner.results import Results
+from ..util.math import evaluate_expression
 from ..visualization.correctness import CorrectnessStrategy, Status
 
 
@@ -124,6 +125,17 @@ class Evaluator(ABC):
 
     def _clear_temp(self) -> None:
         file.remove_dir_contents(self._temp_dir)
+
+    @staticmethod
+    def _timeout_seconds(inputs: List[Ontology]) -> float | None:
+        try:
+            timeout = float(Evaluation.TIMEOUT)
+        except ValueError:
+            # Not a float, could be an expression
+            size_mb = MemoryUnit.B(sum(i.size for i in inputs)).to_value(MemoryUnit.MB)
+            expression = Evaluation.TIMEOUT.replace('s', f'{size_mb:.2f}')
+            timeout = evaluate_expression(expression)
+        return timeout if timeout else None
 
     def _setup(self) -> None:
         csv_header = ['ontology']
@@ -247,11 +259,13 @@ class Evaluator(ABC):
 
         return csv_rows
 
-    def _run_reasoner(self, reasoner: Reasoner, inputs: str | List[str]) -> Results:
+    def _run_reasoner(self, reasoner: Reasoner, inputs: Ontology | List[Ontology]) -> Results:
         if not isinstance(inputs, list):
             inputs = [inputs]
 
-        for i in inputs:
+        input_paths = [i.path for i in inputs]
+
+        for i in input_paths:
             exc.raise_if_not_found(i, file_type=exc.FileType.FILE)
 
         output = self._output_path_for_reasoner(reasoner)
@@ -259,8 +273,9 @@ class Evaluator(ABC):
 
         # Run reasoner
 
-        reasoner.pre_run(self._task, inputs, output)
-        task = Task(Paths.absolute(reasoner.path), args=reasoner.args(self._task, inputs, output))
+        reasoner.pre_run(self._task, input_paths, output)
+        task = Task(Paths.absolute(reasoner.path),
+                    args=reasoner.args(self._task, input_paths, output))
 
         if Evaluation.MODE == EvaluationMode.PERFORMANCE:
             if not isinstance(reasoner, RemoteReasoner):
@@ -268,9 +283,9 @@ class Evaluator(ABC):
             if Evaluation.ENERGY_PROBES:
                 task = EnergyProfiler(task, Evaluation.ENERGY_PROBES)
 
-        task.run(timeout=Evaluation.TIMEOUT if Evaluation.TIMEOUT else None).raise_if_failed()
+        task.run(timeout=self._timeout_seconds(inputs)).raise_if_failed()
         results = self._task.process_results(reasoner.parse_results(self._task, task, output), task)
-        reasoner.post_run(self._task, inputs, output)
+        reasoner.post_run(self._task, input_paths, output)
 
         return results
 
@@ -338,7 +353,7 @@ class CorrectnessEvaluator(Evaluator):
         with ThreadPoolExecutor(max_workers=self._max_workers) as pool:
             for reasoner in self._usable_reasoners():
                 syntax = self._syntax_for_reasoner(reasoner)
-                inputs = [e.ontology(syntax).path for e in entries]
+                inputs = [e.ontology(syntax) for e in entries]
                 pool.submit(self._run_reasoner_correctness, reasoner, inputs, results, errors)
 
         results = {r: results[r] for r in self._usable_reasoners()}
@@ -347,7 +362,7 @@ class CorrectnessEvaluator(Evaluator):
 
         return [e.name for e in entries] + list(results.values())
 
-    def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[str],
+    def _run_reasoner_correctness(self, reasoner: Reasoner, inputs: List[Ontology],
                                   results: Dict, errors: Dict) -> None:
         try:
             res = self._run_reasoner(reasoner, inputs).output.hash()
@@ -429,7 +444,7 @@ class PerformanceEvaluator(Evaluator):
                 continue
 
             syntax = self._syntax_for_reasoner(reasoner)
-            inputs = [e.ontology(syntax).path for e in entries]
+            inputs = [e.ontology(syntax) for e in entries]
 
             try:
                 r = self._run_reasoner(reasoner, inputs)

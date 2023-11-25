@@ -103,7 +103,7 @@ class ConfigKey:
 class Evaluation:
     """Evaluation config namespace."""
     MODE = EvaluationMode.CORRECTNESS
-    TIMEOUT = 1800.0
+    TIMEOUT: float | str = 1800.0
     ITERATIONS = 1
     ENERGY_PROBES: List[EnergyProbe] = []
     ENERGY_POLLING_INTERVALS = {
