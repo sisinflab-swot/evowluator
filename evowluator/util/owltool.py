@@ -3,12 +3,13 @@ from typing import List
 
 from pyutils import exc
 from pyutils.proc.task import OutputAction, Task
-from ..config import OWLTool
+from ..config import Paths
 
 
 def _spawn_owltool(args: List[str]) -> None:
-    exc.raise_if_not_found(OWLTool.PATH, file_type=exc.FileType.FILE)
-    Task.jar(OWLTool.PATH, jar_args=args, jvm_opts=OWLTool.VM_OPTS,
+    exc.raise_if_not_found(Paths.OWLTOOL, file_type=exc.FileType.FILE)
+    vm_opts = ['-Xmx32g', '-DentityExpansionLimit=1000000000']
+    Task.jar(Paths.OWLTOOL, jar_args=args, jvm_opts=vm_opts,
              output_action=OutputAction.DISCARD).run().raise_if_failed()
 
 

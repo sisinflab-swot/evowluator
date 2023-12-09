@@ -5,13 +5,13 @@ from functools import cache
 from pyutils.proc.energy import EnergyProbe
 from pyutils.types.unit import TimeUnit, MemoryUnit
 from . import config
-from .config import Evaluation, EXE_NAME, OnError
+from .config import Debug, Evaluation, EXE_NAME, OnError
 from .data import converter
 from .data.dataset import Dataset, SortBy, Syntax
 from .evaluation import info
 from .evaluation.base import CorrectnessEvaluator, PerformanceEvaluator
 from .evaluation.mode import EvaluationMode
-from .reasoner.base import ReasoningTask
+from .reasoner.base import Reasoner, ReasoningTask
 from .util.process import incorrect_ontologies, process
 from .visualization.base import Visualizer
 from .visualization.correctness import CorrectnessStrategy, OracleStrategy
@@ -24,10 +24,23 @@ from .visualization.plot import LegendLocation
 def process_args() -> int:
     args = main_parser().parse_args()
 
-    config.Debug.TRACE = getattr(args, 'debug', config.Debug.TRACE)
-    config.Debug.ON_ERROR = getattr(args, 'on_error', config.Debug.ON_ERROR)
+    Debug.TRACE = getattr(args, 'debug', Debug.TRACE)
+    Debug.ON_ERROR = getattr(args, 'on_error', Debug.ON_ERROR)
     Evaluation.MODE = getattr(args, 'mode', Evaluation.MODE)
     Evaluation.TIMEOUT = getattr(args, 'timeout', Evaluation.TIMEOUT)
+    Evaluation.SYNTAX = getattr(args, 'syntax', Evaluation.SYNTAX)
+
+    task = getattr(args, 'task', None)
+    task = ReasoningTask.with_name(task) if task else ReasoningTask.CLASSIFICATION
+    Evaluation.TASK = task
+
+    names = getattr(args, 'reasoners', None)
+    Evaluation.REASONERS = Reasoner.from_names(names) if names else Reasoner.supporting_task(task)
+
+    dataset = getattr(args, 'dataset', None)
+    dataset = Dataset(dataset) if dataset else Dataset.first()
+    dataset.sort_by = getattr(args, 'sort_by', SortBy.NAME)
+    Evaluation.DATASET = dataset
 
     energy_probes = getattr(args, 'energy_probes', None)
     if energy_probes:
@@ -37,7 +50,7 @@ def process_args() -> int:
             return probe
         Evaluation.ENERGY_PROBES = [get_probe(n) for n in energy_probes]
 
-    if Evaluation.MODE == EvaluationMode.CORRECTNESS:
+    if Evaluation.mode() == EvaluationMode.CORRECTNESS:
         Evaluation.ITERATIONS = 1
     else:
         Evaluation.ITERATIONS = getattr(args, 'num_iterations', Evaluation.ITERATIONS)
@@ -75,19 +88,16 @@ def config_parser() -> argparse.ArgumentParser:
                        help='Desired reasoners.')
     group.add_argument('-n', '--num-iterations',
                        type=positive_int,
-                       default=Evaluation.ITERATIONS,
+                       default=Evaluation.iterations(),
                        help='Number of iterations.')
     group.add_argument('-t', '--timeout',
-                       default=str(Evaluation.TIMEOUT),
+                       default=str(Evaluation.timeout()),
                        help='Timeout in seconds. Can be an arithmetic expression of \"s\", '
                             'the size of the ontology in MB.')
     group.add_argument('-s', '--syntax',
                        type=Syntax,
                        choices=Syntax.all(),
                        help='Use the specified OWL syntax whenever possible.')
-    group.add_argument('--resume-after',
-                       metavar='ONTOLOGY_NAME',
-                       help='Resume the evaluation after the specified ontology.')
     group.add_argument('--sort-by',
                        type=SortBy,
                        choices=SortBy.all(),
@@ -339,26 +349,18 @@ def main_parser() -> argparse.ArgumentParser:
 
 
 def run_sub(args) -> int:
-    evaluator_class = None
-
     if args.mode == EvaluationMode.CORRECTNESS:
-        evaluator_class = CorrectnessEvaluator
-    elif args.mode == EvaluationMode.PERFORMANCE:
-        evaluator_class = PerformanceEvaluator
-
-    e = evaluator_class(ReasoningTask.with_name(args.task), dataset=args.dataset,
-                        reasoners=args.reasoners, syntax=args.syntax)
-
-    if isinstance(e, CorrectnessEvaluator):
+        e = CorrectnessEvaluator()
         e.set_strategy(args.correctness_strategy)
         e.set_max_workers(args.max_workers)
-    elif args.correctness_results:
-        for r, o in incorrect_ontologies(args.correctness_results,
-                                         args.correctness_strategy).items():
-            e.skip_ontologies(r, o)
+    else:
+        e = PerformanceEvaluator()
+        if args.correctness_results:
+            for r, o in incorrect_ontologies(args.correctness_results,
+                                             args.correctness_strategy).items():
+                e.skip_ontologies(r, o)
 
-    e.start(sort_by=args.sort_by, resume_after=args.resume_after)
-
+    e.start()
     return 0
 
 

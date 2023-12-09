@@ -82,7 +82,7 @@ def merge_configs(config: Dict, input_dir: str, dataset: str | None) -> Dict:
     if config is None:
         return cur
 
-    for key in (ConfigKey.TASK, ConfigKey.MODE, ConfigKey.FIELDS, ConfigKey.ITERATIONS):
+    for key in (ConfigKey.TASK, ConfigKey.MODE, ConfigKey.ITERATIONS):
         try:
             if config[key] != cur[key]:
                 raise ValueError(f'Cannot merge "{input_dir}", different values for key "{key}".')

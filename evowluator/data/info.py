@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Iterator
 
-from ..config import ConfigKey
+from ..config.key import ConfigKey
 from ..data.dataset import Dataset, DatasetEntry, SortBy, Syntax
 
 

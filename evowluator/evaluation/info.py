@@ -41,7 +41,7 @@ def general() -> None:
 
 def dataset(name: str) -> None:
     log = PrettyPrinter(stdout)
-    data = Dataset.with_name(name)
+    data = Dataset(name)
 
     log.green(f'{data.name} dataset', underline='-')
     stats = data.cumulative_stats()

@@ -42,6 +42,14 @@ class Reasoner(ABC):
             raise ValueError(f'No reasoner named "{name}"')
 
     @classmethod
+    def from_names(cls, names: List[str]) -> List[Reasoner]:
+        """Returns the reasoners that have the specified names."""
+        try:
+            return [cls.with_name(n) for n in names]
+        except KeyError as e:
+            raise KeyError(f'No such reasoner: {str(e)}')
+
+    @classmethod
     def supporting_task(cls, task: ReasoningTask) -> List[Reasoner]:
         """Returns the reasoners that support the specified reasoning task."""
         return [r for r in cls.all() if task in r.supported_tasks]

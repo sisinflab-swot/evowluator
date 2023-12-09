@@ -2,29 +2,12 @@ from __future__ import annotations
 
 import os
 from functools import cache, cached_property
-from operator import attrgetter
 from typing import Iterable, Iterator, List
 
-from pyutils.types.strenum import StrEnum
+from .sort_by import SortBy
 from .syntax import Syntax
-from ..config import Paths
+from ..config.paths import Paths
 from ..reasoner.base import ReasoningTask
-
-
-class SortBy(StrEnum):
-    """Sort-by strategies."""
-    NAME_ASC = 'name'
-    NAME_DESC = 'name-desc'
-    SIZE_ASC = 'size'
-    SIZE_DESC = 'size-desc'
-
-    NAME = NAME_ASC
-    SIZE = SIZE_ASC
-
-    def sorted(self, what: Iterable, name_attr: str = 'name', size_attr: str = 'size'):
-        attr = size_attr if self in (SortBy.SIZE_ASC, SortBy.SIZE_DESC) else name_attr
-        reverse = self.endswith('-desc')
-        return sorted(what, key=attrgetter(attr), reverse=reverse)
 
 
 class Ontology:
@@ -93,14 +76,6 @@ class Dataset:
     """Models a dataset containing multiple ontologies."""
 
     @classmethod
-    def with_name(cls, name: str) -> Dataset:
-        return Dataset(os.path.join(Paths.DATA_DIR, name))
-
-    @classmethod
-    def with_names(cls, names: List[str] | None = None) -> List[Dataset]:
-        return [Dataset.with_name(d) for d in names] if names else cls.all()
-
-    @classmethod
     def all(cls) -> List[Dataset]:
         data_dir = Paths.DATA_DIR
 
@@ -126,33 +101,31 @@ class Dataset:
     def syntaxes(self) -> List[Syntax]:
         return _available_syntaxes(self.path)
 
-    def __init__(self, path: str) -> None:
-        self.path = path
+    def __init__(self, name: str) -> None:
+        self.path = os.path.join(Paths.DATA_DIR, name)
+        self.sort_by = SortBy.NAME
+        self.start_after: str | None = None
 
-        if not os.path.isdir(path):
+        if not os.path.isdir(self.path):
             raise FileNotFoundError('No such dataset: ' + self.name)
 
         if not self.syntaxes:
             raise ValueError('Invalid dataset: ' + self.name)
 
-    def cumulative_stats(self, syntaxes: Iterable[Syntax] | None = None,
-                         sort_by: SortBy = SortBy.NAME,
-                         resume_after: str | None = None) -> (int, int):
+    def cumulative_stats(self, syntaxes: Iterable[Syntax] | None = None) -> (int, int):
         count, size = 0, 0
 
-        for e in self.get_entries(sort_by=sort_by, resume_after=resume_after):
+        for e in self.get_entries():
             count += 1
             size += e.cumulative_size(syntaxes=syntaxes)
 
         return count, size
 
-    def count(self, sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> int:
-        return self.cumulative_stats(sort_by=sort_by, resume_after=resume_after)[0]
+    def count(self) -> int:
+        return self.cumulative_stats()[0]
 
-    def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None,
-                        sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> int:
-        return self.cumulative_stats(syntaxes=syntaxes, sort_by=sort_by,
-                                     resume_after=resume_after)[1]
+    def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None) -> int:
+        return self.cumulative_stats(syntaxes=syntaxes)[1]
 
     def get_dir(self, syntax: Syntax) -> str:
         return os.path.join(self.path, syntax)
@@ -163,17 +136,17 @@ class Dataset:
     def get_ontology(self, name: str, syntax: Syntax) -> Ontology:
         return self.get_entry(name).ontology(syntax)
 
-    def get_entries(self, sort_by: SortBy = SortBy.NAME,
-                    resume_after: str | None = None) -> Iterator[DatasetEntry]:
+    def get_entries(self) -> Iterator[DatasetEntry]:
         entries = (self.get_entry(n)
                    for n in os.listdir(self.get_dir(self.syntaxes[0]))
                    if not n.startswith('.'))
-        entries = sort_by.sorted(entries, size_attr='max_size')
+        entries = self.sort_by.sorted(entries, size_attr='max_size')
+        should_yield = False if self.start_after else True
 
         for entry in entries:
-            if resume_after:
-                if entry.name == resume_after:
-                    resume_after = None
+            if not should_yield:
+                if entry.name == self.start_after:
+                    should_yield = True
                 continue
 
             yield entry

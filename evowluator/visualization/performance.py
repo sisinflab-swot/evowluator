@@ -6,8 +6,8 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from pyutils.types.unit import MemoryUnit, TimeUnit
 
+from pyutils.types.unit import MemoryUnit, TimeUnit
 from .base import Visualizer
 from .metric import Metric
 from .plot import GroupedHistogramPlot

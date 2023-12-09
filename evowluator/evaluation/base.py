@@ -4,7 +4,6 @@ import os
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from functools import cached_property
 from os import path
 from subprocess import TimeoutExpired
 from sys import stdout
@@ -19,13 +18,12 @@ from pyutils.proc.energy import EnergyProfiler
 from pyutils.proc.task import Task
 from pyutils.types.unit import MemoryUnit
 from .mode import EvaluationMode
-from .. import config
 from ..config import ConfigKey, Debug, Evaluation, Paths, OnError
 from ..data import json
 from ..data.csv import CSVWriter
-from ..data.dataset import Dataset, DatasetEntry, Ontology, SortBy, Syntax
+from ..data.dataset import DatasetEntry, Ontology, Syntax
 from ..data.info import DatasetInfo
-from ..reasoner.base import Reasoner, ReasoningTask, RemoteReasoner
+from ..reasoner.base import Reasoner, RemoteReasoner
 from ..reasoner.results import Results
 from ..util.math import evaluate_expression
 from ..visualization.correctness import CorrectnessStrategy, Status
@@ -34,132 +32,69 @@ from ..visualization.correctness import CorrectnessStrategy, Status
 class Evaluator(ABC):
     """Abstract evaluator class."""
 
-    @property
-    def _name(self) -> str:
-        return f'{self._task} {Evaluation.MODE}'
-
-    @cached_property
-    def _work_dir(self) -> str:
-        return Paths.new_results_dir(self._name)
-
-    @cached_property
-    def _temp_dir(self) -> str:
-        new_dir = path.join(self._work_dir, 'temp')
-        file.create_dir(new_dir)
-        return new_dir
-
-    @cached_property
-    def _config(self) -> Dict:
-        return {
-            ConfigKey.TASK: self._task.name,
-            ConfigKey.MODE: Evaluation.MODE,
-            ConfigKey.FIELDS: self._fields,
-            ConfigKey.TIMEOUT: Evaluation.TIMEOUT,
-            ConfigKey.ITERATIONS: Evaluation.ITERATIONS,
-            ConfigKey.START: _cur_datetime_string(),
-            ConfigKey.REASONERS: [{
-                ConfigKey.NAME: r.name,
-                ConfigKey.SYNTAX: self._syntax_for_reasoner(r)
-            } for r in self._usable_reasoners()],
-            ConfigKey.DATASET: DatasetInfo.with_dataset(self._data).to_dict(self._syntaxes()),
-        }
-
-    @property
-    def _requires_inputs(self) -> bool:
-        return self._task.requires_additional_inputs
-
-    def __init__(self,
-                 task: ReasoningTask,
-                 dataset: str | None = None,
-                 reasoners: List[str] | None = None,
-                 syntax: Syntax | None = None) -> None:
-        self._task = task
-        self._data = Dataset.with_name(dataset) if dataset else Dataset.first()
-
-        if syntax and syntax not in self._data.syntaxes:
-            msg = f'"{syntax}" syntax not available for "{self._data.name}" dataset.'
-            raise ValueError(msg)
-
-        self._syntax = syntax
+    def __init__(self) -> None:
         self._log: PrettyPrinter | None = None
         self._csv: CSVWriter | None = None
 
-        if reasoners:
-            try:
-                self._reasoners = [Reasoner.with_name(n) for n in reasoners]
-            except KeyError as e:
-                exc.re_raise_new_message(e, 'No such reasoner: ' + str(e))
-        else:
-            self._reasoners = Reasoner.supporting_task(task)
-
-        if Evaluation.MODE == EvaluationMode.PERFORMANCE:
-            self._fields = task.performance_fields + [p.name for p in Evaluation.ENERGY_PROBES]
-        else:
-            self._fields = ['output']
-
-    def start(self, sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> None:
+    def start(self) -> None:
         """Starts the evaluation."""
-        self._log = PrettyPrinter(stdout, path.join(self._work_dir, config.Paths.LOG_FILE_NAME))
-        self._csv = CSVWriter(path.join(self._work_dir, config.Paths.RESULTS_FILE_NAME))
+        work_dir = Evaluation.work_dir()
+        self._log = PrettyPrinter(stdout, path.join(work_dir, Paths.LOG_FILE_NAME))
+        self._csv = CSVWriter(path.join(work_dir, Paths.RESULTS_FILE_NAME))
+        cfg = self._generate_config()
 
         try:
             self._setup_reasoners()
-            self._save_config()
+            self._save_config(cfg)
 
             with self._log, self._csv:
                 self._log.clear()
                 self._log_config()
                 self._setup()
-                self._start(sort_by=sort_by, resume_after=resume_after)
+                self._start()
                 self._log.spacer(2, flush=True)
         finally:
-            file.chmod(self._work_dir, 0o644, recursive=True, dir_mode=0o755)
             self._teardown_reasoners()
-            self._save_config(end=True)
+            self._save_config(cfg, end=True)
             echo.success('Evaluation results: ', endl=False)
-            echo.info(self._work_dir)
+            echo.info(work_dir)
 
     @abstractmethod
     def _run_reasoners(self, entries: List[DatasetEntry]) -> List:
         pass
 
-    def _clear_temp(self) -> None:
-        file.remove_dir_contents(self._temp_dir)
-
     @staticmethod
     def _timeout_seconds(inputs: List[Ontology]) -> float | None:
         try:
-            timeout = float(Evaluation.TIMEOUT)
+            timeout = float(Evaluation.timeout())
         except ValueError:
             # Not a float, could be an expression
             size_mb = MemoryUnit.B(sum(i.size for i in inputs)).to_value(MemoryUnit.MB)
-            expression = Evaluation.TIMEOUT.replace('s', f'{size_mb:.2f}')
+            expression = Evaluation.timeout().replace('s', f'{size_mb:.2f}')
             timeout = evaluate_expression(expression)
         return timeout if timeout else None
 
     def _setup(self) -> None:
+        task = Evaluation.task()
         csv_header = ['ontology']
 
-        if self._requires_inputs:
+        if task.requires_additional_inputs:
             csv_header.append('input')
 
         for reasoner in self._usable_reasoners():
-            for field in self._fields:
+            for field in Evaluation.fields():
                 csv_header.append(f'{reasoner.name}: {field}')
 
         self._csv.write_row(csv_header)
 
-    def _start(self, sort_by: SortBy = SortBy.NAME, resume_after: str | None = None) -> None:
+    def _start(self) -> None:
+        data = Evaluation.dataset()
         used_syntaxes = self._syntaxes()
-
-        dataset_count, dataset_size = self._data.cumulative_stats(syntaxes=used_syntaxes,
-                                                                  sort_by=sort_by,
-                                                                  resume_after=resume_after)
+        dataset_count, dataset_size = data.cumulative_stats(syntaxes=used_syntaxes)
         dataset_size = MemoryUnit.B(dataset_size).readable()
         tot_size = 0
 
-        for idx, entry in enumerate(self._data.get_entries(sort_by=sort_by,
-                                                           resume_after=resume_after)):
+        for idx, entry in enumerate(data.get_entries()):
             sizes = list(sorted((o.syntax, o.size) for o in entry.ontologies()))
             size_str = ' | '.join(f'{syntax}: {MemoryUnit.B(size).readable()}'
                                   for syntax, size in sizes)
@@ -196,17 +131,18 @@ class Evaluator(ABC):
             input('Press Enter to continue...')
 
     def _output_path_for_reasoner(self, reasoner: Reasoner) -> str:
-        return os.path.join(self._temp_dir, reasoner.name.lower().replace(' ', '_'))
+        return os.path.join(Evaluation.temp_dir(), reasoner.name.lower().replace(' ', '_'))
 
     def _syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[Syntax]:
-        available = self._data.syntaxes
+        available = Evaluation.dataset().syntaxes
         return [s for s in reasoner.supported_syntaxes if s in available]
 
     def _syntax_for_reasoner(self, reasoner: Reasoner) -> Syntax:
+        syntax = Evaluation.syntax()
         supported = reasoner.supported_syntaxes
 
-        if self._syntax in supported:
-            return self._syntax
+        if syntax in supported:
+            return syntax
 
         available = self._syntaxes_for_reasoner(reasoner)
 
@@ -222,15 +158,16 @@ class Evaluator(ABC):
         return list({self._syntax_for_reasoner(r) for r in self._usable_reasoners()})
 
     def _usable_reasoners(self) -> List[Reasoner]:
-        return [r for r in self._reasoners if self._syntaxes_for_reasoner(r)]
+        return [r for r in Evaluation.reasoners() if self._syntaxes_for_reasoner(r)]
 
     def _run(self, entry: DatasetEntry) -> None:
-        if self._requires_inputs and entry.inputs_count_for_task(self._task) == 0:
+        task = Evaluation.task()
+        if task.requires_additional_inputs and entry.inputs_count_for_task(task) == 0:
             self._log.yellow('No additional input files.')
             return
 
         csv_rows = []
-        iterations = config.Evaluation.ITERATIONS
+        iterations = Evaluation.iterations()
 
         if iterations == 1:
             csv_rows.extend(self._iterate(entry))
@@ -244,12 +181,13 @@ class Evaluator(ABC):
             self._csv.write_row(row)
 
     def _iterate(self, entry: DatasetEntry) -> List[List]:
-        self._clear_temp()
+        task = Evaluation.task()
+        file.remove_dir_contents(Evaluation.temp_dir())
 
         csv_rows = []
 
-        if self._requires_inputs:
-            for input_entry in entry.inputs_for_task(self._task):
+        if task.requires_additional_inputs:
+            for input_entry in entry.inputs_for_task(task):
                 self._log.yellow('Input: ', endl=False)
                 self._log(input_entry.name)
                 with self._log.indent:
@@ -273,19 +211,21 @@ class Evaluator(ABC):
 
         # Run reasoner
 
-        reasoner.pre_run(self._task, input_paths, output)
+        reasoning_task = Evaluation.task()
+        reasoner.pre_run(reasoning_task, input_paths, output)
         task = Task(Paths.absolute(reasoner.path),
-                    args=reasoner.args(self._task, input_paths, output))
+                    args=reasoner.args(reasoning_task, input_paths, output))
 
-        if Evaluation.MODE == EvaluationMode.PERFORMANCE:
+        if Evaluation.mode() == EvaluationMode.PERFORMANCE:
             if not isinstance(reasoner, RemoteReasoner):
                 task = Benchmark(task)
-            if Evaluation.ENERGY_PROBES:
-                task = EnergyProfiler(task, Evaluation.ENERGY_PROBES)
+            if Evaluation.energy_probes():
+                task = EnergyProfiler(task, Evaluation.energy_probes())
 
         task.run(timeout=self._timeout_seconds(inputs)).raise_if_failed()
-        results = self._task.process_results(reasoner.parse_results(self._task, task, output), task)
-        reasoner.post_run(self._task, input_paths, output)
+        results = reasoner.parse_results(reasoning_task, task, output)
+        results = reasoning_task.process_results(results, task)
+        reasoner.post_run(reasoning_task, input_paths, output)
 
         return results
 
@@ -300,16 +240,17 @@ class Evaluator(ABC):
     def _log_config(self) -> None:
         self._log.green('Selected reasoners and serializations:')
         with self._log.indent:
-            for reasoner in self._reasoners:
+            for reasoner in Evaluation.reasoners():
                 self._log_syntaxes(reasoner)
 
         self._log.spacer(2)
         self._log.green('Selected dataset:')
         with self._log.indent:
-            self._log(f'{self._data.name}: {self._data.count()} ontologies')
+            dataset = Evaluation.dataset()
+            self._log(f'{dataset.name}: {dataset.count()} ontologies')
 
         self._log.spacer(2)
-        self._log.green(f'Starting {self._name} evaluation...')
+        self._log.green(f'Starting {Evaluation.name()} evaluation...')
         self._log.spacer(2)
 
     def _log_syntaxes(self, reasoner: Reasoner) -> None:
@@ -323,23 +264,41 @@ class Evaluator(ABC):
         syntaxes = [f'[{s}]' if s == syntax else s for s in syntaxes]
         self._log(f'{reasoner.name}: {" ".join(syntaxes)}')
 
-    def _save_config(self, end=False) -> None:
-        cfg = self._config
+    def _generate_config(self) -> Dict:
+        task = Evaluation.task()
+        data = Evaluation.dataset()
+        return {
+            ConfigKey.TASK: task.name,
+            ConfigKey.MODE: Evaluation.mode(),
+            ConfigKey.FIELDS: Evaluation.fields(),
+            ConfigKey.TIMEOUT: Evaluation.timeout(),
+            ConfigKey.ITERATIONS: Evaluation.iterations(),
+            ConfigKey.SORT_BY: data.sort_by,
+            ConfigKey.START: _cur_datetime_string(),
+            ConfigKey.REASONERS: [{
+                ConfigKey.NAME: r.name,
+                ConfigKey.SYNTAX: self._syntax_for_reasoner(r)
+            } for r in self._usable_reasoners()],
+            ConfigKey.DATASET: DatasetInfo.with_dataset(data).to_dict(self._syntaxes()),
+        }
+
+    def _save_config(self, cfg: Dict, end=False) -> None:
         if end:
             cfg = _add_after(cfg, ConfigKey.START, ConfigKey.END, _cur_datetime_string())
-        json.save(cfg, path.join(self._work_dir, config.Paths.CONFIG_FILE_NAME))
+        json.save(cfg, path.join(Evaluation.work_dir(), Paths.CONFIG_FILE_NAME))
 
 
 class CorrectnessEvaluator(Evaluator):
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self) -> None:
+        super().__init__()
         self._strategy = CorrectnessStrategy.default()
         self._max_workers: int | None = None
         self._lock = Lock()
 
     def set_strategy(self, strategy: str | None) -> None:
-        self._strategy = CorrectnessStrategy.with_name(strategy, [r.name for r in self._reasoners])
+        reasoners = [r.name for r in Evaluation.reasoners()]
+        self._strategy = CorrectnessStrategy.with_name(strategy, reasoners)
 
     def set_max_workers(self, workers: int) -> None:
         self._max_workers = workers
@@ -406,22 +365,21 @@ class CorrectnessEvaluator(Evaluator):
 
 class PerformanceEvaluator(Evaluator):
 
-    @cached_property
-    def _config(self) -> Dict:
-        cfg = super()._config
+    def _generate_config(self) -> Dict:
+        cfg = super()._generate_config()
 
-        if Evaluation.ENERGY_PROBES:
+        if Evaluation.energy_probes():
             probes = [
                 {ConfigKey.NAME: p.name, ConfigKey.POLLING_INTERVAL: p.interval}
-                for p in Evaluation.ENERGY_PROBES
+                for p in Evaluation.energy_probes()
             ]
             cfg = _add_after(cfg, ConfigKey.FIELDS, ConfigKey.ENERGY_PROBES, probes)
 
         return cfg
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self._skip: Dict[str, Set[str]] = {r.name: set() for r in self._reasoners}
+    def __init__(self) -> None:
+        super().__init__()
+        self._skip: Dict[str, Set[str]] = {r.name: set() for r in Evaluation.reasoners()}
 
     def skip_ontologies(self, reasoner: str, ontologies: Iterable[str]) -> None:
         try:
@@ -462,25 +420,27 @@ class PerformanceEvaluator(Evaluator):
         return [e.name for e in entries] + self._extract_results(results)
 
     def _log_results(self, results: Results) -> None:
-        if len(self._fields) == 1:
-            self._log(results.get_readable(self._fields[0]))
+        fields = Evaluation.fields()
+        if len(fields) == 1:
+            self._log(results.get_readable(fields[0]))
         else:
             if len(results.times) > 1:
                 self._log(results.get_readable('total_time'))
 
             self._log.spacer()
             with self._log.indent:
-                for field in self._fields:
+                for field in fields:
                     self._log(f'{field.capitalize()}: {results.get_readable(field)}')
 
     def _extract_results(self, results: Dict[Reasoner, Results | str]) -> List:
+        fields = Evaluation.fields()
         csv_row = []
 
         for res in results.values():
             if isinstance(res, str):
-                csv_row.extend([res] * len(self._fields))
+                csv_row.extend([res] * len(fields))
             else:
-                csv_row.extend(res.get(f) for f in self._fields)
+                csv_row.extend(res.get(f) for f in fields)
 
         return csv_row
 
