@@ -14,8 +14,13 @@ def general() -> None:
     log.green('Datasets', underline='-')
     for d in Dataset.all():
         stats = d.cumulative_stats()
-        log.yellow(f'{d.name}: ', endl=False)
-        log(f'{stats[0]} ontologies, {MemoryUnit.B(stats[1]).readable()}')
+        log.yellow(f'{d.name}')
+        with log.indent:
+            log.yellow('Size: ', endl=False)
+            log(f'{stats[0]} ontologies, {MemoryUnit.B(stats[1]).readable()}')
+            log.yellow('Syntaxes: ', endl=False)
+            log(', '.join(d.syntaxes))
+            log.spacer(2)
 
     log.spacer(2)
     log.green('Reasoning tasks', underline='-')
