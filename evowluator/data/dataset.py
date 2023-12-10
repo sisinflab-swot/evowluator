@@ -7,7 +7,7 @@ from typing import Iterable, Iterator, List
 from .sort_by import SortBy
 from .syntax import Syntax
 from ..config.paths import Paths
-from ..reasoner.base import ReasoningTask
+from ..reasoner.base import Reasoner, ReasoningTask
 
 
 class Ontology:
@@ -105,12 +105,39 @@ class Dataset:
         self.path = os.path.join(Paths.DATA_DIR, name)
         self.sort_by = SortBy.NAME
         self.start_after: str | None = None
+        self.preferred_syntax: Syntax | None = None
 
         if not os.path.isdir(self.path):
             raise FileNotFoundError('No such dataset: ' + self.name)
 
         if not self.syntaxes:
             raise ValueError('Invalid dataset: ' + self.name)
+
+    def syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[Syntax]:
+        return [s for s in reasoner.supported_syntaxes if s in self.syntaxes]
+
+    def syntax_for_reasoner(self, reasoner: Reasoner) -> Syntax:
+        if self.preferred_syntax:
+            syntax = self.preferred_syntax
+
+            if syntax not in self.syntaxes:
+                msg = f'"{syntax}" syntax not available for "{self.name}" dataset.'
+                raise ValueError(msg)
+
+            supported = reasoner.supported_syntaxes
+
+            if syntax in supported:
+                return syntax
+
+        available = self.syntaxes_for_reasoner(reasoner)
+
+        if reasoner.preferred_syntax in available:
+            return reasoner.preferred_syntax
+
+        if available:
+            return available[0]
+
+        raise ValueError(f'No available syntax for reasoner "{reasoner.name}"')
 
     def cumulative_stats(self, syntaxes: Iterable[Syntax] | None = None) -> (int, int):
         count, size = 0, 0

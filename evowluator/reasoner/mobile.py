@@ -11,7 +11,7 @@ from pyutils.proc.task import OutputAction, Task
 from pyutils.proc.util import find_executable
 from pyutils.types.string import split
 from .base import ReasoningTask, RemoteReasoner
-from ..config import Paths
+from ..config.paths import Paths
 
 
 class AndroidReasoner(RemoteReasoner, ABC):

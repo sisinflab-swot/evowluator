@@ -5,7 +5,7 @@ from typing import List
 
 from pyutils.proc.task import find_executable, java_args
 from .base import Reasoner, ReasoningTask
-from ..config import Paths
+from ..config.paths import Paths
 
 
 class JavaReasoner(Reasoner, ABC):

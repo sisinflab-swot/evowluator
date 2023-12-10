@@ -1,9 +1,13 @@
 class ConfigKey:
     """Evaluation config dictionary keys."""
+    CORRECTNESS_RESULTS = 'correctness_results'
+    CORRECTNESS_STRATEGY = 'correctness_strategy'
     DATASET = 'dataset'
+    END = 'end'
     ENERGY_PROBES = 'energy_probes'
     FIELDS = 'fields'
     ITERATIONS = 'iterations'
+    MAX_WORKERS = 'max_workers'
     MODE = 'mode'
     NAME = 'name'
     ONTOLOGIES = 'ontologies'
@@ -11,8 +15,7 @@ class ConfigKey:
     REASONERS = 'reasoners'
     SIZE = 'size'
     SORT_BY = 'sort_by'
+    START = 'start'
     SYNTAX = 'syntax'
     TASK = 'task'
     TIMEOUT = 'timeout'
-    START = 'start'
-    END = 'end'

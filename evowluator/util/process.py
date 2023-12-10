@@ -8,13 +8,15 @@ import pandas as pd
 
 from pyutils import exc
 from pyutils.io import echo
-from ..config import ConfigKey, Paths
+from ..config.key import ConfigKey
+from ..config.paths import Paths
 from ..data import csv, json
 from ..visualization.correctness import CorrectnessStrategy, Status
 
 
 def process(input_dirs: Iterable[str], correctness_dir: str | None,
-            correctness_strategy: str | None, dataset: str | None = None) -> None:
+            correctness_strategy: str | CorrectnessStrategy | None,
+            dataset: str | None = None) -> None:
     out_dir = merge(input_dirs, dataset=dataset)
 
     if correctness_dir:
@@ -24,13 +26,16 @@ def process(input_dirs: Iterable[str], correctness_dir: str | None,
     echo.info(out_dir)
 
 
-def correctness_results(input_dir: str, strategy: str | None) -> pd.DataFrame:
+def correctness_results(input_dir: str, strategy: str | CorrectnessStrategy | None) -> pd.DataFrame:
     df = csv.read(os.path.join(input_dir, Paths.RESULTS_FILE_NAME))
     df.rename(lambda x: x.split(':')[0], axis=1, inplace=True)
-    return CorrectnessStrategy.with_name(strategy, list(df.columns)).evaluate_dataframe(df)
+    if not isinstance(strategy, CorrectnessStrategy):
+        strategy = CorrectnessStrategy.with_name(strategy, list(df.columns))
+    return strategy.evaluate_dataframe(df)
 
 
-def filter_correct(input_dir: str, correctness_dir: str, strategy: str) -> None:
+def filter_correct(input_dir: str, correctness_dir: str,
+                   strategy: str | CorrectnessStrategy) -> None:
     csv_path = os.path.join(input_dir, Paths.RESULTS_FILE_NAME)
     df = csv.read(csv_path)
     cr = correctness_results(correctness_dir, strategy)
@@ -48,7 +53,8 @@ def filter_correct(input_dir: str, correctness_dir: str, strategy: str) -> None:
     csv.write(df, csv_path)
 
 
-def incorrect_ontologies(input_dir: str, strategy: str | None) -> Dict[str, List[str]]:
+def incorrect_ontologies(input_dir: str,
+                         strategy: str | CorrectnessStrategy | None) -> Dict[str, List[str]]:
     df = correctness_results(input_dir, strategy)
     incorrect = {}
 

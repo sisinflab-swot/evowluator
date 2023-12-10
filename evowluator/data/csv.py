@@ -95,7 +95,7 @@ class CSVWriter(_CSVIO):
     # Overrides
 
     def _open_mode(self):
-        return 'w'
+        return 'a'
 
     def _on_open(self):
         self.__csv_writer = csv.writer(self._file)

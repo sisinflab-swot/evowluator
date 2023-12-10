@@ -11,7 +11,8 @@ from pyutils.io import file
 from pyutils.types.unit import MemoryUnit
 from .metric import Metric
 from .plot import Figure, LineStyle, MinMaxAvgHistogramPlot, ScatterPlot
-from ..config import ConfigKey, Paths
+from ..config.key import ConfigKey
+from ..config.paths import Paths
 from ..data import csv, json
 from ..data.dataset import SortBy
 from ..data.info import DatasetInfo

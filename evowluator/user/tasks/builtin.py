@@ -6,8 +6,7 @@ from pyutils.io import file
 from pyutils.proc.task import Task
 from ...reasoner.results import Output, Results
 from ...reasoner.task import ReasoningTask
-from ...config import Evaluation
-from ...evaluation.mode import EvaluationMode
+from ...config.evaluation import Evaluation, EvaluationMode
 from ...util import owltool
 
 

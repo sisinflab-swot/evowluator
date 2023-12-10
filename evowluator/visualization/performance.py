@@ -11,7 +11,7 @@ from pyutils.types.unit import MemoryUnit, TimeUnit
 from .base import Visualizer
 from .metric import Metric
 from .plot import GroupedHistogramPlot
-from ..config import ConfigKey
+from ..config.key import ConfigKey
 from ..data import csv
 
 

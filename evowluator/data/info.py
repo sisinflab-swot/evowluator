@@ -47,28 +47,44 @@ class DatasetInfo:
 
     @classmethod
     def with_dataset(cls, dataset: Dataset) -> DatasetInfo:
-        return cls(dataset.name, (EntryInfo.with_entry(e) for e in dataset.get_entries()))
+        return cls(dataset.name, dataset.preferred_syntax, dataset.sort_by,
+                   (EntryInfo.with_entry(e) for e in dataset.get_entries()))
 
     @classmethod
     def from_dict(cls, d_dict: Dict) -> DatasetInfo:
         return cls(d_dict[ConfigKey.NAME],
+                   d_dict.get(ConfigKey.SYNTAX),
+                   SortBy(d_dict[ConfigKey.SORT_BY]),
                    (EntryInfo.from_dict(d) for d in d_dict[ConfigKey.ONTOLOGIES]))
 
-    def __init__(self, name: str, entries: Iterable[EntryInfo]) -> None:
+    def __init__(self, name: str, syntax: str | None, sort_by: SortBy,
+                 entries: Iterable[EntryInfo]) -> None:
         self.name = name
+        self.syntax = syntax
+        self.sort_by = sort_by
         self.entries = list(entries)
 
     def to_dict(self, syntaxes: List[Syntax] | None = None) -> Dict:
-        return {
+        dictionary = {
             ConfigKey.NAME: self.name,
-            ConfigKey.ONTOLOGIES: [e.to_dict(syntaxes=syntaxes) for e in self.entries]
+            ConfigKey.SORT_BY: self.sort_by
         }
+        if self.syntax:
+            dictionary[ConfigKey.SYNTAX] = self.syntax
+        dictionary[ConfigKey.ONTOLOGIES] = [e.to_dict(syntaxes=syntaxes) for e in self.entries]
+        return dictionary
 
     def max_ontology_size(self) -> int:
         return max(e.max_size for e in self.entries)
 
-    def get_ontologies(self, syntax: Syntax, names: Iterable[str] | None = None,
-                       sort_by: SortBy = SortBy.NAME) -> Iterator[OntologyInfo]:
+    def get_ontologies(self, syntax: Syntax | None = None, names: Iterable[str] | None = None,
+                       sort_by: SortBy | None = None) -> Iterator[OntologyInfo]:
+        if syntax is None:
+            syntax = self.syntax
+
+        if sort_by is None:
+            sort_by = self.sort_by
+
         entries = self.entries
 
         if names is not None:

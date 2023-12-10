@@ -1,6 +1,6 @@
 import os
 from importlib import import_module
-from ..config import User
+from ..config.user import User
 
 
 def import_user_modules() -> None:

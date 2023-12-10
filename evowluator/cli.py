@@ -4,15 +4,16 @@ from functools import cache
 
 from pyutils.proc.energy import EnergyProbe
 from pyutils.types.unit import TimeUnit, MemoryUnit
-from . import config
-from .config import Debug, Evaluation, EXE_NAME, OnError
+from .config.debug import Debug, OnError
+from .config.evaluation import Evaluation
+from .config.paths import EXE_NAME, Paths
 from .data import converter
 from .data.dataset import Dataset, SortBy, Syntax
 from .evaluation import info
 from .evaluation.base import CorrectnessEvaluator, PerformanceEvaluator
 from .evaluation.mode import EvaluationMode
 from .reasoner.base import Reasoner, ReasoningTask
-from .util.process import incorrect_ontologies, process
+from .util.process import process
 from .visualization.base import Visualizer
 from .visualization.correctness import CorrectnessStrategy, OracleStrategy
 from .visualization.plot import LegendLocation
@@ -28,18 +29,19 @@ def process_args() -> int:
     Debug.ON_ERROR = getattr(args, 'on_error', Debug.ON_ERROR)
     Evaluation.MODE = getattr(args, 'mode', Evaluation.MODE)
     Evaluation.TIMEOUT = getattr(args, 'timeout', Evaluation.TIMEOUT)
-    Evaluation.SYNTAX = getattr(args, 'syntax', Evaluation.SYNTAX)
+    Evaluation.MAX_WORKERS = getattr(args, 'max_workers', Evaluation.MAX_WORKERS)
 
     task = getattr(args, 'task', None)
     task = ReasoningTask.with_name(task) if task else ReasoningTask.CLASSIFICATION
     Evaluation.TASK = task
 
     names = getattr(args, 'reasoners', None)
-    Evaluation.REASONERS = Reasoner.from_names(names) if names else Reasoner.supporting_task(task)
+    Evaluation.REASONERS = Reasoner.with_names(names) if names else Reasoner.supporting_task(task)
 
     dataset = getattr(args, 'dataset', None)
     dataset = Dataset(dataset) if dataset else Dataset.first()
     dataset.sort_by = getattr(args, 'sort_by', SortBy.NAME)
+    dataset.preferred_syntax = getattr(args, 'syntax', None)
     Evaluation.DATASET = dataset
 
     energy_probes = getattr(args, 'energy_probes', None)
@@ -54,6 +56,16 @@ def process_args() -> int:
         Evaluation.ITERATIONS = 1
     else:
         Evaluation.ITERATIONS = getattr(args, 'num_iterations', Evaluation.ITERATIONS)
+
+    strategy = getattr(args, 'correctness_strategy', None)
+    if strategy:
+        reasoners = [r.name for r in Evaluation.reasoners()]
+        Evaluation.CORRECTNESS_STRATEGY = CorrectnessStrategy.with_name(strategy, reasoners)
+
+    results = getattr(args, 'correctness_results', None)
+    if results:
+        reasoners = [r.name for r in Evaluation.reasoners()]
+        Evaluation.CORRECTNESS_STRATEGY = CorrectnessStrategy.with_name(strategy, reasoners)
 
     return args.func(args)
 
@@ -143,6 +155,19 @@ def add_run_parser(subparsers) -> None:
                         help='Maximum number of reasoners to run in parallel.')
 
     parser.set_defaults(func=run_sub)
+
+
+def add_resume_parser(subparsers) -> None:
+    desc = 'Resumes an evaluation.'
+    parser = subparsers.add_parser('resume',
+                                   description=desc,
+                                   help=desc,
+                                   parents=[help_parser()],
+                                   add_help=False)
+    parser.add_argument('path',
+                        nargs='?',
+                        help='Path to the dir containing the evaluation to resume.')
+    parser.set_defaults(func=resume_sub)
 
 
 def add_info_parser(subparsers) -> None:
@@ -338,6 +363,7 @@ def main_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(title='Available subcommands',
                                        dest='subcommand', required=True)
     add_run_parser(subparsers)
+    add_resume_parser(subparsers)
     add_info_parser(subparsers)
     add_process_parser(subparsers)
     add_visualize_parser(subparsers)
@@ -349,18 +375,16 @@ def main_parser() -> argparse.ArgumentParser:
 
 
 def run_sub(args) -> int:
-    if args.mode == EvaluationMode.CORRECTNESS:
-        e = CorrectnessEvaluator()
-        e.set_strategy(args.correctness_strategy)
-        e.set_max_workers(args.max_workers)
-    else:
-        e = PerformanceEvaluator()
-        if args.correctness_results:
-            for r, o in incorrect_ontologies(args.correctness_results,
-                                             args.correctness_strategy).items():
-                e.skip_ontologies(r, o)
+    e = CorrectnessEvaluator() if args.mode == EvaluationMode.CORRECTNESS else PerformanceEvaluator()
+    e.start(Evaluation.new_config())
+    return 0
 
-    e.start()
+
+def resume_sub(args) -> int:
+    Evaluation.WORK_DIR = args.path if args.path else Paths.last_results_dir()
+    cfg = Evaluation.load_config()
+    e = CorrectnessEvaluator() if Evaluation.mode() == EvaluationMode.CORRECTNESS else PerformanceEvaluator()
+    e.resume(cfg)
     return 0
 
 
@@ -379,7 +403,7 @@ def process_sub(args) -> int:
 
 
 def visualize_sub(args) -> int:
-    path = args.path if args.path else config.Paths.last_results_dir()
+    path = args.path if args.path else Paths.last_results_dir()
     visualizer = Visualizer.from_dir(path, reasoners=args.reasoners)
 
     if hasattr(visualizer, 'set_strategy'):
@@ -416,7 +440,7 @@ def visualize_sub(args) -> int:
 
 
 def convert_sub(args) -> int:
-    dataset_path = os.path.join(config.Paths.DATA_DIR, args.dataset)
+    dataset_path = os.path.join(Paths.DATA_DIR, args.dataset)
     converter.convert_dataset(Dataset(dataset_path), args.syntax)
     return 0
 

@@ -3,7 +3,7 @@ from typing import List
 
 from pyutils import exc
 from pyutils.proc.task import OutputAction, Task
-from ..config import Paths
+from ..config.paths import Paths
 
 
 def _spawn_owltool(args: List[str]) -> None:

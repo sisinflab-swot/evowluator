@@ -21,8 +21,8 @@ def main():
         echo.error('Interrupted by user.')
         ret_val = 1
     except Exception as e:
-        from . import config
-        echo.error(config.Debug.format(e))
+        from .config.debug import Debug
+        echo.error(Debug.format(e))
         ret_val = 1
 
     return ret_val
