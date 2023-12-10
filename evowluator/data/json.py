@@ -1,4 +1,11 @@
 import json
+import sys
+from io import StringIO
+
+
+def dump(data, file: StringIO = sys.stdout) -> None:
+    json.dump(data, file, indent=2)
+    file.write('\n')
 
 
 def save(data, path: str) -> None:

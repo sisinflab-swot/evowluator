@@ -179,6 +179,9 @@ def add_info_parser(subparsers) -> None:
                                    add_help=False)
     parser.add_argument('-d', '--dataset',
                         help='Show information about the dataset.')
+    parser.add_argument('--json',
+                        action='store_true',
+                        help='Print information in json format.')
     parser.set_defaults(func=info_sub)
 
 
@@ -390,9 +393,9 @@ def resume_sub(args) -> int:
 
 def info_sub(args) -> int:
     if args.dataset:
-        info.dataset(args.dataset)
+        info.dataset(args.dataset, json_format=args.json)
     else:
-        info.general()
+        info.general(json_format=args.json)
     return 0
 
 
