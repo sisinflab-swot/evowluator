@@ -125,7 +125,7 @@ class Visualizer:
                      plots: List[int] | None = None) -> None:
         self.configure_plotters()
         self.figure.draw(plots=plots)
-        self.figure.save(path.join(self.output_dir, 'figure.pdf'), transparent=transparent_bg)
+        self.figure.save(path.join(self.output_dir, 'figure'), transparent=transparent_bg)
 
         if gui:
             self.figure.show()

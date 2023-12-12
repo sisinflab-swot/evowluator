@@ -16,7 +16,7 @@ from .reasoner.base import Reasoner, ReasoningTask
 from .util.process import process
 from .visualization.base import Visualizer
 from .visualization.correctness import CorrectnessStrategy, OracleStrategy
-from .visualization.plot import LegendLocation
+from .visualization.plot import FigureFormat, LegendLocation
 
 
 # CLI parser
@@ -256,6 +256,12 @@ def add_visualize_parser(subparsers) -> None:
                         dest='show_labels',
                         action='store_false',
                         help='Omit value labels when plotting.')
+    parser.add_argument('--figure-fmt',
+                        nargs='+',
+                        type=FigureFormat,
+                        choices=FigureFormat.all(),
+                        default=[FigureFormat.PDF],
+                        help='File format for the saved figure.')
     parser.add_argument('--label-fmt',
                         help='Float format of value labels.')
     parser.add_argument('--label-rot',

@@ -34,6 +34,12 @@ class LegendLocation(StrEnum):
     CENTER = 'center'
 
 
+class FigureFormat(StrEnum):
+    PNG = 'png'
+    PDF = 'pdf'
+    SVG = 'svg'
+
+
 class Plot:
 
     # Override
@@ -479,6 +485,7 @@ class Figure:
     def __init__(self, title: str = 'evOWLuator'):
         self.title = title
         self.size: Tuple[float, float] | None = None
+        self.figure_fmt = (FigureFormat.PDF,)
         for attr in self._PLOTTER_ATTRS:
             setattr(self, attr, None)
         self._plotters: List[Plotter] = []
@@ -528,7 +535,10 @@ class Figure:
 
     def save(self, path: str, transparent: bool = False) -> None:
         if self._is_drawn:
-            plt.savefig(path, bbox_inches='tight', pad_inches=0.0, transparent=transparent)
+            for fmt in self.figure_fmt:
+                ext = '.' + fmt
+                path_ext = path if path.endswith(ext) else path + ext
+                plt.savefig(path_ext, bbox_inches='tight', pad_inches=0.0, transparent=transparent)
 
 
 def _compute_scale(bounds: Tuple[float, float]) -> str:
