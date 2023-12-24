@@ -54,7 +54,7 @@ class DatasetInfo:
     def from_dict(cls, d_dict: Dict) -> DatasetInfo:
         return cls(d_dict[ConfigKey.NAME],
                    d_dict.get(ConfigKey.SYNTAX),
-                   SortBy(d_dict[ConfigKey.SORT_BY]),
+                   SortBy(d_dict.get(ConfigKey.SORT_BY, SortBy.NAME)),
                    (EntryInfo.from_dict(d) for d in d_dict[ConfigKey.ONTOLOGIES]))
 
     def __init__(self, name: str, syntax: str | None, sort_by: SortBy,

@@ -195,7 +195,7 @@ class PerformanceVisualizer(Visualizer):
             for field, data in times.items():
                 summary[field + time_unit] = data
             if len(times) > 1:
-                summary['total time' + time_unit] = np.sum(list(times.values()))
+                summary['total time' + time_unit] = np.sum(list(times.values()), axis=0)
 
         min_max_avg_metrics = [('memory peak (MiB)', self._memory_cols)]
         min_max_avg_metrics.extend((f'energy ({f})', self._energy_probe_cols(f))
