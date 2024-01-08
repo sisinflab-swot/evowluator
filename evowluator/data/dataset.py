@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import os
 from functools import cache, cached_property
-from typing import Iterable, Iterator, List
+from typing import Dict, Iterable, Iterator, List
+from pyutils.types.unit import MemoryMeasurement, MemoryUnit
 
 from .sort_by import SortBy
 from .syntax import Syntax
 from ..config.paths import Paths
 from ..reasoner.base import Reasoner, ReasoningTask
+
+
+class Stats:
+    """Dataset stats."""
+    def __init__(self, count: int, size_bytes: int):
+        self.count = count
+        self.size_bytes = size_bytes
+        self.size_readable: MemoryMeasurement = MemoryUnit.B(size_bytes).readable()
 
 
 class Ontology:
@@ -24,9 +33,17 @@ class Ontology:
         return self.entry.name
 
     @cached_property
+    def exists(self) -> bool:
+        """Whether the ontology file exists."""
+        return os.path.isfile(self.path)
+
+    @cached_property
     def size(self) -> int:
         """File size of the ontology."""
-        return os.path.getsize(self.path)
+        try:
+            return os.path.getsize(self.path)
+        except FileNotFoundError:
+            return 0
 
     def __init__(self, entry: DatasetEntry, syntax: Syntax):
         self.entry = entry
@@ -44,15 +61,17 @@ class DatasetEntry:
         self.base_path = base_path
         self.name = name
 
-    def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None) -> int:
+    def size(self, syntaxes: Syntax | Iterable[Syntax] | None = None) -> int:
         return sum(o.size for o in self.ontologies(syntaxes=syntaxes))
 
     def ontology(self, syntax: Syntax) -> Ontology:
         return Ontology(self, syntax)
 
-    def ontologies(self, syntaxes: Iterable[Syntax] | None = None) -> Iterator[Ontology]:
+    def ontologies(self, syntaxes: Syntax | Iterable[Syntax] | None = None) -> Iterator[Ontology]:
         if not syntaxes:
             syntaxes = _available_syntaxes(self.base_path)
+        elif isinstance(syntaxes, Syntax):
+            syntaxes = (syntaxes,)
 
         for s in syntaxes:
             yield self.ontology(s)
@@ -101,6 +120,18 @@ class Dataset:
     def syntaxes(self) -> List[Syntax]:
         return _available_syntaxes(self.path)
 
+    @cached_property
+    def reference_syntax(self) -> Syntax:
+        def count(my_iter) -> int:
+            return sum(1 for _ in my_iter)
+
+        counts_per_syntax = (
+            (syntax, count(n for n in os.listdir(self.get_dir(syntax)) if not n.startswith('.')))
+            for syntax in self.syntaxes
+        )
+
+        return max(counts_per_syntax, key=lambda e: e[1])[0]
+
     @property
     def reasoning_tasks(self) -> List[ReasoningTask]:
         return [
@@ -119,6 +150,41 @@ class Dataset:
 
         if not self.syntaxes:
             raise ValueError('Invalid dataset: ' + self.name)
+
+    def to_json_dict(self, ontologies: bool = False) -> Dict:
+        stats = self.stats()
+        syntaxes = sorted(self.syntaxes)
+        ret = {
+            'count': stats.count,
+            'size_bytes': stats.size_bytes,
+            'size_readable': str(stats.size_readable),
+            'tasks': sorted(r.name for r in self.reasoning_tasks),
+            'syntaxes': {
+                syntax: {
+                    'count': syntax_stats.count,
+                    'size_bytes': syntax_stats.size_bytes,
+                    'size_readable': str(syntax_stats.size_readable)
+                }
+                for syntax, syntax_stats in ((s, self.stats(s)) for s in syntaxes)
+            }
+        }
+        if ontologies:
+            ret['ontologies'] = {
+                entry.name: {
+                    'size_bytes': size,
+                    'size_readable': str(MemoryUnit.B(size).readable()),
+                    'syntaxes': {
+                        syntax: {
+                            'size_bytes': syntax_size,
+                            'size_readable': str(MemoryUnit.B(syntax_size).readable())
+                        }
+                        for syntax, syntax_size in ((s, entry.size(s)) for s in syntaxes)
+                        if syntax_size
+                    }
+                }
+                for entry, size in ((e, e.size()) for e in self.get_entries())
+            }
+        return ret
 
     def syntaxes_for_reasoner(self, reasoner: Reasoner) -> List[Syntax]:
         return [s for s in reasoner.supported_syntaxes if s in self.syntaxes]
@@ -146,20 +212,19 @@ class Dataset:
 
         raise ValueError(f'No available syntax for reasoner "{reasoner.name}"')
 
-    def cumulative_stats(self, syntaxes: Iterable[Syntax] | None = None) -> (int, int):
+    def stats(self, syntaxes: Syntax | Iterable[Syntax] | None = None) -> Stats:
         count, size = 0, 0
 
         for e in self.get_entries():
-            count += 1
-            size += e.cumulative_size(syntaxes=syntaxes)
+            entry_size = e.size(syntaxes=syntaxes)
+            if entry_size:
+                count += 1
+                size += entry_size
 
-        return count, size
+        return Stats(count, size)
 
     def count(self) -> int:
-        return self.cumulative_stats()[0]
-
-    def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None) -> int:
-        return self.cumulative_stats(syntaxes=syntaxes)[1]
+        return self.stats().count
 
     def get_dir(self, target: Syntax | ReasoningTask) -> str:
         return os.path.join(self.path, target.name.lower())
@@ -167,12 +232,9 @@ class Dataset:
     def get_entry(self, name: str) -> DatasetEntry:
         return DatasetEntry(self.path, name)
 
-    def get_ontology(self, name: str, syntax: Syntax) -> Ontology:
-        return self.get_entry(name).ontology(syntax)
-
     def get_entries(self) -> Iterator[DatasetEntry]:
         entries = (self.get_entry(n)
-                   for n in os.listdir(self.get_dir(self.syntaxes[0]))
+                   for n in os.listdir(self.get_dir(self.reference_syntax))
                    if not n.startswith('.'))
         entries = self.sort_by.sorted(entries, size_attr='max_size')
         should_yield = False if self.start_after else True

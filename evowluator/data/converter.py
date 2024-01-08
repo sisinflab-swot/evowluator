@@ -18,7 +18,7 @@ def convert_ontology(source: Ontology, target: Ontology) -> bool:
     return True
 
 
-def convert_dataset(dataset: Dataset, syntax: Syntax, source_syntax: Syntax | None = None) -> None:
+def convert_dataset(dataset: Dataset, syntax: Syntax) -> None:
     """Converts a dataset into the specified syntax."""
     def _convert_entry(lentry: DatasetEntry) -> None:
         try:
@@ -26,7 +26,7 @@ def convert_dataset(dataset: Dataset, syntax: Syntax, source_syntax: Syntax | No
             log.yellow(f'{target_ontology.name}: ', endl=False)
             file.create_dir(os.path.dirname(target_ontology.path))
 
-            if convert_ontology(lentry.ontology(source_syntax), target_ontology):
+            if convert_ontology(lentry.ontology(dataset.reference_syntax), target_ontology):
                 log('converted')
             else:
                 log('already converted')
@@ -37,9 +37,6 @@ def convert_dataset(dataset: Dataset, syntax: Syntax, source_syntax: Syntax | No
     log.green((f'Starting conversion of "{dataset.name}" dataset '
                f'({dataset.count()} ontologies) in {syntax} syntax...'))
     log.spacer(2)
-
-    if not source_syntax:
-        source_syntax = next(s for s in dataset.syntaxes if s != syntax)
 
     for entry in dataset.get_entries():
         _convert_entry(entry)

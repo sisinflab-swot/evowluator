@@ -32,7 +32,6 @@ class Evaluator(ABC):
     def __init__(self) -> None:
         self._log: PrettyPrinter | None = None
         self._csv: CSVWriter | None = None
-        self._resumed = False
 
     def resume(self, cfg: Dict) -> None:
         """Resumes an evaluation."""
@@ -102,8 +101,7 @@ class Evaluator(ABC):
     def _start(self) -> None:
         data = Evaluation.dataset()
         used_syntaxes = Evaluation.used_syntaxes()
-        dataset_count, dataset_size = data.cumulative_stats(syntaxes=used_syntaxes)
-        dataset_size = MemoryUnit.B(dataset_size).readable()
+        stats = data.stats(syntaxes=used_syntaxes)
         tot_size = 0
 
         for idx, entry in enumerate(data.get_entries()):
@@ -117,8 +115,9 @@ class Evaluator(ABC):
             self._log.yellow('Sizes: ', endl=False)
             self._log(size_str, endl=False)
             self._log.yellow(' Progress: ', endl=False)
-            self._log(f'{idx + 1}/{dataset_count} '
-                      f'({MemoryUnit.B(tot_size).to_value(dataset_size.unit):.1f}/{dataset_size})')
+            self._log(f'{idx + 1}/{stats.count} '
+                      f'({MemoryUnit.B(tot_size).to_value(stats.size_readable.unit):.1f}/'
+                      f'{stats.size_readable})')
 
             with self._log.indent:
                 try:
