@@ -101,6 +101,13 @@ class Dataset:
     def syntaxes(self) -> List[Syntax]:
         return _available_syntaxes(self.path)
 
+    @property
+    def reasoning_tasks(self) -> List[ReasoningTask]:
+        return [
+            r for r in ReasoningTask.all()
+            if not r.requires_additional_inputs or os.path.isdir(self.get_dir(r))
+        ]
+
     def __init__(self, name: str) -> None:
         self.path = os.path.join(Paths.DATA_DIR, name)
         self.sort_by = SortBy.NAME
@@ -154,8 +161,8 @@ class Dataset:
     def cumulative_size(self, syntaxes: Iterable[Syntax] | None = None) -> int:
         return self.cumulative_stats(syntaxes=syntaxes)[1]
 
-    def get_dir(self, syntax: Syntax) -> str:
-        return os.path.join(self.path, syntax)
+    def get_dir(self, target: Syntax | ReasoningTask) -> str:
+        return os.path.join(self.path, target.name.lower())
 
     def get_entry(self, name: str) -> DatasetEntry:
         return DatasetEntry(self.path, name)

@@ -83,6 +83,10 @@ def _dataset_text(name: str) -> None:
     stats = data.cumulative_stats()
     log.yellow(f'Total size: ', endl=False)
     log(f'{stats[0]} ontologies, {MemoryUnit.B(stats[1]).readable()}')
+    log.yellow('Tasks')
+    with log.indent:
+        for t in data.reasoning_tasks:
+            log(t.name)
     log.yellow('Syntaxes')
     with log.indent:
         for s in sorted(data.syntaxes):
@@ -108,6 +112,7 @@ def _dataset_json(name: str) -> None:
         'count': stats[0],
         'size_bytes': stats[1],
         'size_readable': str(MemoryUnit.B(stats[1]).readable()),
+        'tasks': sorted(r.name for r in data.reasoning_tasks),
         'syntaxes': {
             syntax: {
                 'size_bytes': size,
