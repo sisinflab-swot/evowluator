@@ -48,7 +48,9 @@ def process_args() -> int:
     if energy_probes:
         def get_probe(name: str) -> EnergyProbe:
             probe = EnergyProbe.with_name(name)
-            probe.interval = Evaluation.ENERGY_POLLING_INTERVALS.get(probe.name, probe.interval)
+            for attr, val in Evaluation.ENERGY_PROBES_ATTRS.get(probe.name, {}).items():
+                if hasattr(probe, attr):
+                    setattr(probe, attr, val)
             return probe
         Evaluation.ENERGY_PROBES = [get_probe(n) for n in energy_probes]
 

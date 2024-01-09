@@ -35,9 +35,11 @@ class Evaluation:
     CORRECTNESS_STRATEGY = CorrectnessStrategy.default()
     CORRECTNESS_RESULTS: str | None = None
     ENERGY_PROBES: List[EnergyProbe] = []
-    ENERGY_POLLING_INTERVALS = {
-        'powertop': 1000,
-        'powermetrics': 500
+    ENERGY_PROBES_ATTRS = {
+        'powertop': { 'interval': 1000 },
+        'powermetrics': { 'interval': 500 },
+        'random': { 'interval': 500, 'min': 0.1, 'max': 0.9 },
+        'zero': {'interval': 500},
     }
 
     @classmethod
