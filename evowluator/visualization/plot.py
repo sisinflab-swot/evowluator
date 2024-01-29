@@ -20,6 +20,11 @@ LineStyle = Union[str, tuple]
 INFINITY = float('inf')
 
 
+class Scale(StrEnum):
+    LINEAR = 'linear'
+    LOG = 'log'
+
+
 class LegendLocation(StrEnum):
     NONE = 'none'
     BEST = 'best'
@@ -73,17 +78,13 @@ class Plot:
         self.title: str | None = None
         self.xlabel: str | None = None
         self.ylabel: str | None = None
-        self.xscale: str | None = None
-        self.yscale: str | None = None
+        self.xscale: Scale = Scale.LINEAR
+        self.yscale: Scale = Scale.LINEAR
         self.xlimits: Tuple[float, float] | None = None
         self.ylimits: Tuple[float, float] | None = None
         self.xtick_rot = 0.0
         self.ytick_rot = 0.0
-
         self._ax = ax
-
-        ax.xaxis.set_major_formatter(self._default_formatter())
-        ax.yaxis.set_major_formatter(self._default_formatter())
 
     def set_attrs(self, **kwargs) -> None:
         for k, v in kwargs.items():
@@ -92,18 +93,18 @@ class Plot:
 
     def apply_scale(self) -> None:
         # Workaround for formatter getting reset on set_[xy]scale.
-        x_maj = self._ax.xaxis.get_major_formatter()
-        x_min = self._ax.xaxis.get_minor_formatter()
-        y_maj = self._ax.yaxis.get_major_formatter()
-        y_min = self._ax.yaxis.get_minor_formatter()
+        x_maj = ticker.FormatStrFormatter('%g')
+        x_min = ticker.LogFormatter() if self.xscale == Scale.LOG else ticker.NullFormatter()
+        y_maj = ticker.FormatStrFormatter('%g')
+        y_min = ticker.LogFormatter() if self.yscale == Scale.LOG else ticker.NullFormatter()
 
-        subticks = [2, 3, 4, 5, 6, 7, 8, 9]
+        log_subticks = [2, 3, 4, 5, 6, 7, 8, 9]
 
-        if self.xscale and self.xscale != 'linear':
-            self._ax.set_xscale(self.xscale, subs=subticks)
+        if self.xscale == Scale.LOG:
+            self._ax.set_xscale(Scale.LOG, subs=log_subticks)
 
-        if self.yscale and self.yscale != 'linear':
-            self._ax.set_yscale(self.yscale, subs=subticks)
+        if self.yscale == Scale.LOG:
+            self._ax.set_yscale(Scale.LOG, subs=log_subticks)
 
         self._ax.xaxis.set_major_formatter(x_maj)
         self._ax.xaxis.set_minor_formatter(x_min)
@@ -166,8 +167,8 @@ class Plot:
     def draw_grid(self) -> None:
         self._ax.minorticks_on()
         self._ax.set_axisbelow(True)
-        self._ax.grid(b=True, axis=self.grid_axis, which='major')
-        self._ax.grid(b=True, axis=self.grid_axis, which='minor', alpha=0.25)
+        self._ax.grid(visible=True, axis=self.grid_axis, which='major')
+        self._ax.grid(visible=True, axis=self.grid_axis, which='minor', alpha=0.25)
 
         for label in self._ax.get_xticklabels():
             label.set_rotation(self.xtick_rot)
@@ -202,9 +203,6 @@ class Plot:
 
         if self.ylabel:
             self._ax.set_ylabel(self.ylabel)
-
-    def _default_formatter(self) -> ticker.Formatter:
-        return ticker.FormatStrFormatter('%g')
 
 
 class HistogramPlot(Plot):
@@ -541,11 +539,11 @@ class Figure:
                 plt.savefig(path_ext, bbox_inches='tight', pad_inches=0.0, transparent=transparent)
 
 
-def _compute_scale(bounds: Tuple[float, float]) -> str:
+def _compute_scale(bounds: Tuple[float, float]) -> Scale:
     xmin, xmax = bounds
     if xmin != xmax and (xmin == 0.0 or xmax / xmin > 25.0):
-        return 'log'
-    return 'linear'
+        return Scale.LOG
+    return Scale.LINEAR
 
 
 def _compute_limits(bounds: Tuple[float, float], scale: str, tight: bool) -> (float, float):

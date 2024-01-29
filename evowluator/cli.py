@@ -16,7 +16,7 @@ from .reasoner.base import Reasoner, ReasoningTask
 from .util.process import process
 from .visualization.base import Visualizer
 from .visualization.correctness import CorrectnessStrategy, OracleStrategy
-from .visualization.plot import FigureFormat, LegendLocation
+from .visualization.plot import FigureFormat, LegendLocation, Scale
 
 
 # CLI parser
@@ -276,8 +276,14 @@ def add_visualize_parser(subparsers) -> None:
                         type=float,
                         help='Rotation of labels on the y axis in degrees.')
     parser.add_argument('--xscale',
+                        type=Scale,
+                        choices=Scale.all(),
+                        default=Scale.LINEAR,
                         help='Scale of the x axis.')
     parser.add_argument('--yscale',
+                        type=Scale,
+                        choices=Scale.all(),
+                        default=Scale.LINEAR,
                         help='Scale of the y axis.')
     parser.add_argument('--xlimits',
                         metavar=('XMIN', 'XMAX'),
