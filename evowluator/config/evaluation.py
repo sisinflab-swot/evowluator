@@ -82,6 +82,8 @@ class Evaluation:
 
     @classmethod
     def dataset(cls) -> Dataset:
+        if not cls.DATASET:
+            raise FileNotFoundError('No dataset provided.')
         return cls.DATASET
 
     @classmethod

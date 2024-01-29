@@ -104,13 +104,9 @@ class Dataset:
         return [Dataset(d) for d in datasets]
 
     @classmethod
-    def first(cls) -> Dataset:
+    def first(cls) -> Dataset | None:
         all_datasets = cls.all()
-
-        if not all_datasets:
-            raise FileNotFoundError('No datasets provided.')
-
-        return all_datasets[0]
+        return all_datasets[0] if all_datasets else None
 
     @property
     def name(self) -> str:

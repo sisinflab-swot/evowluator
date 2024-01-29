@@ -40,9 +40,10 @@ def process_args() -> int:
 
     dataset = getattr(args, 'dataset', None)
     dataset = Dataset(dataset) if dataset else Dataset.first()
-    dataset.sort_by = getattr(args, 'sort_by', SortBy.NAME)
-    dataset.preferred_syntax = getattr(args, 'syntax', None)
-    Evaluation.DATASET = dataset
+    if dataset:
+        dataset.sort_by = getattr(args, 'sort_by', SortBy.NAME)
+        dataset.preferred_syntax = getattr(args, 'syntax', None)
+        Evaluation.DATASET = dataset
 
     energy_probes = getattr(args, 'energy_probes', None)
     if energy_probes:
