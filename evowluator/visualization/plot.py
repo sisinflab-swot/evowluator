@@ -93,10 +93,19 @@ class Plot:
 
     def apply_scale(self) -> None:
         # Workaround for formatter getting reset on set_[xy]scale.
-        x_maj = ticker.FormatStrFormatter('%g')
-        x_min = ticker.LogFormatter() if self.xscale == Scale.LOG else ticker.NullFormatter()
-        y_maj = ticker.FormatStrFormatter('%g')
-        y_min = ticker.LogFormatter() if self.yscale == Scale.LOG else ticker.NullFormatter()
+        if self.grid_axis != 'y':
+            x_maj = ticker.FormatStrFormatter('%g')
+            x_min = ticker.LogFormatter() if self.xscale == Scale.LOG else ticker.NullFormatter()
+        else:
+            x_maj = self._ax.xaxis.get_major_formatter()
+            x_min = self._ax.xaxis.get_minor_formatter()
+
+        if self.grid_axis != 'x':
+            y_maj = ticker.FormatStrFormatter('%g')
+            y_min = ticker.LogFormatter() if self.yscale == Scale.LOG else ticker.NullFormatter()
+        else:
+            y_maj = self._ax.xaxis.get_major_formatter()
+            y_min = self._ax.xaxis.get_minor_formatter()
 
         log_subticks = [2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -440,7 +449,7 @@ class ScatterPlot(Plot):
             end_samples = 0
 
         force_points = []
-        force_weight = sum(y)
+        force_weight = sum(y) * 1000
 
         if start_samples:
             force_points.append((sum(x[:start_samples]) / start_samples,
