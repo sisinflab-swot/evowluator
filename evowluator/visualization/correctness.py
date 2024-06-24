@@ -162,7 +162,7 @@ class CorrectnessVisualizer(Visualizer):
         file.create_dir(self.output_dir)
 
         reasoners = self._reasoners
-        res: pd.DataFrame = self.results_grouped_by_reasoner(drop_missing=False).first()[reasoners]
+        res = self.results_grouped_by_reasoner(drop_missing=False).first().T[reasoners]
         res.fillna(Status.UNKNOWN, inplace=True)
         res = self.strategy.evaluate_dataframe(res)
         csv.write(res, path.join(self.output_dir, 'correct.csv'))

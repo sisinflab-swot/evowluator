@@ -129,5 +129,5 @@ def read(path: str) -> pd.DataFrame:
 
 
 def write(df: pd.DataFrame, path: str, index: bool = True) -> None:
-    df = df.applymap(_format_record)
+    df = df.map(_format_record)
     df.to_csv(path, index=index)

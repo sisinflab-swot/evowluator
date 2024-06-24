@@ -161,7 +161,7 @@ class PerformanceVisualizer(Visualizer):
     def _write_total_times(self, file_path: str) -> None:
         if self._time_cols:
             totals = self.results_grouped_by_reasoner(self._time_cols,
-                                                      drop_missing=False).sum(min_count=1)
+                                                      drop_missing=False).sum(min_count=1).T
             csv.write(totals, file_path)
 
     def _write_summary(self, file_path: str) -> None:
@@ -174,7 +174,7 @@ class PerformanceVisualizer(Visualizer):
         max_time = 0
 
         for field in self._time_fields:
-            data = self.results_grouped_by_reasoner(self._time_field_cols(field)).sum().sum()
+            data = self.results_grouped_by_reasoner(self._time_field_cols(field)).sum().T.sum()
             data = np.array([data[r] for r in reasoners])
             min_time = min(np.min(np.ma.masked_equal(data, 0)), min_time)
             max_time = max(np.max(data), max_time)
@@ -201,7 +201,7 @@ class PerformanceVisualizer(Visualizer):
                                    for f in self._energy_fields)
 
         for metric, cols in [(m, c) for m, c in min_max_avg_metrics if c]:
-            res = self.results_grouped_by_reasoner(cols).sum()
+            res = self.results_grouped_by_reasoner(cols).sum().T
             res_min, res_avg, res_max = res.min(), res.mean(), res.max()
             res_min = np.array([res_min[r] for r in reasoners])
             res_avg = np.array([res_avg[r] for r in reasoners])

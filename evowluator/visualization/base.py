@@ -119,7 +119,7 @@ class Visualizer:
         if drop_missing:
             results = results.dropna()
 
-        return results.groupby(lambda x: x.split(':', maxsplit=1)[0], axis=1)
+        return results.T.groupby(lambda x: x.split(':', maxsplit=1)[0])
 
     def plot_results(self, gui: bool = True, transparent_bg: bool = False,
                      plots: List[int] | None = None) -> None:
