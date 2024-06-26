@@ -75,7 +75,10 @@ class CorrectnessStrategy(ABC):
         return dict(zip(results.keys(), self.evaluate(list(results.values()))))
 
     def evaluate_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        return df.transform(self.evaluate, axis=1)
+        return df.transform(self.evaluate_series, axis=1)
+
+    def evaluate_series(self, series: pd.Series) -> List:
+        return self.evaluate(series.tolist())
 
 
 class OracleStrategy(CorrectnessStrategy):

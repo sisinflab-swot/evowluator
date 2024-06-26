@@ -28,11 +28,11 @@ class Evaluation:
     TASK: ReasoningTask | None = None
     MODE = EvaluationMode.CORRECTNESS
     DATASET: Dataset | None = None
-    REASONERS: List[Reasoner] = []
+    REASONERS: List[str] = []
     TIMEOUT: float | str = 1800.0
     ITERATIONS = 1
     MAX_WORKERS: int | None = None
-    CORRECTNESS_STRATEGY = CorrectnessStrategy.default()
+    CORRECTNESS_STRATEGY: str = CorrectnessStrategy.default().name
     CORRECTNESS_RESULTS: str | None = None
     ENERGY_PROBES: List[EnergyProbe] = []
     ENERGY_PROBES_ATTRS = {
@@ -87,8 +87,19 @@ class Evaluation:
         return cls.DATASET
 
     @classmethod
-    def reasoners(cls) -> List[Reasoner]:
+    def reasoner_names(cls) -> List[str]:
         return cls.REASONERS
+
+    _REASONERS: List[Reasoner] = None
+    @classmethod
+    def reasoners(cls) -> List[Reasoner]:
+        if cls._REASONERS is None:
+            names = cls.reasoner_names()
+            if names:
+                cls._REASONERS = Reasoner.with_names(names)
+            else:
+                cls._REASONERS = Reasoner.supporting_task(cls.task())
+        return cls._REASONERS
 
     _USABLE_REASONERS: List[Reasoner] = None
     @classmethod
@@ -132,7 +143,7 @@ class Evaluation:
         return cls.MAX_WORKERS
 
     @classmethod
-    def correctness_strategy(cls) -> CorrectnessStrategy:
+    def correctness_strategy(cls) -> str:
         return cls.CORRECTNESS_STRATEGY
 
     @classmethod
@@ -192,7 +203,7 @@ class Evaluation:
 
         if mode == EvaluationMode.PERFORMANCE:
             if cls.correctness_results():
-                opt_cfg[ConfigKey.CORRECTNESS_STRATEGY] = cls.correctness_strategy().name
+                opt_cfg[ConfigKey.CORRECTNESS_STRATEGY] = cls.correctness_strategy()
                 opt_cfg[ConfigKey.CORRECTNESS_RESULTS] = cls.correctness_results()
             if cls.energy_probes():
                 opt_cfg[ConfigKey.ENERGY_PROBES] = [
@@ -200,7 +211,7 @@ class Evaluation:
                     for p in cls.energy_probes()
                 ]
         else:
-            opt_cfg[ConfigKey.CORRECTNESS_STRATEGY] = cls.correctness_strategy().name
+            opt_cfg[ConfigKey.CORRECTNESS_STRATEGY] = cls.correctness_strategy()
 
         return _add_after(cfg, opt_cfg, ConfigKey.ITERATIONS)
 

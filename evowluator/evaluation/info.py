@@ -71,7 +71,7 @@ def _dataset_text(data: Dataset) -> None:
     log = PrettyPrinter(stdout)
     log.green(f'{data.name} dataset', underline='-')
     stats = data.stats()
-    log.yellow(f'Total size: ', endl=False)
+    log.yellow('Total size: ', endl=False)
     log(f'{stats.count} ontologies, {stats.size_readable}')
     log.yellow('Tasks')
     with log.indent:

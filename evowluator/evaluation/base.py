@@ -23,7 +23,7 @@ from ..data.dataset import DatasetEntry, Ontology
 from ..reasoner.base import Reasoner, RemoteReasoner
 from ..reasoner.results import Results
 from ..util.process import incorrect_ontologies
-from ..visualization.correctness import Status
+from ..visualization.correctness import CorrectnessStrategy, Status
 
 
 class Evaluator(ABC):
@@ -285,11 +285,8 @@ class CorrectnessEvaluator(Evaluator):
             self._log(('' if len(results) == 1 else ', ') + reasoner.name, endl=False)
 
     def _log_results(self, results: Dict[Reasoner], errors: Dict[Reasoner, Exception]) -> None:
-        strategy = Evaluation.correctness_strategy()
-
-        if not strategy:
-            return
-
+        strategy = CorrectnessStrategy.with_name(Evaluation.correctness_strategy(),
+                                                 reasoners=list(results.keys()))
         ok, wrong = [], []
 
         for r, v in strategy.evaluate_dict(results).items():

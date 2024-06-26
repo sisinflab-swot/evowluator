@@ -12,7 +12,7 @@ from .data.dataset import Dataset, SortBy, Syntax
 from .evaluation import info
 from .evaluation.base import CorrectnessEvaluator, PerformanceEvaluator
 from .evaluation.mode import EvaluationMode
-from .reasoner.base import Reasoner, ReasoningTask
+from .reasoner.base import ReasoningTask
 from .util.process import process
 from .visualization.base import Visualizer
 from .visualization.correctness import CorrectnessStrategy, OracleStrategy
@@ -30,13 +30,15 @@ def process_args() -> int:
     Evaluation.MODE = getattr(args, 'mode', Evaluation.MODE)
     Evaluation.TIMEOUT = getattr(args, 'timeout', Evaluation.TIMEOUT)
     Evaluation.MAX_WORKERS = getattr(args, 'max_workers', Evaluation.MAX_WORKERS)
+    Evaluation.CORRECTNESS_STRATEGY = getattr(args, 'correctness_strategy',
+                                              Evaluation.CORRECTNESS_STRATEGY)
 
     task = getattr(args, 'task', None)
     task = ReasoningTask.with_name(task) if task else ReasoningTask.CLASSIFICATION
     Evaluation.TASK = task
 
-    names = getattr(args, 'reasoners', None)
-    Evaluation.REASONERS = Reasoner.with_names(names) if names else Reasoner.supporting_task(task)
+    reasoners = getattr(args, 'reasoners', [])
+    Evaluation.REASONERS = reasoners
 
     dataset = getattr(args, 'dataset', None)
     dataset = Dataset(dataset) if dataset else Dataset.first()
@@ -59,16 +61,6 @@ def process_args() -> int:
         Evaluation.ITERATIONS = 1
     else:
         Evaluation.ITERATIONS = getattr(args, 'num_iterations', Evaluation.ITERATIONS)
-
-    strategy = getattr(args, 'correctness_strategy', None)
-    if strategy:
-        reasoners = [r.name for r in Evaluation.reasoners()]
-        Evaluation.CORRECTNESS_STRATEGY = CorrectnessStrategy.with_name(strategy, reasoners)
-
-    results = getattr(args, 'correctness_results', None)
-    if results:
-        reasoners = [r.name for r in Evaluation.reasoners()]
-        Evaluation.CORRECTNESS_STRATEGY = CorrectnessStrategy.with_name(strategy, reasoners)
 
     return args.func(args)
 

@@ -22,7 +22,7 @@ def process(input_dirs: Iterable[str], correctness_dir: str | None,
     if correctness_dir:
         filter_correct(out_dir, correctness_dir, correctness_strategy)
 
-    echo.success(f'Results: ', endl=False)
+    echo.success('Results: ', endl=False)
     echo.info(out_dir)
 
 

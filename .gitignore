@@ -196,5 +196,6 @@ $RECYCLE.BIN/
 # Project specific
 evowluate
 /.idea
+/.vscode
 /results
 !/lib
