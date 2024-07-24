@@ -138,7 +138,7 @@ def merge_configs(config: Dict, input_dir: str, dataset: str | None) -> Dict:
 
 
 def read_csv(path: str) -> pd.DataFrame:
-    df = csv.read(path).convert_dtypes()
+    df = csv.read(path).convert_dtypes(convert_string=False)
     df['seq'] = df.groupby(df.index.names).cumcount()
     df.set_index('seq', append=True, inplace=True)
     return df
