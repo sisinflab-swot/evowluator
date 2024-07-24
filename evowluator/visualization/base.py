@@ -10,7 +10,7 @@ import pandas as pd
 from pyutils.io import file
 from pyutils.types.unit import MemoryUnit
 from .metric import Metric
-from .plot import Figure, LineStyle, MinMaxAvgHistogramPlot, ScatterPlot
+from .plot import Figure, MinMaxAvgHistogramPlot, ScatterPlot
 from ..config.key import ConfigKey
 from ..config.paths import Paths
 from ..data import csv, json
@@ -200,28 +200,3 @@ class Visualizer:
         data = [data.loc[r].values for r in reasoners]
         data = dict(zip(reasoners, data))
         self.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric)
-
-    def _parse_line_style(self, style: str) -> LineStyle:
-        valid = {
-            'solid': '-',
-            'loosely_dotted':           (0, (1, 10)),
-            'dotted':                   (0, (1, 1)),
-            'densely_dotted':           (0, (1, 1)),
-            'loosely_dashed':           (0, (5, 10)),
-            'dashed':                   (0, (5, 5)),
-            'densely_dashed':           (0, (5, 1)),
-            'loosely_dashdotted':       (0, (3, 10, 1, 10)),
-            'dashdotted':               (0, (3, 5, 1, 5)),
-            'densely_dashdotted':       (0, (3, 1, 1, 1)),
-            'dashdotdotted':            (0, (3, 5, 1, 5, 1, 5)),
-            'loosely_dashdotdotted':    (0, (3, 10, 1, 10, 1, 10)),
-            'densely_dashdotdotted':    (0, (3, 1, 1, 1, 1, 1))
-        }
-
-        line_style = valid.get(style)
-        
-        if not line_style:
-            raise ValueError(f'Invalid line style "{style}". '
-                             f'Supported values: {", ".join(valid.keys())}')
-        
-        return line_style

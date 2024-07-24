@@ -371,6 +371,7 @@ class ScatterPlot(Plot):
         return _compute_limits(bounds, scale, True)
 
     def draw_plot(self) -> None:
+        self.line_styles = [_parse_line_style(s) for s in self.line_styles]
         labels = list(self.data.keys())
         dataset_size = len(next(iter(self.data.values()))[0])
 
@@ -602,3 +603,22 @@ def _linear_limit(data_min: float, data_max: float, tight: bool) -> (float, floa
             bottom = max(bottom - mult, 0.0)
 
     return bottom, top
+
+
+def _parse_line_style(style: str) -> LineStyle:
+        styles = {
+            'solid': '-',
+            'loosely_dotted':           (0, (1, 10)),
+            'dotted':                   (0, (1, 1)),
+            'densely_dotted':           (0, (1, 1)),
+            'loosely_dashed':           (0, (5, 10)),
+            'dashed':                   (0, (5, 5)),
+            'densely_dashed':           (0, (5, 1)),
+            'loosely_dashdotted':       (0, (3, 10, 1, 10)),
+            'dashdotted':               (0, (3, 5, 1, 5)),
+            'densely_dashdotted':       (0, (3, 1, 1, 1)),
+            'dashdotdotted':            (0, (3, 5, 1, 5, 1, 5)),
+            'loosely_dashdotdotted':    (0, (3, 10, 1, 10, 1, 10)),
+            'densely_dashdotdotted':    (0, (3, 1, 1, 1, 1, 1))
+        }
+        return styles.get(style, style)
