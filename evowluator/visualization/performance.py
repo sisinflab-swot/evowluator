@@ -97,7 +97,7 @@ class PerformanceVisualizer(Visualizer):
         # Energy histogram
         for ef in self._energy_fields:
             self.add_min_max_avg_plotter(self._summary, Metric('energy', ef, '.2f'),
-                                         col_filter=lambda c: 'energy' in c and ef in c)
+                                         col_filter=lambda c: 'energy' in c and f'({ef})' in c)
 
         # Time scatter
         if self._time_fields:
