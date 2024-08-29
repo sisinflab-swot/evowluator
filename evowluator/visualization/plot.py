@@ -186,10 +186,19 @@ class Plot:
             label.set_rotation(self.ytick_rot)
 
     def draw_legend(self) -> Legend | None:
+        try:
+            bbox = tuple(map(float, self.legend_loc.split(maxsplit=1)))
+            self.legend_loc = LegendLocation.BEST
+        except ValueError:
+            bbox = None
+            self.legend_loc = LegendLocation(self.legend_loc)
+
         if self.legend_loc == LegendLocation.NONE or len(self.data) <= 1:
             return None
+
         legend = self._ax.legend(handles=self.legend_handles if self.legend_handles else None,
                                  loc=self.legend_loc,
+                                 bbox_to_anchor=bbox,
                                  mode='expand' if self.legend_only else None,
                                  ncol=self.legend_cols,
                                  handletextpad=0.4,

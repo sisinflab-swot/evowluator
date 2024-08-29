@@ -289,8 +289,7 @@ def add_visualize_parser(subparsers) -> None:
                         type=float,
                         help='Limits of the y axis.')
     parser.add_argument('--legend-loc',
-                        type=LegendLocation,
-                        choices=LegendLocation.all(),
+                        metavar=f'{{{",".join(LegendLocation.all()) + ",x y"}}}',
                         default=LegendLocation.BEST,
                         help='Location of the legend.')
     parser.add_argument('--legend-cols',
