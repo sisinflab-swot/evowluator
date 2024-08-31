@@ -69,6 +69,7 @@ class Plot:
         self.grid_axis = 'both'
         self.legend_loc = LegendLocation.BEST
         self.legend_cols = 1
+        self.legend_font_size: float | None = None
         self.legend_handles: List[Line2D] = []
         self.legend_handle_length = 0.7
         self.legend_only = False
@@ -199,6 +200,7 @@ class Plot:
         legend = self._ax.legend(handles=self.legend_handles if self.legend_handles else None,
                                  loc=self.legend_loc,
                                  bbox_to_anchor=bbox,
+                                 fontsize = self.legend_font_size,
                                  mode='expand' if self.legend_only else None,
                                  ncol=self.legend_cols,
                                  handletextpad=0.4,
@@ -231,6 +233,7 @@ class HistogramPlot(Plot):
         self.grid_axis = 'y'
         self.label_fmt: str | None = None
         self.label_rot = 0.0
+        self.label_font_size: float | None = None
         self.metric: Metric | None = None
         self.show_labels = True
         self._labels: List[plt.Annotation] = []
@@ -263,7 +266,7 @@ class HistogramPlot(Plot):
 
         label = self._ax.annotate(format(h, fmt), (x, y),
                                   xytext=(0.0, 4.0), textcoords='offset points',
-                                  ha='center', va='bottom')
+                                  ha='center', va='bottom', fontsize=self.label_font_size)
         label.draggable()
         label.set_rotation(self.label_rot)
 
@@ -494,8 +497,8 @@ class Plotter:
 class Figure:
     _PLOTTER_ATTRS = ('colors', 'markers', 'line_styles', 'show_titles', 'show_labels',
                       'fit_poly_degrees', 'fit_poly_start_samples', 'fit_poly_end_samples',
-                      'legend_loc', 'legend_cols', 'legend_only',
-                      'label_fmt', 'label_rot', 'xtick_rot', 'ytick_rot',
+                      'legend_loc', 'legend_cols', 'legend_font_size', 'legend_only',
+                      'label_fmt', 'label_rot', 'label_font_size', 'xtick_rot', 'ytick_rot',
                       'xlimits', 'ylimits', 'xscale', 'yscale',
                       'edge_alpha', 'face_alpha', 'line_alpha', 'marker_size')
 

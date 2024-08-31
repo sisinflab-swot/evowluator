@@ -262,6 +262,9 @@ def add_visualize_parser(subparsers) -> None:
     parser.add_argument('--label-rot',
                         type=float,
                         help='Rotation of value labels in degrees.')
+    parser.add_argument('--label-font-size',
+                        type=float,
+                        help='Font size of value labels in points.')
     parser.add_argument('--xtick-rot',
                         type=float,
                         help='Rotation of labels on the x axis in degrees.')
@@ -299,6 +302,9 @@ def add_visualize_parser(subparsers) -> None:
     parser.add_argument('--legend-only',
                         action='store_true',
                         help='Only plot the legend.')
+    parser.add_argument('--legend-font-size',
+                        type=float,
+                        help='Legend font size in points.')
     parser.add_argument('--colors',
                         metavar='COLOR',
                         nargs='+',
