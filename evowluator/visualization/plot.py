@@ -105,30 +105,36 @@ class Plot:
     def get_ybounds(self) -> Tuple[float, float]:
         return self.compute_ybounds()
 
+    def get_xscale(self) -> str:
+        return self.xscale or self.compute_scale(self.get_xbounds())
+
+    def get_yscale(self) -> str:
+        return self.yscale or self.compute_scale(self.get_ybounds())
+
     def apply_scale(self) -> None:
         # Workaround for formatter getting reset on set_[xy]scale.
+        xscale, yscale = self.get_xscale(), self.get_yscale()
+
         if self.grid_axis != 'y':
             x_maj = ticker.FormatStrFormatter('%g')
-            x_min = ticker.LogFormatter() if self.xscale == Scale.LOG else ticker.NullFormatter()
+            x_min = ticker.LogFormatter() if xscale == Scale.LOG else ticker.NullFormatter()
         else:
             x_maj = self._ax.xaxis.get_major_formatter()
             x_min = self._ax.xaxis.get_minor_formatter()
 
         if self.grid_axis != 'x':
             y_maj = ticker.FormatStrFormatter('%g')
-            y_min = ticker.LogFormatter() if self.yscale == Scale.LOG else ticker.NullFormatter()
+            y_min = ticker.LogFormatter() if yscale == Scale.LOG else ticker.NullFormatter()
         else:
             y_maj = self._ax.xaxis.get_major_formatter()
             y_min = self._ax.xaxis.get_minor_formatter()
 
         log_subticks = [2, 3, 4, 5, 6, 7, 8, 9]
 
-        scale = self.xscale or self.compute_scale(self.get_xbounds())
-        if scale == Scale.LOG:
+        if xscale == Scale.LOG:
             self._ax.set_xscale(Scale.LOG, subs=log_subticks)
 
-        scale = self.yscale or self.compute_scale(self.get_ybounds())
-        if self.yscale == Scale.LOG:
+        if yscale == Scale.LOG:
             self._ax.set_yscale(Scale.LOG, subs=log_subticks)
 
         self._ax.xaxis.set_major_formatter(x_maj)
@@ -240,6 +246,9 @@ class HistogramPlot(Plot):
     def apply_limits(self) -> None:
         limits = self.ylimits or self.compute_limits(self.get_ybounds(), self._ax.get_yscale())
         self._ax.set_ylim(limits[0], limits[1])
+
+    def get_xscale(self) -> str:
+        return Scale.LINEAR
 
     def post_draw(self) -> None:
         self.draw_labels()
