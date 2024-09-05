@@ -53,11 +53,6 @@ class ReasoningTask:
         return ['parsing', 'reasoning', 'memory']
 
     @property
-    def expected_output_format(self) -> Output.Format:
-        """Expected output format."""
-        return Output.Format.TEXT
-
-    @property
     def requires_additional_inputs(self) -> bool:
         """True if the task requires additional inputs, other than the root ontology."""
         return False
