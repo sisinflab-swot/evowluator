@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
 from typing import Dict
 
+from pyutils.io import file
 from pyutils.io.pretty_printer import PrettyPrinter
 
 from . import json
@@ -27,7 +28,7 @@ def _load_metadata(dataset: Dataset, partial: bool = False) -> Dict:
         metadata_path = _metadata_path(dataset, partial) 
         ret = json.load(metadata_path)
         if partial:
-            os.remove(metadata_path)
+            file.remove(metadata_path)
         return ret
     except Exception:
         return {}

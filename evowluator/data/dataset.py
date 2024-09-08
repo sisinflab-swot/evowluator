@@ -121,9 +121,16 @@ class Dataset:
         def count(my_iter) -> int:
             return sum(1 for _ in my_iter)
 
+        syntaxes = self.syntaxes
+        syntaxes = [s for s in Syntax.priority() if s in syntaxes]
+
+        if self.preferred_syntax:
+            syntaxes.remove(self.preferred_syntax)
+            syntaxes.insert(0, self.preferred_syntax)
+
         counts_per_syntax = (
             (syntax, count(n for n in os.listdir(self.get_dir(syntax)) if not n.startswith('.')))
-            for syntax in self.syntaxes
+            for syntax in syntaxes
         )
 
         return max(counts_per_syntax, key=lambda e: e[1])[0]
