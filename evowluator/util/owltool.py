@@ -1,16 +1,18 @@
+import json
 import os
-from typing import List
+from typing import Dict, List
 
 from pyutils import exc
 from pyutils.proc.task import OutputAction, Task
 from ..config.paths import Paths
 
 
-def _spawn_owltool(args: List[str]) -> None:
+def _spawn_owltool(args: List[str], discard_output: bool = True) -> Task:
     exc.raise_if_not_found(Paths.OWLTOOL, file_type=exc.FileType.FILE)
     vm_opts = ['-Xmx32g', '-DentityExpansionLimit=1000000000']
-    Task.jar(Paths.OWLTOOL, jar_args=args, jvm_opts=vm_opts,
-             output_action=OutputAction.DISCARD).run().raise_if_failed()
+    output_action = OutputAction.DISCARD if discard_output else OutputAction.STORE
+    return Task.jar(Paths.OWLTOOL, jar_args=args, jvm_opts=vm_opts,
+                    output_action=output_action).run().raise_if_failed()
 
 
 def convert(source_path: str, target_path: str, target_syntax: str) -> None:
@@ -27,3 +29,12 @@ def print_taxonomy(onto_path: str, output_path: str) -> None:
         onto_path = os.path.splitext(onto_path)[0]
         os.rename(output_path, onto_path)
     _spawn_owltool(['taxonomy', '-i', onto_path, '-o', output_path])
+
+
+def get_metadata(onto_path: str) -> Dict:
+    """Returns metadata about the given ontology."""
+    try:
+        args = ['metadata', '-i', onto_path]
+        return json.loads(_spawn_owltool(args, discard_output=False).stdout)
+    except Exception as e:
+        exc.re_raise_new_message(e, f'Failed to get metadata of "{os.path.basename(onto_path)}"')

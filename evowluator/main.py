@@ -24,6 +24,9 @@ def main():
         from .config.debug import Debug
         echo.error(Debug.format(e))
         ret_val = 1
+    finally:
+        from pyutils.proc.task import Task
+        Task.terminate_all(kill=True)
 
     return ret_val
 

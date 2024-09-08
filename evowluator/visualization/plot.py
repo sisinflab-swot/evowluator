@@ -619,7 +619,7 @@ def _log_limit(data_min: float, data_max: float, tight: bool) -> Tuple[float, fl
 
     return bottom, top
 
-def _linear_limit(data_min: float, data_max: float, tight: bool) -> (float, float):
+def _linear_limit(data_min: float, data_max: float, tight: bool) -> Tuple[float, float]:
     mult = 1.0 if data_min == data_max else 10.0 ** np.floor(np.log10(data_max - data_min))
     bottom = (data_min // mult) * mult
     top = (data_max // mult + 1.0) * mult

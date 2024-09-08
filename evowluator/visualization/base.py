@@ -4,17 +4,13 @@ import os
 from os import path
 from typing import Callable, Dict, Iterable, List
 
-import numpy as np
 import pandas as pd
 
 from pyutils.io import file
-from pyutils.types.unit import MemoryUnit
-from .metric import Metric
-from .plot import Figure, MinMaxAvgHistogramPlot, ScatterPlot
+from .plot import Figure
 from ..config.key import ConfigKey
 from ..config.paths import Paths
 from ..data import csv, json
-from ..data.dataset import SortBy
 from ..data.info import DatasetInfo
 from ..data.syntax import Syntax
 from ..evaluation.mode import EvaluationMode
@@ -151,52 +147,3 @@ class Visualizer:
 
     def add_plotter(self, plot_type: type, **kwargs) -> None:
         self.figure.add_plotter(plot_type, **kwargs)
-
-    def add_scatter_plotter(self, metric: Metric, separate_cols: bool = False,
-                            col_filter: Callable[[str], bool] | None = None) -> None:
-        xunit = MemoryUnit.B(self._dataset.max_ontology_size()).readable().unit
-        xmetric = Metric('ontology size', xunit, '.2f')
-
-        data = {}
-
-        for reasoner in self._reasoners:
-            results = self.results_for_reasoner(reasoner, col_filter=col_filter, drop_missing=False)
-            ontologies = self._dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
-                                                      names=results.index, sort_by=SortBy.SIZE)
-
-            if isinstance(results.index, pd.MultiIndex):
-                results = results.groupby(level=0).mean()
-
-            x, y = [], []
-
-            if separate_cols:
-                for col in results.columns:
-                    x, y = [], []
-                    for onto in ontologies:
-                        yi = results.loc[onto.name][col]
-                        if not np.isnan(yi):
-                            x.append(MemoryUnit.B(onto.size).to_value(xunit))
-                            y.append(yi)
-                    label = f'{reasoner}: {col}' if len(self._reasoners) > 1 else col.capitalize()
-                    data[label] = (x, y)
-            else:
-                for onto in ontologies:
-                    yi = results.loc[onto.name].sum(skipna=False)
-                    if not np.isnan(yi):
-                        x.append(MemoryUnit.B(onto.size).to_value(xunit))
-                        y.append(yi)
-                data[reasoner] = (x, y)
-
-        self.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric)
-
-    def add_min_max_avg_plotter(self, data: pd.DataFrame, metric: Metric,
-                                col_filter: Callable[[str], bool] | None = None) -> None:
-        if col_filter:
-            cols = [c for c in data.columns if col_filter(c)]
-            data = data[cols]
-
-        reasoners = data.index.values
-
-        data = [data.loc[r].values for r in reasoners]
-        data = dict(zip(reasoners, data))
-        self.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric)

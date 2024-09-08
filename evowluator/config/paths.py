@@ -22,6 +22,7 @@ class Paths:
     LOG_FILE_NAME = 'log.txt'
     RESULTS_FILE_NAME = 'results.csv'
     CONFIG_FILE_NAME = 'config.json'
+    METADATA_FILE_NAME = 'metadata.json'
 
     OWLTOOL = path.join(BIN_DIR, 'OWLTool', 'owltool.jar')
 

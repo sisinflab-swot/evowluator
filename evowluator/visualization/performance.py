@@ -1,25 +1,26 @@
 from __future__ import annotations
 
-from functools import cached_property
+from functools import cached_property, partial
 from os import path
-from typing import List
+from typing import Callable, List
 
 import numpy as np
 import pandas as pd
 
-from pyutils.types.unit import MemoryUnit, TimeUnit
+from pyutils.types.unit import MemoryUnit, ScalarUnit, TimeUnit
 from .base import Visualizer
 from .metric import Metric
-from .plot import GroupedHistogramPlot
+from .plot import GroupedHistogramPlot, MinMaxAvgHistogramPlot, ScatterPlot
 from ..config.key import ConfigKey
-from ..data import csv
+from ..data import csv, json
+from ..data.size_unit import SizeUnit
 
 
 class PerformanceVisualizer(Visualizer):
 
     @property
     def time_unit(self) -> TimeUnit:
-        return self._time_unit if self._time_unit else TimeUnit.MS
+        return self._time_unit or TimeUnit.MS
 
     @time_unit.setter
     def time_unit(self, unit: TimeUnit) -> None:
@@ -31,7 +32,7 @@ class PerformanceVisualizer(Visualizer):
 
     @property
     def memory_unit(self) -> MemoryUnit:
-        return self._memory_unit if self._memory_unit else MemoryUnit.B
+        return self._memory_unit or MemoryUnit.B
 
     @memory_unit.setter
     def memory_unit(self, unit: MemoryUnit) -> None:
@@ -40,6 +41,18 @@ class PerformanceVisualizer(Visualizer):
         mult = unit.multiplier / self.memory_unit.multiplier
         self._results[self._memory_cols] /= mult
         self._memory_unit = unit
+
+    @property
+    def size_unit(self) -> SizeUnit:
+        return self._size_unit or SizeUnit.SIZE
+
+    @size_unit.setter
+    def size_unit(self, unit: SizeUnit) -> None:
+        if isinstance(unit, str):
+            unit = SizeUnit(unit)
+        if unit != SizeUnit.SIZE:
+            self._update_config_with_constructs()
+        self._size_unit = unit
 
     @property
     def time_metric(self) -> Metric:
@@ -65,6 +78,7 @@ class PerformanceVisualizer(Visualizer):
         self._time_unit: TimeUnit | None = None
         self._cumulative_time_unit: TimeUnit | None = None
         self._memory_unit: MemoryUnit | None = None
+        self._size_unit: SizeUnit | None = None
         self._autoscale_results()
 
     def _autoscale_results(self) -> None:
@@ -72,6 +86,11 @@ class PerformanceVisualizer(Visualizer):
             avg_mem = self._results[self._memory_cols].mean(axis=0).mean()
             self.memory_unit = MemoryUnit.B(avg_mem).readable().unit
 
+    def _update_config_with_constructs(self) -> None:
+        if self._dataset.retrieve_constructs_info():
+            cfg = json.load(self.config_path)
+            cfg[ConfigKey.DATASET] = self._dataset.to_dict()
+            json.save(cfg, self.config_path)
 
     def configure_plotters(self) -> None:
         super().configure_plotters()
@@ -79,38 +98,30 @@ class PerformanceVisualizer(Visualizer):
         # Time histogram
         cols = [f.capitalize() for f in self._time_fields]
         if cols:
-            data = self._summary.iloc[:, :len(cols)]
-            reasoners = list(data.index.values)
-            data = data.values.transpose()
-            self.add_plotter(GroupedHistogramPlot,
-                             title='Total time',
-                             data=dict(zip(cols, list(data))),
-                             metric=self.cumulative_time_metric,
-                             groups=reasoners,
-                             show_zero_labels=False)
+            self._add_time_bar_plotter(self._summary, cols)
 
         # Memory histogram
         if self._has_memory:
-            self.add_min_max_avg_plotter(self._summary, self.memory_metric,
-                                         col_filter=lambda c: 'memory' in c)
+            self._add_min_max_avg_plotter(self._summary, self.memory_metric,
+                                          col_filter=lambda c: 'memory' in c)
 
         # Energy histogram
         for ef in self._energy_fields:
-            self.add_min_max_avg_plotter(self._summary, Metric('energy', ef, '.2f'),
-                                         col_filter=lambda c: 'energy' in c and f'({ef})' in c)
+            self._add_min_max_avg_plotter(self._summary, Metric('energy', ef, '.2f'),
+                                          col_filter=lambda c: 'energy' in c and f'({ef})' in c)
 
         # Time scatter
         if self._time_fields:
-            self.add_scatter_plotter(self.time_metric, separate_cols=self.separate_fields,
-                                     col_filter=lambda c: c in self._time_fields)
+            self._add_scatter_plotter(self.time_metric, separate_cols=self.separate_fields,
+                                      col_filter=lambda c: c in self._time_fields)
 
         # Memory scatter
         if self._has_memory:
-            self.add_scatter_plotter(self.memory_metric, col_filter=lambda c: 'memory' in c)
+            self._add_scatter_plotter(self.memory_metric, col_filter=lambda c: 'memory' in c)
 
         # Energy scatter
         for ef in self._energy_fields:
-            self.add_scatter_plotter(Metric('energy', ef, '.2f'), col_filter=lambda c: c == ef)
+            self._add_scatter_plotter(Metric('energy', ef, '.2f'), col_filter=lambda c: c == ef)
 
     def write_results(self):
         super().write_results()
@@ -212,3 +223,73 @@ class PerformanceVisualizer(Visualizer):
 
         csv.write(summary, file_path)
         self._summary = summary
+
+    def _add_scatter_plotter(self, metric: Metric, separate_cols: bool = False,
+                             col_filter: Callable[[str], bool] | None = None) -> None:
+        def convert_bytes(u: MemoryUnit, sz: int) -> float:
+            return MemoryUnit.B(sz).to_value(u)
+        def convert_scalar(u: ScalarUnit, sz: int) -> float:
+            return ScalarUnit.BASE(sz).to_value(u)
+
+        if self.size_unit == SizeUnit.SIZE:
+            xunit = MemoryUnit.B(self._dataset.max_ontology_size()).readable().unit
+            convert_fun = partial(convert_bytes, xunit)
+        else:
+            xunit = ScalarUnit.BASE(self._dataset.max_ontology_size(self.size_unit)).readable().unit
+            convert_fun = partial(convert_scalar, xunit)
+
+        xmetric = Metric(self.size_unit.value.replace('_', ' '), xunit, '.2f')
+        data = {}
+
+        for reasoner in self._reasoners:
+            results = self.results_for_reasoner(reasoner, col_filter=col_filter, drop_missing=False)
+            ontologies = self._dataset.get_ontologies(self._syntaxes_by_reasoner[reasoner],
+                                                      names=results.index, size_unit=self.size_unit)
+
+            if isinstance(results.index, pd.MultiIndex):
+                results = results.groupby(level=0).mean()
+
+            x, y = [], []
+
+            if separate_cols:
+                for col in results.columns:
+                    x, y = [], []
+                    for onto in ontologies:
+                        yi = results.loc[onto.name][col]
+                        if not np.isnan(yi):
+                            x.append(convert_fun(onto.size))
+                            y.append(yi)
+                    label = f'{reasoner}: {col}' if len(self._reasoners) > 1 else col.capitalize()
+                    data[label] = (x, y)
+            else:
+                for onto in ontologies:
+                    yi = results.loc[onto.name].sum(skipna=False)
+                    if not np.isnan(yi):
+                        x.append(convert_fun(onto.size))
+                        y.append(yi)
+                data[reasoner] = (x, y)
+
+        self.add_plotter(ScatterPlot, data=data, xmetric=xmetric, ymetric=metric)
+
+    def _add_time_bar_plotter(self, data: pd.DataFrame, cols: List[str]) -> None:
+        data = data.iloc[:, :len(cols)]
+        reasoners = list(data.index.values)
+        data = data.values.transpose()
+        self.add_plotter(GroupedHistogramPlot,
+                            title='Total time',
+                            data=dict(zip(cols, list(data))),
+                            metric=self.cumulative_time_metric,
+                            groups=reasoners,
+                            show_zero_labels=False)
+
+    def _add_min_max_avg_plotter(self, data: pd.DataFrame, metric: Metric,
+                                 col_filter: Callable[[str], bool] | None = None) -> None:
+        if col_filter:
+            cols = [c for c in data.columns if col_filter(c)]
+            data = data[cols]
+
+        reasoners = data.index.values
+
+        data = [data.loc[r].values for r in reasoners]
+        data = dict(zip(reasoners, data))
+        self.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric)

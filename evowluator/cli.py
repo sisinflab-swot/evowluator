@@ -9,6 +9,7 @@ from .config.evaluation import Evaluation
 from .config.paths import EXE_NAME, Paths
 from .data import converter
 from .data.dataset import Dataset, SortBy, Syntax
+from .data.size_unit import SizeUnit
 from .evaluation import info
 from .evaluation.base import CorrectnessEvaluator, PerformanceEvaluator
 from .evaluation.mode import EvaluationMode
@@ -239,6 +240,9 @@ def add_visualize_parser(subparsers) -> None:
     parser.add_argument('--memory-unit',
                         choices=MemoryUnit.all(),
                         help='Memory unit.')
+    parser.add_argument('--size-unit',
+                        choices=SizeUnit.all(),
+                        help='Size unit.')
     parser.add_argument('--no-gui',
                         dest='gui',
                         action='store_false',
@@ -436,6 +440,9 @@ def visualize_sub(args) -> int:
 
     if hasattr(visualizer, 'time_unit') and args.time_unit:
         visualizer.time_unit = args.time_unit
+
+    if hasattr(visualizer, 'size_unit') and args.size_unit:
+        visualizer.size_unit = args.size_unit
 
     if args.xlimits:
         args.xlimits = (args.xlimits[0], args.xlimits[1])

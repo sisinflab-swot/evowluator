@@ -1,5 +1,6 @@
 class ConfigKey:
     """Evaluation config dictionary keys."""
+    CONSTRUCTS = 'constructs'
     CORRECTNESS_RESULTS = 'correctness_results'
     CORRECTNESS_STRATEGY = 'correctness_strategy'
     DATASET = 'dataset'
