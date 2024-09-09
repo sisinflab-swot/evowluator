@@ -142,8 +142,8 @@ class Dataset:
             if not r.requires_additional_inputs or os.path.isdir(self.get_dir(r))
         ]
 
-    def __init__(self, name: str) -> None:
-        self.path = os.path.join(Paths.DATA_DIR, name)
+    def __init__(self, name_or_path: str) -> None:
+        self.path = Paths.dataset(name_or_path)
         self.sort_by = SortBy.NAME
         self.start_after: str | None = None
         self.preferred_syntax: Syntax | None = None

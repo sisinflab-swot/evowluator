@@ -462,8 +462,7 @@ def visualize_sub(args) -> int:
 
 
 def convert_sub(args) -> int:
-    dataset_path = os.path.join(Paths.DATA_DIR, args.dataset)
-    converter.convert_dataset(Dataset(dataset_path), args.syntax)
+    converter.convert_dataset(Dataset(args.dataset), args.syntax)
     return 0
 
 

@@ -12,7 +12,7 @@ from .base import Visualizer
 from .metric import Metric
 from .plot import GroupedHistogramPlot, MinMaxAvgHistogramPlot, ScatterPlot
 from ..config.key import ConfigKey
-from ..data import csv, json
+from ..data import csv, json, metadata
 from ..data.size_unit import SizeUnit
 
 
@@ -87,10 +87,17 @@ class PerformanceVisualizer(Visualizer):
             self.memory_unit = MemoryUnit.B(avg_mem).readable().unit
 
     def _update_config_with_constructs(self) -> None:
-        if self._dataset.retrieve_constructs_info():
-            cfg = json.load(self.config_path)
-            cfg[ConfigKey.DATASET] = self._dataset.to_dict()
-            json.save(cfg, self.config_path)
+        if not self._dataset.dataset_is_present:
+            return
+
+        if (self._dataset.has_constructs_info and
+            not metadata.newer_than(self._dataset.name, self.config_path)):
+            return
+
+        self._dataset.update_constructs_info()
+        cfg = json.load(self.config_path)
+        cfg[ConfigKey.DATASET] = self._dataset.to_dict()
+        json.save(cfg, self.config_path)
 
     def configure_plotters(self) -> None:
         super().configure_plotters()

@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import partial
 from typing import Dict
 
 from pyutils.io import file
@@ -11,13 +10,12 @@ from pyutils.io.pretty_printer import PrettyPrinter
 
 from . import json
 from .dataset import Dataset, DatasetEntry
-from .syntax import Syntax
 from ..config.paths import Paths
 from ..util import owltool
 
 
-def _metadata_path(dataset: Dataset, partial: bool = False) -> str:
-    ret = os.path.join(dataset.path, Paths.METADATA_FILE_NAME)
+def _metadata_path(dataset_name: str, partial: bool = False) -> str:
+    ret = os.path.join(Paths.dataset(dataset_name), Paths.METADATA_FILE_NAME)
     if partial:
         ret += '.partial'
     return ret
@@ -25,7 +23,7 @@ def _metadata_path(dataset: Dataset, partial: bool = False) -> str:
 
 def _load_metadata(dataset: Dataset, partial: bool = False) -> Dict:
     try:
-        metadata_path = _metadata_path(dataset, partial) 
+        metadata_path = _metadata_path(dataset.path, partial) 
         ret = json.load(metadata_path)
         if partial:
             file.remove(metadata_path)
@@ -35,11 +33,7 @@ def _load_metadata(dataset: Dataset, partial: bool = False) -> Dict:
 
 
 def _save_metadata(dataset: Dataset, metadata: Dict, partial: bool = False) -> None:
-    json.save(metadata, _metadata_path(dataset, partial))
-
-
-def _get_metadata(metadata: Dict, syntax: Syntax, entry: DatasetEntry) -> None:
-    metadata[entry.name] = owltool.get_metadata(entry.ontology(syntax).path)
+    json.save(metadata, _metadata_path(dataset.path, partial))
 
 
 def _compute_metadata(dataset: Dataset) -> Dict:
@@ -49,7 +43,9 @@ def _compute_metadata(dataset: Dataset) -> Dict:
 
     syntax = dataset.reference_syntax
     metadata = _load_metadata(dataset, partial=True)
-    pool_fn = partial(_get_metadata, metadata, syntax)
+
+    def _get_metadata(entry: DatasetEntry) -> None:
+        metadata[entry.name] = owltool.get_metadata(entry.ontology(syntax).path)
 
     try:
         missing = []
@@ -63,7 +59,7 @@ def _compute_metadata(dataset: Dataset) -> Dict:
 
         with ThreadPoolExecutor() as pool:
             try:
-                submitted = {pool.submit(pool_fn, entry): entry for entry in missing}
+                submitted = {pool.submit(_get_metadata, entry): entry for entry in missing}
                 for future in as_completed(submitted):
                     entry = submitted[future]
                     if exception := future.exception():
@@ -84,5 +80,11 @@ def _compute_metadata(dataset: Dataset) -> Dict:
 
 
 def retrieve(dataset: Dataset) -> Dict:
-    """Retrieves metadata for the dataset."""
     return _load_metadata(dataset) or _compute_metadata(dataset)
+
+
+def newer_than(dataset_path: str, path: str) -> bool:
+    try:
+        return os.path.getmtime(_metadata_path(dataset_path)) > os.path.getmtime(path)
+    except Exception:
+        return False

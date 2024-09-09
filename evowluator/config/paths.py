@@ -49,3 +49,7 @@ class Paths:
         """Absolute path for the specified relative path."""
         rel_path = path.normpath(rel_path)
         return rel_path if path.isabs(rel_path) else path.join(base, rel_path)
+
+    @staticmethod
+    def dataset(name_or_path: str) -> str:
+        return Paths.absolute(name_or_path, base=Paths.DATA_DIR)
