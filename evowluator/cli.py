@@ -1,6 +1,6 @@
 import argparse
-import os
 from functools import cache
+from typing import List, Tuple
 
 from pyutils.proc.energy import EnergyProbe
 from pyutils.types.unit import TimeUnit, MemoryUnit
@@ -330,14 +330,10 @@ def add_visualize_parser(subparsers) -> None:
                         type=positive_int,
                         default=0,
                         help='Fit a polyline of the specified degree to the data.')
-    parser.add_argument('--fit-poly-start-samples',
+    parser.add_argument('--fit-poly-points',
                         nargs='+',
-                        type=non_negative_int,
-                        help='Forces the polyline to pass from the average of the first samples.')
-    parser.add_argument('--fit-poly-end-samples',
-                        nargs='+',
-                        type=non_negative_int,
-                        help='Forces the polyline to pass from the average of the last samples.')
+                        type=point_list,
+                        help='Use these points to fit the polyline.')
     parser.add_argument('--edge-alpha',
                         type=float,
                         help='Edge alpha.')
@@ -469,11 +465,16 @@ def convert_sub(args) -> int:
 # Utils
 
 
-def non_negative_int(value: str) -> int:
-    ivalue = int(value)
-    if ivalue < 0:
-        raise argparse.ArgumentTypeError(f'{value} is a negative int')
-    return ivalue
+def point_list(value: str) -> List[Tuple[float, float]]:
+    ret = []
+    try:
+        for point in value.split():
+            x, y = point.split(',')
+            ret.append((float(x), float(y)))
+    except Exception:
+        raise argparse.ArgumentTypeError(f'{value} is not a list of points')
+    return ret
+
 
 def positive_int(value: str) -> int:
     ivalue = int(value)

@@ -287,7 +287,7 @@ class HistogramPlot(Plot):
             renderer = self._ax.figure.canvas.get_renderer()
             label_box = label.get_window_extent(renderer)
 
-            for existing in (l for l in self._labels if l is not label):
+            for existing in (lbl for lbl in self._labels if lbl is not label):
                 box = existing.get_window_extent(renderer)
                 if box.overlaps(label_box):
                     # Return the label with the highest y-coordinate among the two.
@@ -381,8 +381,7 @@ class ScatterPlot(Plot):
         self.data: Dict[str, Tuple[List[float], List[float]]] = {}
         self.markers: List[str] = []
         self.fit_poly_degrees: List[int] = []
-        self.fit_poly_start_samples: List[int] = []
-        self.fit_poly_end_samples: List[int] = []
+        self.fit_poly_points: List[List[Tuple[float, float]]] = []
         self.line_styles: List[LineStyle] = []
         self.legend_handle_length = 2.5
         self.marker_size = 0.0
@@ -450,10 +449,10 @@ class ScatterPlot(Plot):
 
                 # Draw polyline
                 if degree is not None:
-                    start = listutils.get(self.fit_poly_start_samples, i, overflow=Overflow.MOD)
-                    end = listutils.get(self.fit_poly_end_samples, i, overflow=Overflow.MOD)
-                    self.draw_polyline(x, y, degree=degree, start_samples=start, end_samples=end,
-                                       color=l_color, style=line_style)
+                    if points := listutils.get(self.fit_poly_points, i, overflow=Overflow.MOD):
+                        x = [p[0] for p in points]
+                        y = [p[1] for p in points]
+                    self.draw_polyline(x, y, degree=degree, color=l_color, style=line_style)
 
         self.title = f'{self.ymetric.capitalized_name} by {self.xmetric.name}'
         self.xlabel = self.xmetric.to_string(capitalize=True)
@@ -461,46 +460,12 @@ class ScatterPlot(Plot):
         super().draw_plot()
 
     def draw_polyline(self, x: List[float], y: List[float], degree: int = 1,
-                      start_samples: int | None = None, end_samples: int | None = None,
-                      color: Tuple | str | None = None, style: str | tuple | None = None) -> None:
-        def find_where(values, check, default) -> int:
-            for idx, val in enumerate(values):
-                if check(val):
-                    return idx
-            return default
-
-        count = len(x)
-        weights = [1.0] * count
-
-        if start_samples is None:
-            # Heuristic to estimate good start point
-            x_min, x_max = x[0], x[count - 1]
-            vmax = x_min + (x_max - x_min) / 100.0
-            start_samples = find_where(x, lambda v: v > vmax, 1)
-            start_samples = min(start_samples, int(len(x) / 100), 100)
-
-        if end_samples is None:
-            end_samples = 0
-
-        force_points = []
-        force_weight = sum(y) * 1000
-
-        if start_samples:
-            force_points.append((sum(x[:start_samples]) / start_samples,
-                                 sum(y[:start_samples]) / start_samples))
-
-        if end_samples:
-            force_points.append((sum(x[-end_samples:]) / end_samples,
-                                 sum(y[-end_samples:]) / end_samples))
-
-        for point_x, point_y in force_points:
-            index = find_where(x, lambda v: v > point_x, 1) - 1
-            x.insert(index, point_x)
-            y.insert(index, point_y)
-            weights.insert(index, force_weight)
-
-        self._ax.plot(x, np.poly1d(np.polyfit(x, y, degree, w=weights))(x),
-                      color=color, linestyle=style)
+                      color: Tuple | str | None = None,
+                      style: str | tuple | None = None) -> None:
+        poly_fit = np.poly1d(np.polyfit(x, y, degree))
+        x_space = np.linspace if self.get_xscale() == Scale.LINEAR else np.geomspace
+        x = x_space(min(x), max(x), 1000)
+        self._ax.plot(x, poly_fit(x), color=color, linestyle=style)
 
 
 class Plotter:
@@ -517,7 +482,7 @@ class Plotter:
 
 class Figure:
     _PLOTTER_ATTRS = ('colors', 'markers', 'line_styles', 'show_titles', 'show_labels',
-                      'fit_poly_degrees', 'fit_poly_start_samples', 'fit_poly_end_samples',
+                      'fit_poly_degrees', 'fit_poly_points',
                       'legend_loc', 'legend_cols', 'legend_font_size', 'legend_only',
                       'label_fmt', 'label_rot', 'label_font_size', 'xtick_rot', 'ytick_rot',
                       'xlimits', 'ylimits', 'xscale', 'yscale',
