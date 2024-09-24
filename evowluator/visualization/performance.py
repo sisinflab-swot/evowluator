@@ -151,30 +151,30 @@ class PerformanceVisualizer(Visualizer):
         return list(sorted(f for f in self.fields if f in self._energy_probes))
 
     @cached_property
-    def _time_cols(self) -> List:
+    def _time_cols(self) -> List[str]:
         return [c for c in self._results.columns if any(f in c for f in self._time_fields)]
 
     @cached_property
-    def _parsing_cols(self) -> List:
+    def _parsing_cols(self) -> List[str]:
         return [c for c in self._time_cols if 'parsing' in c]
 
     @cached_property
-    def _reasoning_cols(self) -> List:
+    def _reasoning_cols(self) -> List[str]:
         return [c for c in self._time_cols if c not in self._parsing_cols]
 
     @cached_property
-    def _memory_cols(self) -> List:
+    def _memory_cols(self) -> List[str]:
         return [c for c in self._results.columns if 'memory' in c] if self._has_memory else []
 
     @cached_property
-    def _energy_cols(self) -> List:
+    def _energy_cols(self) -> List[str]:
         return [c for c in self._results.columns if any(f in c for f in self._energy_fields)]
 
     def _energy_probe_cols(self, probe: str) -> List:
-        return [c for c in self._energy_cols if probe in c]
+        return [c for c in self._energy_cols if c.split(": ")[1] == probe]
 
     def _time_field_cols(self, field: str) -> List:
-        return [c for c in self._time_cols if field in c]
+        return [c for c in self._time_cols if c.split(": ")[1] == field]
 
     def _write_total_times(self, file_path: str) -> None:
         if self._time_cols:
