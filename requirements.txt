@@ -1,4 +1,4 @@
-matplotlib==3.9.0
-numpy==2.0.0
-pandas==2.2.2
-psutil==6.0.0
+matplotlib==3.10.8
+numpy==2.4.1
+pandas==2.3.3
+psutil==7.2.1
