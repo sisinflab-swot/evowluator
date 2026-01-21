@@ -6,14 +6,14 @@ from typing import Callable, List
 
 import numpy as np
 import pandas as pd
-
 from pyutils.types.unit import MemoryUnit, ScalarUnit, TimeUnit
-from .base import Visualizer
-from .metric import Metric
-from .plot import GroupedHistogramPlot, MinMaxAvgHistogramPlot, ScatterPlot
+
 from ..config.key import ConfigKey
 from ..data import csv, json, metadata
 from ..data.size_unit import SizeUnit
+from .base import Visualizer
+from .metric import Metric
+from .plot import AggregatedHistogramPlot, GroupedHistogramPlot, ScatterPlot
 
 
 class PerformanceVisualizer(Visualizer):
@@ -220,13 +220,15 @@ class PerformanceVisualizer(Visualizer):
 
         for metric, cols in [(m, c) for m, c in min_max_avg_metrics if c]:
             res = self.results_grouped_by_reasoner(cols).sum().T
-            res_min, res_avg, res_max = res.min(), res.mean(), res.max()
+            res_min, res_avg, res_max, res_std = res.min(), res.mean(), res.max(), res.std()
             res_min = np.array([res_min[r] for r in reasoners])
             res_avg = np.array([res_avg[r] for r in reasoners])
             res_max = np.array([res_max[r] for r in reasoners])
+            res_std = np.array([res_std[r] for r in reasoners])
             summary[f'min {metric}'] = res_min
             summary[f'avg {metric}'] = res_avg
             summary[f'max {metric}'] = res_max
+            summary[f'std {metric}'] = res_std
 
         csv.write(summary, file_path)
         self._summary = summary
@@ -299,4 +301,4 @@ class PerformanceVisualizer(Visualizer):
 
         data = [data.loc[r].values for r in reasoners]
         data = dict(zip(reasoners, data))
-        self.add_plotter(MinMaxAvgHistogramPlot, data=data, metric=metric)
+        self.add_plotter(AggregatedHistogramPlot, data=data, metric=metric)

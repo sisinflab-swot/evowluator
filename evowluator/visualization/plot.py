@@ -7,14 +7,15 @@ from math import ceil
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
-from matplotlib import colors, pyplot as plt, ticker
+from matplotlib import colors, ticker
+from matplotlib import pyplot as plt
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
-
 from pyutils.types import listutils
 from pyutils.types.listutils import Overflow
 from pyutils.types.strenum import StrEnum
+
 from .metric import Metric
 
 LineStyle = Union[str, tuple]
@@ -367,11 +368,11 @@ class GroupedHistogramPlot(HistogramPlot):
         self.title = self.metric.capitalized_name
 
 
-class MinMaxAvgHistogramPlot(GroupedHistogramPlot):
+class AggregatedHistogramPlot(GroupedHistogramPlot):
 
     def pre_draw(self) -> None:
-        self.title = 'Minimum, average and maximum ' + self.metric.name
-        self.groups = ['Min', 'Avg', 'Max']
+        self.title = 'Aggregated ' + self.metric.name
+        self.groups = ['Min', 'Avg', 'Max', 'Std']
 
 
 class ScatterPlot(Plot):
